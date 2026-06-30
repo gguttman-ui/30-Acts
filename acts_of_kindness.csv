@@ -1,0 +1,160 @@
+﻿id,title,category,timeMinutes,costDollars
+wk-024,Rescued an injured animal,World Kindness,45,100
+gg-013,Sent a care package,Generous Giving,30,25
+hh-011,Fixed something for someone,Helping Hands,45,25
+wk-021,Set up a bird feeder or bath,World Kindness,45,25
+hh-003,Drove someone to an appointment,Helping Hands,60,0
+hh-006,Mowed a lawn or shoveled a driveway for someone,Helping Hands,90,0
+hh-030,Taught someone a new skill,Helping Hands,90,0
+lp-005,Put the phone away during a conversation,Listening & Presence,45,0
+lp-011,Had a meal with no phones at the table,Listening & Presence,45,0
+lp-012,Took a walk with someone instead of texting,Listening & Presence,45,0
+lp-014,Spent device-free time with a child,Listening & Presence,60,0
+mb-009,Made amends with someone,Mending Bridges,60,0
+sk-008,Took a tech-free hour,Self-Kindness,60,0
+sk-011,Took a long bath or walk,Self-Kindness,60,0
+gg-003,Bought coffee for the person behind in line,Generous Giving,0,10
+gg-016,Paid the toll for the car behind,Generous Giving,0,10
+gg-012,Picked up the tab unexpectedly,Generous Giving,0,100
+gg-022,Anonymously paid for someone else's meal,Generous Giving,0,100
+mb-002,Forgave a debt,Mending Bridges,0,100
+gg-006,Tipped extra generously,Generous Giving,0,25
+gg-002,Gave money to someone in need,Generous Giving,0,5
+gg-017,Left money in a public place for someone to find,Generous Giving,0,5
+kw-001,Gave a sincere compliment,Kind Words,0,0
+kw-005,Praised someone publicly,Kind Words,0,0
+kw-006,Sent an encouraging text out of the blue,Kind Words,0,0
+kw-009,Texted someone after a long silence,Kind Words,0,0
+kw-011,"Said ""I love you"" out loud",Kind Words,0,0
+kw-012,Sent a text or voice note of gratitude,Kind Words,0,0
+kw-013,"Acknowledged someone's effort, not just their result",Kind Words,0,0
+kw-014,Spoke up to credit someone in a meeting,Kind Words,0,0
+kw-017,Smiled at strangers throughout the day,Kind Words,0,0
+hh-007,Held a door open,Helping Hands,0,0
+hh-014,Gave a stranger directions,Helping Hands,0,0
+hh-016,Gave up a seat,Helping Hands,0,0
+lp-006,"Sent a ""thinking of you"" text or voice note",Listening & Presence,0,0
+lp-013,Remembered an important date and reached out,Listening & Presence,0,0
+lp-017,"Sent a ""no need to respond"" supportive message",Listening & Presence,0,0
+mb-005,"Said ""I was wrong""",Mending Bridges,0,0
+mb-012,Apologized to someone for losing my temper,Mending Bridges,0,0
+mb-014,Stopped the silent treatment,Mending Bridges,0,0
+sk-002,Said no to something I didn't want to do,Self-Kindness,0,0
+wk-004,"Used a reusable cup, bag, or bottle",World Kindness,0,0
+wk-011,Returned a shopping cart,World Kindness,0,0
+wk-012,Cleaned up after my dog,World Kindness,0,0
+wk-017,Refused single-use plastic,World Kindness,0,0
+kw-010,Wrote a card for no occasion,Kind Words,15,5
+gg-009,Donated books,Generous Giving,15,0
+hh-023,Watered a neighbor's plants while they were away,Helping Hands,15,0
+hh-026,Welcomed a new colleague or new neighbor,Helping Hands,15,0
+lp-019,Checked in on an elderly neighbor,Listening & Presence,15,0
+mb-011,Let go of a grudge I'd been carrying,Mending Bridges,15,0
+sk-012,Forgave myself for a past mistake,Self-Kindness,15,0
+wk-014,Wrote to a representative,World Kindness,15,0
+gg-011,"Bought a ""just because"" gift",Generous Giving,30,100
+gg-007,Brought groceries to someone,Generous Giving,30,25
+gg-021,"Donated to a shelter (hygiene products, blankets, pet food)",Generous Giving,30,25
+sk-019,Drank water and ate a real meal,Self-Kindness,30,25
+wk-018,Donated to a school supplies drive,World Kindness,30,25
+gg-023,Brought treats to share with the team,Generous Giving,30,50
+hh-008,Brought a meal to a new neighbor,Helping Hands,30,50
+wk-005,Shopped at a small business,World Kindness,30,50
+wk-016,Bought from a local farmer,World Kindness,30,50
+kw-007,Wrote a recommendation letter,Kind Words,30,0
+kw-015,Wrote a letter to a teacher or mentor who shaped me,Kind Words,30,0
+gg-008,Donated clothing,Generous Giving,30,0
+gg-019,Donated household items,Generous Giving,30,0
+hh-005,Walked a neighbor's dog,Helping Hands,30,0
+hh-009,Helped someone elderly with something physical,Helping Hands,30,0
+hh-013,Gave a free ride,Helping Hands,30,0
+hh-015,Changed a flat tire or jump-started a car,Helping Hands,30,0
+hh-017,Reviewed someone's rĆ©sumĆ© or cover letter,Helping Hands,30,0
+hh-022,Helped someone with technology,Helping Hands,30,0
+hh-028,Cleaned up a shared space without being asked,Helping Hands,30,0
+lp-001,Called a parent or grandparent,Listening & Presence,30,0
+lp-004,Listened without giving advice,Listening & Presence,30,0
+lp-007,"Asked ""how are you, really?"" and waited for the real answer",Listening & Presence,30,0
+lp-015,Read a book to a child,Listening & Presence,30,0
+lp-016,Called instead of texted,Listening & Presence,30,0
+lp-018,Called someone I hadn't spoken to in months,Listening & Presence,30,0
+lp-020,Reconnected with someone I'd lost touch with,Listening & Presence,30,0
+mb-007,Wrote a letter to someone I'd hurt,Mending Bridges,30,0
+mb-010,Initiated reconciliation with someone,Mending Bridges,30,0
+mb-015,Reached out to someone I have been estranged from,Mending Bridges,30,0
+sk-009,Meditated,Self-Kindness,30,0
+sk-010,Journaled about my feelings,Self-Kindness,30,0
+sk-020,Let myself cry instead of bottling it up,Self-Kindness,30,0
+sk-021,Stretched or moved my body gently,Self-Kindness,30,0
+wk-001,Picked up litter,World Kindness,30,0
+wk-013,Voted,World Kindness,30,0
+wk-015,Picked up trash on a walk,World Kindness,30,0
+gg-010,Sent flowers unexpectedly,Generous Giving,5,100
+gg-004,Paid for a stranger's meal,Generous Giving,5,25
+gg-005,Bought a meal for someone,Generous Giving,5,25
+gg-001,Donated to a cause,Generous Giving,5,5
+wk-007,Fed a stray animal,World Kindness,5,5
+gg-015,Sponsored someone's fundraiser,Generous Giving,5,50
+gg-024,Gave a gift card to someone in need,Generous Giving,5,50
+kw-002,Sent a thank-you note,Kind Words,5,0
+kw-003,Wrote a positive online review,Kind Words,5,0
+kw-004,Recommended someone for a job or opportunity,Kind Words,5,0
+kw-008,Left a kind anonymous note for someone to find,Kind Words,5,0
+kw-016,Defended someone in a conversation when they weren't there,Kind Words,5,0
+kw-018,Shared an uplifting story or piece of good news,Kind Words,5,0
+gg-018,Donated unused gift cards,Generous Giving,5,0
+hh-010,Carried something heavy for someone,Helping Hands,5,0
+hh-018,Connected two people who could help each other,Helping Hands,5,0
+hh-021,Brought in someone's trash cans,Helping Hands,5,0
+hh-025,Lent tools or equipment to someone,Helping Hands,5,0
+hh-031,Shared homegrown produce,Helping Hands,5,0
+lp-008,Checked in on someone after a loss,Listening & Presence,5,0
+lp-021,Introduced myself to a new neighbor,Listening & Presence,5,0
+mb-001,Apologized for something I'd done wrong to someone,Mending Bridges,5,0
+mb-003,Forgave someone who'd wronged me,Mending Bridges,5,0
+mb-004,Reached out after a falling out,Mending Bridges,5,0
+mb-006,Owned a mistake at work without making excuses,Mending Bridges,5,0
+mb-008,Sent a text or voice note to someone I'd hurt,Mending Bridges,5,0
+mb-013,Gave someone a second chance,Mending Bridges,5,0
+mb-016,"Asked ""how can I make this right?""",Mending Bridges,5,0
+mb-017,Acknowledged hurting someone (even if unintended),Mending Bridges,5,0
+sk-003,Set a boundary,Self-Kindness,5,0
+sk-005,Made a doctor's appointment I'd been avoiding,Self-Kindness,5,0
+sk-006,Made a therapy appointment,Self-Kindness,5,0
+sk-013,Wrote down three things I'm grateful for,Self-Kindness,5,0
+sk-015,Asked for help when I needed it,Self-Kindness,5,0
+sk-018,Talked to myself the way I'd talk to a friend,Self-Kindness,5,0
+sk-022,Wrote down three things I did well,Self-Kindness,5,0
+wk-002,Recycled or composted,World Kindness,5,0
+wk-010,"Reported a public hazard (pothole, broken streetlight)",World Kindness,5,0
+sk-016,Spent time on a hobby I love,Self-Kindness,120,100
+wk-022,Built or stocked a Little Free Library,World Kindness,90,100
+wk-023,Started a community compost bin,World Kindness,180,100
+hh-019,Cooked a meal for someone,Helping Hands,90,25
+sk-007,Cooked a healthy meal for myself,Self-Kindness,90,25
+wk-006,Planted a tree or started a garden,World Kindness,120,25
+wk-008,Adopted a pet from a shelter,World Kindness,120,500
+gg-014,Donated blood,Generous Giving,90,0
+gg-020,Donated my skills or expertise to a nonprofit,Generous Giving,90,0
+hh-001,Helped someone move,Helping Hands,240,0
+hh-002,"Volunteered at a soup kitchen, shelter, or food bank",Helping Hands,120,0
+hh-004,Babysat for free,Helping Hands,240,0
+hh-012,Tutored or mentored for free,Helping Hands,120,0
+hh-020,Helped at a school or community event,Helping Hands,120,0
+hh-024,Pet-sat for free,Helping Hands,240,0
+hh-027,Covered a coworker's shift,Helping Hands,480,0
+hh-029,Stayed late to help someone meet a deadline,Helping Hands,240,0
+lp-002,Visited an elderly relative,Listening & Presence,120,0
+lp-003,Sat with someone going through a hard time,Listening & Presence,120,0
+lp-009,Visited someone in the hospital,Listening & Presence,120,0
+lp-010,Showed up for someone's important event,Listening & Presence,120,0
+mb-018,Mediated a disagreement between two people,Mending Bridges,120,0
+sk-001,Took a rest day,Self-Kindness,120,0
+sk-004,Went to bed early,Self-Kindness,120,0
+sk-014,Logged off social media for a day,Self-Kindness,120,0
+sk-017,Got enough sleep,Self-Kindness,120,0
+wk-003,"Carpooled, took mass transit, or biked instead of driving alone",World Kindness,120,0
+wk-009,Volunteered at an animal shelter,World Kindness,120,0
+wk-019,"Cleaned up a park, beach, or local waterway",World Kindness,120,0
+wk-020,Organized or joined a neighborhood cleanup,World Kindness,240,0
+wk-025,"Adopted a section of road, trail, or park to maintain",World Kindness,240,0

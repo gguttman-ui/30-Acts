@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# Expo / Metro / build output
+.expo/
+dist/
+web-build/
+build/
+
+# env files and secrets - NEVER commit
+.env
+.env.*
+*.env
+github-recovery-codes.txt
+
+# Supabase local artifacts
+supabase/.temp/
+supabase.exe
+supabase.tar.gz
+
+# misc
+*.log
+.DS_Store
+.env
+.env.local
+.env.txt
+body.json
+dist/

@@ -1,0 +1,110 @@
+{
+  "expo": {
+    "name": "30 Acts of Kindness",
+    "slug": "30-acts-of-kindness",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#071a0e"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "org.30actsofkindness.app",
+      "buildNumber": "20",
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "CFBundleDisplayName": "30 Acts",
+        "NSCameraUsageDescription": "Used to take photos/videos as proof of your kind acts.",
+        "NSPhotoLibraryUsageDescription": "Used to attach photos/videos as proof of your kind acts.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save photos to your camera roll when sharing acts to Instagram or TikTok.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "twitter",
+          "fb",
+          "instagram",
+          "snssdk1233",
+          "fbapi",
+          "fbauth2",
+          "fbshareextension"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#071a0e"
+      },
+      "package": "org.actsofkindness.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a photo as proof of your kind act.",
+          "cameraPermission": "Take a photo as proof of your kind act."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow 30 Acts to save shared photos to your camera roll.",
+          "savePhotosPermission": "Allow 30 Acts to save shared photos to your camera roll.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "30-acts-of-kindness-nfp"
+        }
+      ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "1033236095805810",
+          "clientToken": "b62c30ecedb3724c8bd566ad606c75a4",
+          "displayName": "30 Acts",
+          "scheme": "fb1033236095805810",
+          "isAutoInitEnabled": true,
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false,
+          "iosUserTrackingPermission": false
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow 30 Acts to use the microphone to dictate your story.",
+          "speechRecognitionPermission": "Allow 30 Acts to use speech recognition to turn your spoken story into text."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4d47d9a1-dc2b-43d5-9fd2-e45167d9ba8e"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4d47d9a1-dc2b-43d5-9fd2-e45167d9ba8e"
+    }
+  }
+}
