@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+?<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -164,6 +164,10 @@
           <figcaption><strong>Gary Guttman</strong><span>Co-founder · retired tech exec, youth coach, and the father whose wish started it</span></figcaption>
         </figure>
       </div>
+      <div class="about-video">
+        <p class="eyebrow">Our story, in 90 seconds</p>
+        <a class="btn btn--coral" href="https://youtube.com/shorts/BkFz6PRGbhU" target="_blank" rel="noopener">Watch our story</a>
+      </div>
     </div>
   </section>
 
@@ -174,15 +178,26 @@
       <h2>Join the Waitlist</h2>
       <p class="lead" style="margin:0 auto 24px">The app is launching on iPhone soon. Leave your details and we'll invite you to try it early — and let you know the moment it's live.</p>
       <form class="waitlist" id="waitlist-form" novalidate>
-        <input type="email" id="wl-email" name="email" placeholder="Email address" required autocomplete="email" aria-label="Email address">
         <div class="waitlist-row">
-          <input type="tel" id="wl-phone" name="phone" placeholder="Phone number" autocomplete="tel" aria-label="Phone number">
-          <input type="text" id="wl-zip" name="zip" placeholder="ZIP code" inputmode="numeric" autocomplete="postal-code" aria-label="ZIP code">
+          <span class="req"><input type="text" id="wl-first" name="first_name" placeholder="First name" required autocomplete="given-name" aria-label="First name"><span class="req-star">*</span></span>
+          <span class="req"><input type="text" id="wl-last" name="last_name" placeholder="Last initial" required maxlength="30" autocomplete="family-name" aria-label="Last initial"><span class="req-star">*</span></span>
         </div>
+        <select id="wl-country" name="country" class="waitlist-select" aria-label="Country">
+          <option value="US" data-ph="(555) 123-4567">United States (+1)</option>
+          <option value="CA" data-ph="(555) 123-4567">Canada (+1)</option>
+          <option value="GB" data-ph="07123 456789">United Kingdom (+44)</option>
+          <option value="AU" data-ph="0412 345 678">Australia (+61)</option>
+        </select>
+        <div class="waitlist-row">
+          <span class="req"><input type="tel" id="wl-phone" name="phone" placeholder="(555) 123-4567" required autocomplete="tel" aria-label="Phone number"><span class="req-star">*</span></span>
+          <span class="req"><input type="text" id="wl-zip" name="zip" placeholder="ZIP / Postal code" required autocomplete="postal-code" aria-label="ZIP or postal code"><span class="req-star">*</span></span>
+        </div>
+        <input type="email" id="wl-email" name="email" placeholder="Email (optional)" autocomplete="email" aria-label="Email address (optional)">
+        <p class="req-note">* required field</p>
         <button type="submit" class="btn btn--primary">Join the Waitlist</button>
       </form>
       <p class="waitlist-msg" id="waitlist-msg" role="status" aria-live="polite"></p>
-      <p class="muted" style="font-size:.85rem;margin-top:8px">iPhone only for now. We'll never share your information.</p>
+      <p class="muted" style="font-size:.82rem;margin-top:10px;line-height:1.5">iPhone only for now. We use your phone number and postal code only to send your launch invite and to see where interest is coming from. We'll never sell or share your information.</p>
     </div>
   </section>
 
@@ -273,6 +288,8 @@
   </div>
 </footer>
 
+<script src="vendor/supabase.js"></script>
+<script src="vendor/libphonenumber-min.js"></script>
 <script src="site.js"></script>
 </body>
 </html>
