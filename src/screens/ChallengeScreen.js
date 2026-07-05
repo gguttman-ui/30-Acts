@@ -36,6 +36,14 @@ const yesterdayStr = () => {
   return localDateStr(d);
 };
 
+// "YYYY-MM-DD" -> "Jul 5". Parsed with T00:00:00 so it stays local (no day shift).
+function fmtMonthDay(scheduledDate) {
+  if (!scheduledDate) return '';
+  const d = new Date(scheduledDate + 'T00:00:00');
+  if (isNaN(d)) return scheduledDate.slice(8, 10);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 const extractPhone = (email) => {
   if (!email || typeof email !== 'string') return null;
   if (!email.endsWith('@phone.30acts.app')) return null;
@@ -525,10 +533,17 @@ const handleConfirmWipe = async () => {
                         <View style={s.centerSlot}>
                           {isToday ? (
                             <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
+                          ) : (isPastDone || isYesterday) ? (
+                            <Text
+                              style={[s.domNum, day.status === 'COMPLETED' && s.domNumDone, s.domNumDate]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                            >
+                              {fmtMonthDay(day.scheduledDate)}
+                            </Text>
                           ) : (
                             <Text style={[
                               s.domNum,
-                              isPastDone && s.domNumDone,
                               day.status === 'MISSED' && s.domNumMissed,
                             ]}>
                               {Number(day.scheduledDate?.slice(8, 10)) || ''}
@@ -837,6 +852,7 @@ grid: {
 
   // Day-of-month shown in the center of each non-today tile.
   domNum:       { fontSize: sf(20), fontWeight: '800', color: C.sub },
+  domNumDate:   { fontSize: sf(13), paddingHorizontal: 2 },
   domNumDone:   { color: C.primary },
   domNumMissed: { color: C.error },
   missedGlyph:   { fontSize: sf(14), color: C.error, fontWeight: '900' },

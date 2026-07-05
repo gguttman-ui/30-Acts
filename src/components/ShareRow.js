@@ -220,7 +220,7 @@ export default function ShareRow({ actText, dayNumber, photoUri, colors }) {
             disabled={busy}
             activeOpacity={0.7}
           >
-            <Text style={styles.icon}>{b.icon}</Text>
+            <Text style={[styles.icon, { color: C.text }]}>{b.icon}</Text>
             <Text style={[styles.label, { color: C.text }]}>{b.name}</Text>
           </TouchableOpacity>
         ))}

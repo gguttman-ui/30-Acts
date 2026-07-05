@@ -324,25 +324,28 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   };
 
   const localShareUri = async () => {
-    const media = await resolveShareMedia();
-    if (!media) return null;
-    if (media.startsWith('file://') || media.startsWith('ph://')) return media;
-    return `file://${media}`;
+          const uri = await localShareUri();
+      if (!uri) { Alert.alert('Couldn''t prepare an image', 'Write a story for this act, then try sharing again.'); return; }
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      await shareImage(uri);
+    } finally { setSharing(false); }
   };
 
-  const shareToX = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const media = await resolveShareMedia();
-      if (media) await saveToCameraRoll(media);
-      const encoded = encodeURIComponent(buildShareMessage());
-      await openOrFallback(
-        `twitter://post?message=${encoded}`,
-        `https://twitter.com/intent/tweet?text=${encoded}`,
-        'X'
-      );
-    } finally { setSharing(false); }
+  // iOS share sheet doesn't declare the image type, so Instagram/TikTok often
+  // reject the photo. expo-sharing lets us set UTI so they accept it reliably.
+  // Falls back to the plain sheet if expo-sharing isn't installed yet.
+  const shareImage = async (uri) => {
+    let Sharing = null;
+    try { Sharing = require('expo-sharing'); } catch {}
+    if (Sharing && (await Sharing.isAvailableAsync())) {
+      await Sharing.shareAsync(uri, {
+        UTI: 'public.jpeg',
+        mimeType: 'image/jpeg',
+        dialogTitle: 'Share your kindness',
+      });
+      return;
+    }
+    await Share.share({ url: uri });
   };
 
   const shareToInstagram = async () => {
@@ -355,7 +358,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         return;
       }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await Share.share({ url: uri });
+      await shareImage(uri);
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Instagram share failed:', e && e.message);
     } finally { setSharing(false); }
@@ -371,7 +374,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         return;
       }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await Share.share({ url: uri });
+      await shareImage(uri);
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
     } finally { setSharing(false); }
@@ -436,7 +439,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
     { name: 'Facebook',  faIcon: 'facebook',  onPress: shareToFacebook,  brand: '#1877F2' },
     { name: 'TikTok',    faIcon: 'tiktok',    onPress: shareToTikTok,    brand: '#25F4EE' },
-    { name: 'X',         faIcon: 'x-twitter', onPress: shareToX,         brand: '#000000' },
+    { name: 'X',         faIcon: 'x-twitter', onPress: shareToX,         brand: '#FFFFFF' },
   ];
 
   // ── Save (CREATE → SHARE) ─────────────────────────────────────────────────

@@ -101,6 +101,17 @@ const openOrFallback = async (appUrl, webUrl, appName) => {
   }
 };
 
+// Format a local-calendar "YYYY-MM-DD" scheduledDate for the row label.
+// Today shows "Today"; every other completed/past day shows "Jul 5".
+// Parsed with an explicit T00:00:00 so it stays in local time (no day shift).
+function formatDayLabel(scheduledDate, today) {
+  if (!scheduledDate) return '';
+  if (scheduledDate === today) return 'Today';
+  const d = new Date(scheduledDate + 'T00:00:00');
+  if (isNaN(d)) return scheduledDate;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function HistoryScreen({ route, navigation, days }) {
   if (!days) {
     return (
@@ -136,7 +147,7 @@ export function HistoryScreen({ route, navigation, days }) {
                 <Text style={s.categoryIcon}>{icon}</Text>
               )}
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: C.muted, fontSize: 11 }}>{day.scheduledDate}</Text>
+                <Text style={{ color: C.muted, fontSize: 11 }}>{formatDayLabel(day.scheduledDate, today)}</Text>
                 {day.title ? (
                   <Text style={s.rowTitle} numberOfLines={2}>{day.title}</Text>
                 ) : null}
