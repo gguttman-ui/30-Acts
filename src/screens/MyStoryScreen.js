@@ -44,6 +44,7 @@ const sf = (n) => Math.round(n * fontScale);
 
 const APP_URL = 'https://30ActsofKindness.org';
 const APP_HASHTAG = '#30ActsOfKindness';
+const FB_APP_ID = '1033236095805810';
 
 const KB_DONE_ID = 'myStoryKbDone';
 
@@ -324,16 +325,28 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   };
 
   const localShareUri = async () => {
-          const uri = await localShareUri();
-      if (!uri) { Alert.alert('Couldn''t prepare an image', 'Write a story for this act, then try sharing again.'); return; }
+    const media = await resolveShareMedia();
+    if (!media) return null;
+    if (media.startsWith('file://') || media.startsWith('ph://')) return media;
+    return `file://${media}`;
+  };
+
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      if (!uri) {
+        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
+        return;
+      }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       await shareImage(uri);
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
     } finally { setSharing(false); }
   };
 
-  // iOS share sheet doesn't declare the image type, so Instagram/TikTok often
-  // reject the photo. expo-sharing lets us set UTI so they accept it reliably.
-  // Falls back to the plain sheet if expo-sharing isn't installed yet.
   const shareImage = async (uri) => {
     let Sharing = null;
     try { Sharing = require('expo-sharing'); } catch {}
@@ -348,6 +361,23 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     await Share.share({ url: uri });
   };
 
+  const shareToInstagramStory = async (uri) => {
+    let RNShare = null;
+    try { RNShare = require('react-native-share').default; } catch {}
+    if (!RNShare || isExpoGo) return false;
+    try {
+      await RNShare.shareSingle({
+        social: RNShare.Social.INSTAGRAM_STORIES,
+        appId: FB_APP_ID,
+        backgroundImage: uri,
+      });
+      return true;
+    } catch (e) {
+      console.warn('IG Story share failed, falling back:', e && e.message);
+      return false;
+    }
+  };
+
   const shareToInstagram = async () => {
     if (sharing) return;
     setSharing(true);
@@ -358,7 +388,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         return;
       }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await shareImage(uri);
+      const usedStory = await shareToInstagramStory(uri);
+      if (!usedStory) await shareImage(uri);
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Instagram share failed:', e && e.message);
     } finally { setSharing(false); }
