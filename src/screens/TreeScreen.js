@@ -30,6 +30,7 @@ const stageLabel = (count) => {
 export default function TreeScreen({ user }) {
   const [loading, setLoading]     = useState(true);
   const [actCount, setActCount]   = useState(0);
+  const [teamCount, setTeamCount] = useState(0);
   const [totalMin, setTotalMin]   = useState(0);
   const [totalCents, setTotalCts] = useState(0);
 
@@ -43,17 +44,26 @@ export default function TreeScreen({ user }) {
           const phone = extractPhone(user?.email);
           if (!phone) { if (!cancelled) setLoading(false); return; }
 
-          // My tree = me + everyone who joined from my invite (profiles.referred_by = my phone).
+          // My team = everyone who joined from my invite (profiles.referred_by = my phone).
           const { data: tree } = await supabase
             .from('profiles')
             .select('phone')
             .eq('referred_by', phone);
-          const phones = [phone, ...((tree || []).map(r => r.phone).filter(Boolean))];
+          const teamPhones = (tree || []).map(r => r.phone).filter(Boolean);
 
-          const { data, error } = await supabase
+          const { data: mine, error } = await supabase
             .from('completions')
-            .select('time_minutes, cost_cents')
-            .in('user_phone', phones);
+            .select('id')
+            .eq('user_phone', phone);
+
+          let teamRows = [];
+          if (teamPhones.length) {
+            const { data: t } = await supabase
+              .from('completions')
+              .select('id')
+              .in('user_phone', teamPhones);
+            teamRows = t || [];
+          }
 
           if (cancelled) return;
           if (error) {
@@ -62,10 +72,8 @@ export default function TreeScreen({ user }) {
             return;
           }
 
-          const rows = data || [];
-          setActCount(rows.length);
-          setTotalMin(rows.reduce((s, r) => s + (r.time_minutes || 0), 0));
-          setTotalCts(rows.reduce((s, r) => s + (r.cost_cents   || 0), 0));
+          setActCount((mine || []).length);
+          setTeamCount(teamRows.length);
         } catch (e) {
           console.warn('Tree screen load failed:', e.message);
         } finally {
@@ -101,7 +109,13 @@ export default function TreeScreen({ user }) {
             <View style={s.statsRow}>
               <View style={s.stat}>
                 <Text style={s.statValue}>{actCount}</Text>
-                <Text style={s.statLabel}>Acts of{'\n'}Kindness</Text>
+                <Text style={s.statLabel}>Acts of{'
+'}Kindness</Text>
+              </View>
+              <View style={s.stat}>
+                <Text style={s.statValue}>{teamCount}</Text>
+                <Text style={s.statLabel}>My Team's{'
+'}Acts</Text>
               </View>
             </View>
           </>
