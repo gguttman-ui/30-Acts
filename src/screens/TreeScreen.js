@@ -109,13 +109,11 @@ export default function TreeScreen({ user }) {
             <View style={s.statsRow}>
               <View style={s.stat}>
                 <Text style={s.statValue}>{actCount}</Text>
-                <Text style={s.statLabel}>Acts of{'
-'}Kindness</Text>
+                <Text style={s.statLabel}>Acts of{'\n'}Kindness</Text>
               </View>
               <View style={s.stat}>
                 <Text style={s.statValue}>{teamCount}</Text>
-                <Text style={s.statLabel}>My Team's{'
-'}Acts</Text>
+                <Text style={s.statLabel}>My Team's{'\n'}Acts</Text>
               </View>
             </View>
           </>
