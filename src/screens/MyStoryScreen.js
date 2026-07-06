@@ -289,7 +289,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const buildShareMessage = () => {
     const s = completedStory.trim();
     const storyPart = s ? `\n\nHere's what I did:\n"${s}"` : '';
-    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™ challenge!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
+    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™ challenge!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${extractPhone(user?.email) ? `${APP_URL}?ref=${encodeURIComponent(extractPhone(user?.email))}` : APP_URL}`;
   };
 
   const handleShareText = () => {
@@ -384,7 +384,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     try {
       const uri = await localShareUri();
       if (!uri) {
-        Alert.alert('Couldn\'t prepare an image', 'Write a story for this act, then try sharing again.');
+        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
         return;
       }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
@@ -457,12 +457,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
-      if (uri) await saveToCameraRoll(uri);
+      if (!uri) {
+        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
+        return;
+      }
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      const usedDialog = await tryFacebookShareDialog(uri);
-      if (!usedDialog) await shareFacebookViaSheet(uri);
+      await shareImage(uri);
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e);
+      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
     } finally { setSharing(false); }
   };
 

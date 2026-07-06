@@ -20,7 +20,7 @@
 //   const uri = await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
 // ──────────────────────────────────────────────────────────────────────────────
 import React, { forwardRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { Text } from './scaledText'; // font-scaling locked, matches app-wide work
 import { C } from '../constants';
 
@@ -44,7 +44,7 @@ const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber }, ref
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.dove}>🕊️</Text>
+              <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
               <View>
                 <Text style={styles.brand}>30 Acts of Kindness™</Text>
                 <Text style={styles.hashtag}>#30ActsOfKindness</Text>
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   quoteMark: { color: C.gold, fontSize: 90, lineHeight: 70, height: 56, fontWeight: '800' },
   quote: { color: C.sub, fontSize: 44, lineHeight: 60, fontStyle: 'italic' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 24, marginTop: 28 },
-  dove: { fontSize: 64 },
+  logo: { width: 64, height: 64, marginRight: 4 },
   brand: { color: C.text, fontSize: 38, fontWeight: '800' },
   hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },
 });

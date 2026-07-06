@@ -43,10 +43,17 @@ export default function TreeScreen({ user }) {
           const phone = extractPhone(user?.email);
           if (!phone) { if (!cancelled) setLoading(false); return; }
 
+          // My tree = me + everyone who joined from my invite (profiles.referred_by = my phone).
+          const { data: tree } = await supabase
+            .from('profiles')
+            .select('phone')
+            .eq('referred_by', phone);
+          const phones = [phone, ...((tree || []).map(r => r.phone).filter(Boolean))];
+
           const { data, error } = await supabase
             .from('completions')
             .select('time_minutes, cost_cents')
-            .eq('user_phone', phone);
+            .in('user_phone', phones);
 
           if (cancelled) return;
           if (error) {
@@ -95,14 +102,6 @@ export default function TreeScreen({ user }) {
               <View style={s.stat}>
                 <Text style={s.statValue}>{actCount}</Text>
                 <Text style={s.statLabel}>Acts of{'\n'}Kindness</Text>
-              </View>
-              <View style={s.stat}>
-                <Text style={s.statValue}>{formatTime(totalMin)}</Text>
-                <Text style={s.statLabel}>Total{'\n'}Time</Text>
-              </View>
-              <View style={s.stat}>
-                <Text style={s.statValue}>{formatCost(totalCents)}</Text>
-                <Text style={s.statLabel}>Total{'\n'}Spent</Text>
               </View>
             </View>
           </>

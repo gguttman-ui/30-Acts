@@ -105,7 +105,8 @@
       last_name: ln,
       phone: e164,
       zip: zp,
-      email: em || null
+      email: em || null,
+      referred_by: new URLSearchParams(location.search).get('ref') || null
     }).then(function (res) {
       if (res.error) {
         if (res.error.code === '23505') {
