@@ -8,7 +8,7 @@ import { C } from '../constants';
 const TERMS_OF_SERVICE = [
   {
     heading: '1.1 Agreement to These Terms',
-    body: 'Welcome to 30 Acts of Kindness™, operated by Acts of Kindness™ NFP ("30 Acts of Kindness™," "we," "us," or "our"). These Terms of Service ("Terms") govern your access to and use of our mobile application, website, features, challenges, content, donation tools, contests, and related services (collectively, the "Service").\n\nBy creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.',
+    body: 'Welcome to 30 Acts of Kindness™, operated by 30ActsofKindness NFP ("30 Acts of Kindness™," "we," "us," or "our"). These Terms of Service ("Terms") govern your access to and use of our mobile application, website, features, challenges, content, donation tools, contests, and related services (collectively, the "Service").\n\nBy creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.',
   },
   {
     heading: '1.2 Purpose of the Service',
@@ -48,7 +48,7 @@ const TERMS_OF_SERVICE = [
   },
   {
     heading: '1.11 Intellectual Property',
-    body: 'The Service, excluding User Content, is owned by or licensed to Acts of Kindness™ NFP and is protected by applicable intellectual property laws.',
+    body: 'The Service, excluding User Content, is owned by or licensed to 30ActsofKindness NFP and is protected by applicable intellectual property laws.',
   },
   {
     heading: '1.12 Disclaimer of Warranties',
@@ -56,11 +56,11 @@ const TERMS_OF_SERVICE = [
   },
   {
     heading: '1.13 Limitation of Liability',
-    body: 'To the fullest extent permitted by law, Acts of Kindness™ NFP and its affiliates will not be liable for indirect, incidental, special, consequential, or punitive damages. Our total liability will not exceed the greater of the amount you paid us in the prior 12 months or US $50.',
+    body: 'To the fullest extent permitted by law, 30ActsofKindness NFP and its affiliates will not be liable for indirect, incidental, special, consequential, or punitive damages. Our total liability will not exceed the greater of the amount you paid us in the prior 12 months or US $50.',
   },
   {
     heading: '1.14 Indemnification',
-    body: 'You agree to indemnify and hold harmless Acts of Kindness™ NFP and its affiliates from claims arising out of your use of the Service, your User Content, or your violation of these Terms.',
+    body: 'You agree to indemnify and hold harmless 30ActsofKindness NFP and its affiliates from claims arising out of your use of the Service, your User Content, or your violation of these Terms.',
   },
   {
     heading: '1.15 Suspension and Termination',
@@ -68,15 +68,15 @@ const TERMS_OF_SERVICE = [
   },
   {
     heading: '1.16 Governing Law',
-    body: 'These Terms are governed by the laws of the State of California, without regard to conflict-of-law principles, unless applicable law requires otherwise.',
+    body: 'These Terms are governed by the laws of the State of Illinois, without regard to conflict-of-law principles, unless applicable law requires otherwise.',
   },
   {
     heading: '1.17 Venue',
-    body: 'Any dispute arising out of or relating to these Terms or the Service shall be brought in the state or federal courts located in California, unless applicable law requires otherwise.',
+    body: 'Any dispute arising out of or relating to these Terms or the Service shall be brought in the state or federal courts located in Illinois, unless applicable law requires otherwise.',
   },
   {
     heading: '1.18 Contact',
-    body: 'Acts of Kindness™ NFP\nEmail: support@30actsofkindness.org',
+    body: '30ActsofKindness NFP\nEmail: support@30actsofkindness.org',
     email: 'support@30actsofkindness.org',
   },
 ];
@@ -84,7 +84,7 @@ const TERMS_OF_SERVICE = [
 const PRIVACY_POLICY = [
   {
     heading: '2.1 Overview',
-    body: 'This Privacy Policy explains how Acts of Kindness™ NFP collects, uses, stores, shares, and protects personal information when you use 30 Acts of Kindness™.',
+    body: 'This Privacy Policy explains how 30ActsofKindness NFP collects, uses, stores, shares, and protects personal information when you use 30 Acts of Kindness™.',
   },
   {
     heading: '2.2 Information We Collect',
@@ -138,7 +138,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.14 Contact',
-    body: 'Acts of Kindness™ NFP\nSupport: support@30actsofkindness.org\nPrivacy: privacy@30actsofkindness.org',
+    body: '30ActsofKindness NFP\nSupport: support@30actsofkindness.org\nPrivacy: privacy@30actsofkindness.org',
     email: 'support@30actsofkindness.org',
   },
 ];
@@ -245,7 +245,7 @@ export default function LegalScreen({ route, navigation }) {
           </View>
         ))}
         <View style={s.footer}>
-          <Text style={s.footerText}>© 2026 Acts of Kindness™ NFP</Text>
+          <Text style={s.footerText}>© 2026 30ActsofKindness NFP</Text>
           <TouchableOpacity onPress={() => Linking.openURL('mailto:support@30actsofkindness.org')}>
             <Text style={s.emailLink}>support@30actsofkindness.org</Text>
           </TouchableOpacity>
