@@ -151,18 +151,18 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   };
   const handleGridLayout = (e) => { gridY.current = e.nativeEvent.layout.y; };
 
+  // Missed-yesterday prompt. Shows EVERY time the calendar loads while yesterday
+  // is still incomplete and still actionable -- no once-per-day gate. It stops
+  // appearing on its own once the user completes yesterday (status becomes
+  // COMPLETED) or once yesterday is no longer in the current tier (streak broken
+  // / 2+ days elapsed), because `yesterdayDay` will no longer be found.
   useEffect(() => {
     if (!days) return;
-    (async () => {
-      const yesterdayDay = days.find(d => d.scheduledDate === yesterday);
-      const todayDay     = days.find(d => d.scheduledDate === today);
-      const shouldPrompt = yesterdayDay && yesterdayDay.status !== 'COMPLETED' && todayDay;
-      if (!shouldPrompt) return;
-      const lastShown = await AsyncStorage.getItem('missed_prompt_shown_on');
-      if (lastShown === today) return;
-      await AsyncStorage.setItem('missed_prompt_shown_on', today);
-      setMissedPrompt(true);
-    })();
+    const yesterdayDay = days.find(d => d.scheduledDate === yesterday);
+    const todayDay     = days.find(d => d.scheduledDate === today);
+    const shouldPrompt = yesterdayDay && yesterdayDay.status !== 'COMPLETED' && todayDay;
+    if (!shouldPrompt) return;
+    setMissedPrompt(true);
   }, [days]);
 
   const handleRestart = () => { onRestart?.(); setConfirmRestart(false); setMissedPrompt(false); };
@@ -530,26 +530,39 @@ const handleConfirmWipe = async () => {
                           {day.dayNumber}
                         </Text>
 
-                        <View style={s.centerSlot}>
-                          {isToday ? (
+                        {isToday ? (
+                          <View style={s.centerSlot}>
                             <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
-                          ) : (isPastDone || isYesterday) ? (
+                          </View>
+                        ) : day.status === 'COMPLETED' ? (
+                          <>
+                            <View style={s.centerSlot}>
+                              <Text style={s.doneCheck}>✓</Text>
+                            </View>
+                            <View style={s.bottomSlot}>
+                              <Text
+                                style={[s.domNumDate, s.domNumDone]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                              >
+                                {fmtMonthDay(day.scheduledDate)}
+                              </Text>
+                            </View>
+                          </>
+                        ) : (
+                          <View style={s.centerSlot}>
                             <Text
-                              style={[s.domNum, day.status === 'COMPLETED' && s.domNumDone, s.domNumDate]}
+                              style={[
+                                s.domNumDate,
+                                day.status === 'MISSED' && s.domNumMissed,
+                              ]}
                               numberOfLines={1}
                               adjustsFontSizeToFit
                             >
                               {fmtMonthDay(day.scheduledDate)}
                             </Text>
-                          ) : (
-                            <Text style={[
-                              s.domNum,
-                              day.status === 'MISSED' && s.domNumMissed,
-                            ]}>
-                              {Number(day.scheduledDate?.slice(8, 10)) || ''}
-                            </Text>
-                          )}
-                        </View>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -852,8 +865,9 @@ grid: {
 
   // Day-of-month shown in the center of each non-today tile.
   domNum:       { fontSize: sf(20), fontWeight: '800', color: C.sub },
-  domNumDate:   { fontSize: sf(13), paddingHorizontal: 2 },
+  domNumDate:   { fontSize: sf(13), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
   domNumDone:   { color: C.primary },
+  doneCheck:    { fontSize: sf(22), fontWeight: '900', color: C.primary, lineHeight: sf(26) },
   domNumMissed: { color: C.error },
   missedGlyph:   { fontSize: sf(14), color: C.error, fontWeight: '900' },
 
