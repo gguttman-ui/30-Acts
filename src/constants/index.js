@@ -434,9 +434,38 @@ export const ACT_PROMPTS = [
 
 // ── Donation info ─────────────────────────────────────────────────────────────
 export const DONATIONS = [
-  { id:'paypal', label:'PayPal', icon:'💙', color:'#0070BA', value:'paypal.me/30ActsofKindness' },
-  { id:'venmo',  label:'Venmo',  icon:'💚', color:'#3D95CE', value:'@30ActsofKindness' },
-  { id:'zelle',  label:'Zelle',  icon:'💜', color:'#6D1ED4', value:'Donate@30ActsofKindness.org' },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    icon: '💙',
+    color: '#0070BA',
+    value: '30 Acts of Kindness, NFP',
+    cta: 'Donate with PayPal',
+    action: 'open',
+    url: 'https://www.paypal.com/qrcodes/managed/ea84696b-5280-41cd-b68c-f94d11ce4b92?utm_source=payandgetpaid',
+    hint: 'Opens PayPal. Enter your amount there. Pay by card or bank.',
+  },
+  {
+    id: 'venmo',
+    label: 'Venmo',
+    icon: '💚',
+    color: '#3D95CE',
+    value: '@Actsofkindness30',
+    cta: 'Donate with Venmo',
+    action: 'open',
+    url: 'https://venmo.com/u/Actsofkindness30',
+    hint: 'Opens Venmo. Enter your amount in the app.',
+  },
+  {
+    id: 'zelle',
+    label: 'Zelle',
+    icon: '💜',
+    color: '#6D1ED4',
+    value: 'donate@30ActsofKindness.org',
+    cta: 'Copy Zelle address',
+    action: 'copy',
+    hint: 'Tap to copy, then send to this email via Zelle in your bank app.',
+  },
 ];
 
 // ── Local-date helper ────────────────────────────────────────────────────────

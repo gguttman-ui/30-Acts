@@ -1,18 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Linking, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C, DONATIONS } from '../constants';
 
 export default function DonationScreen({ navigation }) {
-  const openDonation = (d) => {
-    const urls = {
-      paypal: 'https://paypal.me/30ActsofKindness',
-      venmo:  'venmo://paycharge?txn=pay&recipients=30ActsofKindness',
-      zelle:  'mailto:Donate@30ActsofKindness.org',
-    };
-    Linking.openURL(urls[d.id]).catch(() =>
-      Alert.alert(d.label, `Please send to: ${d.value}`)
-    );
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handlePress = async (d) => {
+    // Zelle has no linkable URL — it lives inside each bank's own app.
+    // The only useful action is to copy the address so the donor can paste it there.
+    if (d.action === 'copy') {
+      try {
+        await Clipboard.setStringAsync(d.value);
+        setCopiedId(d.id);
+        setTimeout(() => setCopiedId(null), 2500);
+      } catch (e) {
+        Alert.alert(d.label, `Send your gift to:\n\n${d.value}`);
+      }
+      return;
+    }
+
+    // PayPal / Venmo: open externally.
+    try {
+      const canOpen = await Linking.canOpenURL(d.url);
+      if (!canOpen) throw new Error('cannot open');
+      await Linking.openURL(d.url);
+    } catch (e) {
+      Alert.alert(
+        d.label,
+        `We couldn't open ${d.label}. You can send your gift to:\n\n${d.value}`
+      );
+    }
   };
 
   return (
@@ -28,24 +47,38 @@ export default function DonationScreen({ navigation }) {
           </Text>
         </View>
 
-        {DONATIONS.map(d => (
-          <Card key={d.id} style={[s.mb, { borderColor: d.color + '55' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 12 }}>
-              <View style={[s.donationIcon, { backgroundColor: d.color + '22' }]}>
-                <Text style={{ fontSize: 24 }}>{d.icon}</Text>
+        {DONATIONS.map((d) => {
+          const isCopied = copiedId === d.id;
+          return (
+            <Card key={d.id} style={[s.mb, { borderColor: d.color + '55' }]}>
+              <View style={s.row}>
+                <View style={[s.donationIcon, { backgroundColor: d.color + '22' }]}>
+                  <Text style={{ fontSize: 24 }}>{d.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>{d.label}</Text>
+                  <Text style={s.value}>{d.value}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ color: C.text, fontWeight: '800', fontSize: 18 }}>{d.label}</Text>
-                <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{d.value}</Text>
-              </View>
-            </View>
-            <Btn
-              label={`Donate via ${d.label}`}
-              onPress={() => openDonation(d)}
-              style={{ backgroundColor: d.color, borderWidth: 0 }}
-            />
-          </Card>
-        ))}
+
+              <Btn
+                label={isCopied ? 'Copied to clipboard! ✓' : d.cta}
+                onPress={() => handlePress(d)}
+                style={{
+                  backgroundColor: isCopied ? '#1E8E54' : d.color,
+                  borderWidth: 0,
+                }}
+              />
+
+              <Text style={s.hint}>{d.hint}</Text>
+            </Card>
+          );
+        })}
+
+        <Text style={s.taxNote}>
+          30ActsofKindness NFP is a registered 501(c)(3) nonprofit in Illinois
+          (EIN 41-4058016). Donations are tax-deductible to the extent allowed by law.
+        </Text>
 
         <Text style={s.footer}>
           Every act of generosity helps us build a kinder world. Thank you. 🕊️
@@ -60,8 +93,51 @@ const s = StyleSheet.create({
   mb: { marginBottom: 14 },
   hero: { alignItems: 'center', paddingVertical: 24, marginBottom: 8 },
   heroEmoji: { fontSize: 64, marginBottom: 12 },
-  heroTitle: { color: C.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginBottom: 10 },
-  heroSub: { color: C.sub, fontSize: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 16 },
-  donationIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  footer: { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  heroTitle: {
+    color: C.text,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 10,
+  },
+  heroSub: {
+    color: C.sub,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 16,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 12 },
+  donationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: { color: C.text, fontWeight: '800', fontSize: 18 },
+  value: { color: C.muted, fontSize: 12, marginTop: 2 },
+  hint: {
+    color: C.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 17,
+  },
+  taxNote: {
+    color: C.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  footer: {
+    color: C.muted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
 });
