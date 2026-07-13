@@ -80,10 +80,17 @@ export function buildGridFromStreak(streak) {
   // 0-29 done  → tier 1 (days 1-30)
   // 30-59 done → tier 2 (days 31-60)
   // 60-89 done → tier 3 (days 61-90), etc.
+  // Use (count - 1) so the tier advances only AFTER a tier's 30th day is done,
+  // not the instant it lands. With the old `count / 30`, completing day 30 made
+  // floor(30/30) = 1, jumping to tier 2 while that completion still belonged to
+  // tier 1 -- so streak[30] was undefined, the anchor fell back to today, and the
+  // whole tier-2 grid came up empty (day 31 rendered as TODAY with no check mark).
+  // Same break happened at 60, 90, ... Now: 30 done -> still tier 1 (day 30 shows
+  // its check); 31 done -> tier 2, and streak[30] is that first tier-2 completion.
   const completedCount = streak.length;
-  const tierIndex = Math.floor(completedCount / 30); // 0, 1, 2, ...
-  const tierStartDay = tierIndex * 30 + 1;            // 1, 31, 61, ...
-  const tierStartIdx = tierIndex * 30;                // slice offset into streak
+  const tierIndex = Math.floor((completedCount - 1) / 30); // 0, 1, 2, ...
+  const tierStartDay = tierIndex * 30 + 1;                 // 1, 31, 61, ...
+  const tierStartIdx = tierIndex * 30;                     // slice offset into streak
 
   // Anchor = the calendar date of the FIRST completion in this tier.
   // Prefers row.local_date (locked in at write-time, travel-stable).
