@@ -536,12 +536,12 @@ const handleConfirmWipe = async () => {
                               <Text style={s.doneCheck}>✓</Text>
                             </View>
                             <View style={s.bottomSlot}>
-                              <Text style={s.todayLabel} numberOfLines={1}>OTA-OK</Text>
+                              <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
                             </View>
                           </>
                         ) : isToday ? (
                           <View style={s.centerSlot}>
-                            <Text style={s.todayLabel} numberOfLines={1}>OTA-OK</Text>
+                            <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
                           </View>
                         ) : day.status === 'COMPLETED' ? (
                           <>
