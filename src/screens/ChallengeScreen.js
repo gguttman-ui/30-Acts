@@ -530,7 +530,16 @@ const handleConfirmWipe = async () => {
                           {day.dayNumber}
                         </Text>
 
-                        {isToday ? (
+                        {isToday && day.status === 'COMPLETED' ? (
+                          <>
+                            <View style={s.centerSlot}>
+                              <Text style={s.doneCheck}>✓</Text>
+                            </View>
+                            <View style={s.bottomSlot}>
+                              <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
+                            </View>
+                          </>
+                        ) : isToday ? (
                           <View style={s.centerSlot}>
                             <Text style={s.todayLabel} numberOfLines={1}>TODAY</Text>
                           </View>
