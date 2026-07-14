@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { extractPhone } from '../lib/streak';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 const CHALLENGE_TYPES = ['Local', 'Place of Worship', 'Business'];
 const CHALLENGE_LENGTHS = [
@@ -96,6 +97,15 @@ export default function CreateChallengeAdminScreen({ navigation }) {
       return;
     }
     setSubmitting(true);
+
+    // The challenge name is shown to EVERY user who joins via the invite
+    // code, so it is the one field of free text this app publishes to other
+    // people. It must be moderated (Apple Guideline 1.2).
+    if (await isContentBlocked(name)) {
+      setSubmitting(false);
+      Alert.alert('Name Not Allowed', BLOCKED_MESSAGE);
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     const inviteCode = generateInviteCode();
 

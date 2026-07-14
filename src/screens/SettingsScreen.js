@@ -9,6 +9,7 @@ import {
 import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../components';
 import { C } from '../constants';
 import { lookupZip } from '../lib/zip';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -274,6 +275,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   const handleSave = async () => {
     if (contactEmail.trim() && !contactEmail.includes('@')) {
       Alert.alert('Invalid email', 'Enter a valid email or leave it blank.');
+      return;
+    }
+
+    // first_name / last_name are rendered as "First L." on challenge
+    // leaderboards, so other participants see them. Moderate before saving
+    // (Apple Guideline 1.2).
+    const nameToCheck = [firstName, lastName].filter(Boolean).join(' ');
+    if (nameToCheck.trim() && await isContentBlocked(nameToCheck)) {
+      Alert.alert('Name Not Allowed', BLOCKED_MESSAGE);
       return;
     }
     if (zip && !/^\d{5}$/.test(zip)) {

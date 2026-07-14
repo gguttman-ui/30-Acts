@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { getChallengeDetail } from '../lib/streak';
+import { fileReport, blockUser, getBlockedIds, REPORT_REASONS } from '../lib/safety';
 
 // Formats an ISO timestamp as e.g. "May 12" or "May 12, 2025" if not current year.
 function formatShortDate(iso) {
@@ -43,6 +44,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState(null);
   const [detail,     setDetail]     = useState(null);
+  const [blockedIds, setBlockedIds] = useState(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -63,6 +65,9 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
       const result = await getChallengeDetail(challengeId, user.id);
       setDetail(result);
+
+      // Hide anyone this user has blocked (Apple Guideline 1.2).
+      setBlockedIds(await getBlockedIds());
     } catch (e) {
       console.warn('ChallengeDetailScreen load failed:', e.message);
       setError(e.message || 'Could not load challenge.');
@@ -122,6 +127,52 @@ export default function ChallengeDetailScreen({ route, navigation }) {
     }
   };
 
+  // -- Report / Block (Apple Guideline 1.2) --------------------------------
+  const askReason = (label, onPick) => {
+    Alert.alert(label, 'Why are you reporting this?', [
+      ...REPORT_REASONS.map(r => ({ text: r, onPress: () => onPick(r) })),
+      { text: 'Cancel', style: 'cancel' },
+    ], { cancelable: true });
+  };
+
+  const submitReport = async (payload, reason) => {
+    const res = await fileReport({ ...payload, reason });
+    if (res.ok) {
+      Alert.alert('Report received', 'Thank you. Our team will review this within 24 hours.');
+    } else {
+      Alert.alert('Could not send report', res.error || 'Please try again.');
+    }
+  };
+
+  const handleReportChallenge = () => {
+    askReason('Report this challenge',
+      (reason) => submitReport({ challengeId: detail.challenge.id }, reason));
+  };
+
+  const doBlock = (p) => {
+    Alert.alert(
+      'Block ' + p.displayName + '?',
+      'They will be hidden from your leaderboards.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: async () => {
+            const res = await blockUser(p.userId);
+            if (res.ok) setBlockedIds(prev => new Set([...prev, p.userId]));
+            else Alert.alert('Could not block', res.error || 'Please try again.');
+          } },
+      ]
+    );
+  };
+
+  const handleReportUser = (p) => {
+    Alert.alert(p.displayName, 'Report or block this participant?', [
+      { text: 'Report', onPress: () => askReason('Report participant',
+          (reason) => submitReport({ challengeId: detail.challenge.id, reportedUserId: p.userId }, reason)) },
+      { text: 'Block', style: 'destructive', onPress: () => doBlock(p) },
+      { text: 'Cancel', style: 'cancel' },
+    ], { cancelable: true });
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -147,6 +198,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   }
 
   const { challenge, sponsor, isSponsor, isParticipant, me, leaderboard, totalActs } = detail;
+  const visibleLeaderboard = leaderboard.filter(p => !blockedIds.has(p.userId));
   const daysSinceStart = daysBetween(challenge.start_date);
   const daysRemaining =
     typeof daysSinceStart === 'number'
@@ -256,19 +308,22 @@ export default function ChallengeDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
           </View>
-          {leaderboard.length === 0 ? (
+          {visibleLeaderboard.length === 0 ? (
             <Text style={s.emptyText}>No participants yet.</Text>
           ) : (
-            leaderboard.map((p, idx) => {
+            visibleLeaderboard.map((p, idx) => {
               const isMe = p.userId === authUserId;
               const noActs = p.count === 0;
               return (
-                <View
+                <TouchableOpacity
                   key={p.userId}
+                  activeOpacity={isMe ? 1 : 0.6}
+                  onLongPress={isMe ? undefined : () => handleReportUser(p)}
+                  delayLongPress={400}
                   style={[
                     s.leaderRow,
                     isMe && s.leaderRowMe,
-                    idx === leaderboard.length - 1 && { borderBottomWidth: 0 },
+                    idx === visibleLeaderboard.length - 1 && { borderBottomWidth: 0 },
                   ]}
                 >
                   <Text style={s.leaderRank}>{idx + 1}</Text>
@@ -293,11 +348,22 @@ export default function ChallengeDetailScreen({ route, navigation }) {
                     )}
                   </View>
                   <Text style={s.leaderCount}>{p.count}</Text>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
+
+          {visibleLeaderboard.length > 1 && (
+            <Text style={s.safetyHint}>
+              Press and hold a participant to report or block them.
+            </Text>
+          )}
         </Card>
+
+        {/* SAFETY - required by Apple Guideline 1.2 */}
+        <TouchableOpacity onPress={handleReportChallenge} style={s.reportWrap}>
+          <Text style={s.reportLink}>Report this challenge</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </View>
@@ -306,6 +372,16 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40 },
+
+  safetyHint: {
+    color: C.muted, fontSize: 11, textAlign: 'center',
+    marginTop: 12, fontStyle: 'italic',
+  },
+  reportWrap: { alignItems: 'center', paddingVertical: 10 },
+  reportLink: {
+    color: C.muted, fontSize: 12, fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   mb: { marginBottom: 14 },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   loadingText: { color: C.muted, marginTop: 12, fontSize: 13 },
