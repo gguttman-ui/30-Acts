@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, ScreenHeader, TypedConfirmModal } from '../components';
 import { C, todayStr, getActIcon, ALL_ACTS, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
+import DashboardView from './DashboardView';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
 const PROOF_VIDEO_ICON  = require('../assets/proof/Video.png');
@@ -64,6 +65,10 @@ const [exporting,      setExporting]      = useState(false);
 const [exportData,     setExportData]     = useState(null);
 const [confirmWipe,    setConfirmWipe]    = useState(false);
 const [confirmSeed,    setConfirmSeed]    = useState(false);
+
+  // -- A/B TOGGLE (temporary, for design review -- remove after we pick) --
+  const [viewMode,  setViewMode]  = useState('calendar'); // 'calendar' | 'dashboard'
+  const [dashPhone, setDashPhone] = useState(null);
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
   // Newest tier is the live `days` prop; older tiers are fetched lazily.
@@ -221,6 +226,16 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
       return null;
     }
   };
+
+  // Resolve the phone once so DashboardView can load runs.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ph = await getUserPhone();
+      if (!cancelled) setDashPhone(ph);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -449,6 +464,23 @@ const handleConfirmWipe = async () => {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="My Challenge" />
 
+      {/* -- TEMP A/B SWITCH -- delete once we have picked a view -------- */}
+      <View style={s.abRow}>
+        <TouchableOpacity
+          onPress={() => setViewMode('calendar')}
+          style={[s.abPill, viewMode === 'calendar' && s.abPillOn]}
+        >
+          <Text style={[s.abText, viewMode === 'calendar' && s.abTextOn]}>Calendar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setViewMode('dashboard')}
+          style={[s.abPill, viewMode === 'dashboard' && s.abPillOn]}
+        >
+          <Text style={[s.abText, viewMode === 'dashboard' && s.abTextOn]}>Dashboard</Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>
         <View style={s.progressCard}>
           <View style={s.progressTopRow}>
@@ -473,13 +505,22 @@ const handleConfirmWipe = async () => {
           Tap today or yesterday to record Acts of Kindness. Prior days are view-only.
         </Text>
       </View>
+      )}
 
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
+
+        {viewMode === 'dashboard' && (
+          <DashboardView
+            phone={dashPhone}
+            navigation={navigation}
+            reloadKey={days}
+          />
+        )}
 
 {/* Render a single tier's grid. `isCurrent` flag controls editability:
             current tier supports tap-to-edit on today/yesterday; past tiers
             are view-only DayDetail. */}
-        {(() => {
+        {viewMode === 'calendar' && (() => {
           // Build the array of tier pages (oldest → newest). Current tier last.
           const allTiers = [
             ...pastTiers,
@@ -793,6 +834,19 @@ const s = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: C.primary, borderRadius: 4 },
 
   subtitle: { color: C.sub, fontSize: sf(11), textAlign: 'center', marginTop: 6 },
+
+  // -- TEMP A/B switch styles -- remove with the toggle --------------------
+  abRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
+    paddingVertical: 10,
+  },
+  abPill: {
+    paddingHorizontal: 18, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
+  },
+  abPillOn: { backgroundColor: C.primary, borderColor: C.primary },
+  abText:   { color: C.sub, fontSize: sf(12), fontWeight: '800' },
+  abTextOn: { color: C.bg },
 
   // ── Grid ────────────────────────────────────────────────────────────────
   // 6 cells per row with a tight 4px column gap and 4px row gap.
