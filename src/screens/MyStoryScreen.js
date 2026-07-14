@@ -203,11 +203,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
             .maybeSingle();
           completion = data;
         } else {
+          // Fallback when the grid entry has no completionId. Key on the
+          // calendar date, NOT day_number -- day_number is renumbered on every
+          // restart, so it can resolve to a completely different act.
           const { data } = await supabase
             .from('completions')
             .select('act_title, notes, day_number')
             .eq('user_phone', phone)
-            .eq('day_number', dayObj?.dayNumber)
+            .eq('local_date', dayObj?.scheduledDate)
             .maybeSingle();
           completion = data;
         }
@@ -530,35 +533,26 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
       }
 
-      // Guardrail: refuse to overwrite a far-dated existing row (stale day#).
-      const { data: existingAtDay } = await supabase
-        .from('completions')
-        .select('local_date')
-        .eq('user_phone', phone)
-        .eq('day_number', targetDay.dayNumber)
-        .maybeSingle();
-      if (existingAtDay?.local_date) {
-        const existingMs = new Date(existingAtDay.local_date).getTime();
-        const todayMs    = new Date(localDateValue).getTime();
-        const diffDays   = Math.abs(Math.round((todayMs - existingMs) / 86_400_000));
-        if (diffDays > 1) {
-          Alert.alert(
-            'Something looks off',
-            `Day ${targetDay.dayNumber} already has an entry from ${existingAtDay.local_date}. ` +
-            `Please pull down to refresh and try again.`,
-            [{ text: 'OK' }]
-          );
-          setSaving(false);
-          return;
-        }
-      }
-
+      // Key the upsert on the CALENDAR DATE, not day_number.
+      //
+      // day_number is derived from the grid window and is renumbered on every
+      // restart, so it is not a stable identity for a completion. The old
+      // guard matched on it and then deleted by it, which had two failure
+      // modes:
+      //   - after Restart Challenge the anchor resets and numbering starts at
+      //     1 again, but the user's pre-restart rows are still in the table
+      //     (restart only sets last_restart_at, it does not delete). The first
+      //     act after a restart would collide with the old day_number 1 row,
+      //     trip the "Something looks off" alert, and block the user.
+      //   - it could delete a row belonging to an entirely different date.
+      //
+      // local_date IS stable: one act per calendar day, forever. Replacing
+      // today's row is exactly the intended behaviour; nothing else is touched.
       await supabase
         .from('completions')
         .delete()
         .eq('user_phone', phone)
-        .eq('day_number', targetDay.dayNumber);
-
+        .eq('local_date', localDateValue);
       const actTitle     = preselectedAct?.title || 'My Story';
       const isSponsorAct = preselectedAct?.categoryId === 'sponsor';
 

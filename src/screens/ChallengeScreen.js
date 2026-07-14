@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, ScreenHeader, TypedConfirmModal } from '../components';
 import { C, todayStr, getActIcon, ALL_ACTS, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
+import { rowLocalDate, windowStartDate, currentWindowIndex } from '../lib/streak';
 import DashboardView from './DashboardView';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
@@ -103,44 +104,66 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
 
         const { data, error } = await supabase
           .from('completions')
-          .select('day_number, act_title, proof_type, completed_at')
+          .select('id, day_number, act_title, proof_type, completed_at, local_date')
           .eq('user_phone', phone)
-          .lt('day_number', currentTierStart)
-          .order('day_number', { ascending: true });
+          .order('completed_at', { ascending: true });
 
-        if (error || !data) {
-          console.warn('Past tiers fetch error:', error?.message);
+        if (error || !data || data.length === 0) {
+          if (error) console.warn('Past tiers fetch error:', error.message);
           return;
         }
 
-        // Group into tiers of 30 (1-30, 31-60, ...)
+        // Past windows are 30-CALENDAR-DAY blocks from the anchor -- the same
+        // dates buildGridFromStreak uses for the current window. This used to
+        // group by stored day_number, which drifts out of step with the dates
+        // as soon as the user misses days. Matching by local_date also fixes
+        // the old completed_at.split('T')[0], which is UTC and shifted the day
+        // for anyone logging an act late at night.
+        const dated = data
+          .map(r => ({ ...r, _d: rowLocalDate(r) }))
+          .filter(r => r._d)
+          .sort((a, b) => a._d.localeCompare(b._d));
+        if (dated.length === 0) return;
+
+        const anchor = dated[0]._d;
+        const curIdx = currentWindowIndex(anchor);
+        if (curIdx === 0) { setPastTiers([]); return; }   // no history yet
+
+        const byDate = new Map(dated.map(r => [r._d, r]));
+
         const tiers = [];
-        const totalPastTiers = Math.floor((currentTierStart - 1) / 30);
-        for (let t = 0; t < totalPastTiers; t++) {
-          const tierStartDay = t * 30 + 1;
+        for (let w = 0; w < curIdx; w++) {
+          const wStart = windowStartDate(anchor, w);
+          const [sy, sm, sd] = wStart.split('-').map(Number);
+          const startDateObj = new Date(sy, sm - 1, sd);
+
           const tierGrid = Array.from({ length: 30 }, (_, i) => {
-            const dayNum = tierStartDay + i;
-            const match = data.find(r => r.day_number === dayNum);
+            const dd = new Date(startDateObj);
+            dd.setDate(startDateObj.getDate() + i);
+            const iso = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+            const match = byDate.get(iso);
+            const dayNum = w * 30 + i + 1;
+
             if (match) {
               return {
                 dayNumber:     dayNum,
-                scheduledDate: (match.completed_at || '').split('T')[0],
+                scheduledDate: iso,
                 status:        'COMPLETED',
                 title:         match.act_title  || '',
                 proofType:     match.proof_type || null,
+                completionId:  match.id || null,
               };
             }
             return {
               dayNumber:     dayNum,
-              scheduledDate: '',
+              scheduledDate: iso,
               status:        'MISSED',
               title:         '',
               proofType:     null,
             };
           });
-          tiers.push({ tierNumber: t + 1, days: tierGrid });
-        }
-        setPastTiers(tiers);
+          tiers.push({ tierNumber: w + 1, days: tierGrid });
+        }        setPastTiers(tiers);
       } catch (e) {
         console.warn('Past tiers build failed:', e.message);
       }

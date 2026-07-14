@@ -36,7 +36,7 @@ export function extractPhone(email) {
 // local_date column (set at write-time using the user's home timezone).
 // Falls back to deriving from completed_at in device-local time, so old
 // rows without local_date still work.
-function rowLocalDate(row) {
+export function rowLocalDate(row) {
   if (row?.local_date) return row.local_date;
   if (row?.completed_at) return localDateStr(new Date(row.completed_at));
   return null;
@@ -76,35 +76,38 @@ export function findMostRecentStreak(completions) {
 export function buildGridFromStreak(streak) {
   if (!streak?.length) return null;
 
-  // Current tier is determined by how many days have been completed.
-  // 0-29 done  → tier 1 (days 1-30)
-  // 30-59 done → tier 2 (days 31-60)
-  // 60-89 done → tier 3 (days 61-90), etc.
-  // Use (count - 1) so the tier advances only AFTER a tier's 30th day is done,
-  // not the instant it lands. With the old `count / 30`, completing day 30 made
-  // floor(30/30) = 1, jumping to tier 2 while that completion still belonged to
-  // tier 1 -- so streak[30] was undefined, the anchor fell back to today, and the
-  // whole tier-2 grid came up empty (day 31 rendered as TODAY with no check mark).
-  // Same break happened at 60, 90, ... Now: 30 done -> still tier 1 (day 30 shows
-  // its check); 31 done -> tier 2, and streak[30] is that first tier-2 completion.
-  const completedCount = streak.length;
-  const tierIndex = Math.floor((completedCount - 1) / 30); // 0, 1, 2, ...
-  const tierStartDay = tierIndex * 30 + 1;                 // 1, 31, 61, ...
-  const tierStartIdx = tierIndex * 30;                     // slice offset into streak
+  // -- Window = 30 CALENDAR DAYS from the anchor, NOT 30 completions. -------
+  //
+  // This used to derive the window from completedCount:
+  //     tierIndex = Math.floor((completedCount - 1) / 30)
+  // which meant the grid advanced by ACTS while the dates inside it advanced
+  // by CALENDAR DAYS. Anyone whose acts fell behind the calendar eventually
+  // walked off the end of their own grid: today's date was no longer in the
+  // 30 dates the grid covered, days.find(d => d.scheduledDate === today)
+  // returned undefined, and MyStoryScreen threw "No open day". The user was
+  // hard-stuck -- pull-to-refresh rebuilt the identical grid -- and the only
+  // escape was Restart Challenge, which wipes their history.
+  //
+  // Real case: first act Apr 27, 13 acts logged. completedCount 13 -> still
+  // tier 0 -> grid = Apr 27..May 26. By Jul 14 the user had been unable to
+  // log anything for seven weeks.
+  //
+  // The window now advances with the calendar, which is what the product
+  // actually specifies: "the most current days in 30 day increments anchored
+  // on when they first started."
+  const anchorDate = parseLocalDate(rowLocalDate(streak[0]));
+  const today      = parseLocalDate(localDateStr(new Date()));
 
-  // Anchor = the calendar date of the FIRST completion in this tier.
-  // Prefers row.local_date (locked in at write-time, travel-stable).
-  // If the user hasn't started this tier yet (just rolled over),
-  // anchor on today so the new tier's Day N opens fresh from today.
-  const tierStartCompletion = streak[tierStartIdx];
-  const anchorDate = tierStartCompletion
-    ? parseLocalDate(rowLocalDate(tierStartCompletion))
-    : parseLocalDate(localDateStr(new Date()));
+  const daysElapsed  = Math.floor((today - anchorDate) / 86400000);
+  const windowIndex  = Math.max(0, Math.floor(daysElapsed / 30)); // 0, 1, 2, ...
+  const windowStart  = new Date(anchorDate);
+  windowStart.setDate(anchorDate.getDate() + windowIndex * 30);
 
-// Build a date → completion lookup so each grid slot pulls the row
-  // whose local_date matches that slot's calendar date. This is
-  // gap-safe: a missing middle day leaves that slot NOT_SET while
-  // later days still align with their real dates.
+  const tierStartDay = windowIndex * 30 + 1;                      // 1, 31, 61, ...
+
+  // Date -> completion lookup, so each slot pulls the row whose local_date
+  // matches that slot's calendar date. Gap-safe: a missing middle day leaves
+  // that slot NOT_SET while later days still align with their real dates.
   const byDate = new Map();
   for (const row of streak) {
     const d = rowLocalDate(row);
@@ -112,8 +115,8 @@ export function buildGridFromStreak(streak) {
   }
 
   const grid = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(anchorDate);
-    d.setDate(anchorDate.getDate() + i);
+    const d = new Date(windowStart);
+    d.setDate(windowStart.getDate() + i);
     const scheduledDate = localDateStr(d);
     const match = byDate.get(scheduledDate);
 
@@ -125,9 +128,8 @@ export function buildGridFromStreak(streak) {
         title:         match.act_title  || '',
         proofType:     match.proof_type || null,
         // Stable identifier for the underlying row. The displayed dayNumber is
-        // renumbered per tier/restart and no longer matches the stored
-        // day_number, so detail screens must look the completion up by this id,
-        // not by dayNumber.
+        // renumbered per window/restart and no longer matches the stored
+        // day_number, so detail screens must look the completion up by this id.
         completionId:  match.id || null,
       };
     }
@@ -143,7 +145,27 @@ export function buildGridFromStreak(streak) {
   return grid;
 }
 
+/**
+ * The calendar date a 30-day window starts on, given the anchor (first act)
+ * and a 0-based window index. Exported so ChallengeScreen can build the past
+ * windows on exactly the same dates the current grid uses.
+ */
+export function windowStartDate(anchorDateStr, windowIndex) {
+  const a = parseLocalDate(anchorDateStr);
+  const d = new Date(a);
+  d.setDate(a.getDate() + windowIndex * 30);
+  return localDateStr(d);
+}
 
+/**
+ * How many 30-day windows have elapsed since the anchor, 0-based.
+ */
+export function currentWindowIndex(anchorDateStr, todayStrValue = localDateStr(new Date())) {
+  const a = parseLocalDate(anchorDateStr);
+  const t = parseLocalDate(todayStrValue);
+  const daysElapsed = Math.floor((t - a) / 86400000);
+  return Math.max(0, Math.floor(daysElapsed / 30));
+}
 
 /**
  * Read-only grid load: never deletes or
