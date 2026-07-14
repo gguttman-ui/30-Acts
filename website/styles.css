@@ -137,7 +137,7 @@ h3{font-size:1.2rem;letter-spacing:-.01em}
 
 /* ---------- Footer ---------- */
 .site-foot{background:var(--ink);color:#bcd0c5;padding:54px 0 30px;font-size:.94rem}
-.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:34px}
+.foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:34px}
 @media(max-width:760px){.foot-grid{grid-template-columns:1fr;gap:26px}}
 .site-foot a{color:#dbeae1}
 .site-foot h4{font-family:'Bricolage Grotesque',serif;color:#fff;font-size:1rem;margin:0 0 12px}
@@ -222,3 +222,7 @@ section[id]{scroll-margin-top:84px}
 .video-frame iframe{width:100%;height:100%;border:0;display:block}
 .video-close{position:absolute;top:-14px;right:-14px;z-index:2;width:40px;height:40px;border-radius:50%;border:none;background:#fff;color:#15231B;font-size:1.5rem;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .video-close:hover{background:var(--green-tint)}
+
+/* ghost button on dark footer */
+.site-foot .btn--ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45)}
+.site-foot .btn--ghost:hover{background:rgba(255,255,255,.12);border-color:#fff}

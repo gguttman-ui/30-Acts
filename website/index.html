@@ -1,4 +1,4 @@
-?<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -34,7 +34,7 @@
         <p class="lead">30 Acts of Kindness gives you one gentle prompt a day for a month. Do the act, save your story, and watch your 30-day streak grow.</p>
         <div class="hero-cta">
           <a class="btn btn--primary" href="#waitlist">Join the Waitlist</a>
-          <a class="btn btn--ghost" href="#about">Our story</a>
+          <button type="button" class="btn btn--ghost" onclick="openStory()">Watch our Story</button>
         </div>
         <p class="hero-note">Coming soon to iOS · A project of 30ActsofKindness NFP</p>
       </div>
@@ -166,7 +166,13 @@
       </div>
       <div class="about-video">
         <p class="eyebrow">Our story, in 90 seconds</p>
-        <a class="btn btn--coral" href="https://youtube.com/shorts/BkFz6PRGbhU" target="_blank" rel="noopener">Watch our story</a>
+        <div id="storyVideo" style="position:relative;width:100%;max-width:280px;aspect-ratio:9/16;margin:0 auto;border-radius:14px;overflow:hidden;background:#000;cursor:pointer;box-shadow:0 10px 30px rgba(20,40,30,.14)" onclick="(function(w){if(w.dataset.loaded)return;w.dataset.loaded='1';w.innerHTML='<iframe src=\"https://www.youtube-nocookie.com/embed/BkFz6PRGbhU?autoplay=1&rel=0&playsinline=1\" title=\"Our story\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen style=\"position:absolute;inset:0;width:100%;height:100%;border:0\"></iframe>';})(this)">
+          <img src="https://i.ytimg.com/vi/BkFz6PRGbhU/hqdefault.jpg" alt="Watch our story" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+          <span aria-hidden="true" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;background:#EF6F45;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.35)">
+            <span style="display:block;width:0;height:0;margin-left:5px;border-left:20px solid #fff;border-top:13px solid transparent;border-bottom:13px solid transparent"></span>
+          </span>
+        </div>
+        <p class="muted" style="font-size:.82rem;margin:10px 0 0;text-align:center">Tap to play</p>
       </div>
     </div>
   </section>
@@ -211,16 +217,20 @@
       </div>
       <div class="donate-card">
         <h3 style="margin-bottom:.2em">Make a gift</h3>
-        <p class="muted" style="margin-top:0">Choose an amount, then continue to our secure donation page.</p>
-        <div class="amount-row">
-          <div class="amount" role="button" tabindex="0">$1</div>
-          <div class="amount" role="button" tabindex="0">$2</div>
-          <div class="amount" role="button" tabindex="0">$5</div>
-          <div class="amount" role="button" tabindex="0">$10</div>
-          <div class="amount" role="button" tabindex="0">$20</div>
+        <p class="muted" style="margin-top:0">Give the way that's easiest for you - every gift is tax-deductible.</p>
+
+        <h3 style="text-align:center;margin:22px 0 12px">Ways to give</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div><a class="btn btn--coral" href="https://www.paypal.com/qrcodes/managed/ea84696b-5280-41cd-b68c-f94d11ce4b92?utm_source=payandgetpaid" target="_blank" rel="noopener" style="width:100%;justify-content:center">Donate with PayPal ♡</a><p class="muted" style="font-size:.82rem;margin:6px 0 0;text-align:center">Opens PayPal. Enter your amount there. Pay by card or bank.</p></div>
+          <div><a class="btn btn--ghost" href="https://venmo.com/u/Actsofkindness30" target="_blank" rel="noopener" style="width:100%;justify-content:center">Venmo · @Actsofkindness30</a><p class="muted" style="font-size:.82rem;margin:6px 0 0;text-align:center">Opens Venmo. Enter your amount in the app.</p></div>
+          <div><button type="button" class="btn btn--ghost" data-label="Zelle · donate@30ActsofKindness.org" onclick="(function(b){var e='donate@30ActsofKindness.org';function done(){b.textContent='Copied to clipboard! ✓';b.style.background='#1E8E54';b.style.color='#fff';b.style.borderColor='#1E8E54';setTimeout(function(){b.textContent=b.dataset.label;b.style.background='';b.style.color='';b.style.borderColor='';},2500);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(e).then(done,done);}else{var t=document.createElement('textarea');t.value=e;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.focus();t.select();try{document.execCommand('copy');}catch(err){}document.body.removeChild(t);done();}})(this)" style="width:100%;justify-content:center">Zelle · donate@30ActsofKindness.org</button><p class="muted" style="font-size:.82rem;margin:6px 0 0;text-align:center">Tap to copy, then send to this email via Zelle in your bank app.</p></div>
         </div>
-        <!-- TODO: replace href with your real donation link (Donorbox / PayPal / Givebutter / Stripe). -->
-        <a class="btn btn--coral" href="#REPLACE_WITH_DONATION_LINK" style="width:100%;justify-content:center">Continue to donate ♡</a>
+
+        <div style="text-align:center;margin-top:22px">
+          <img src="assets/paypal-qr.png" alt="QR code to donate with PayPal" width="180" height="180" style="width:180px;height:180px;border:1px solid var(--line);border-radius:14px;padding:8px;background:#fff" loading="lazy">
+          <p class="muted" style="font-size:.86rem;margin:8px 0 0">Scan to donate with PayPal</p>
+        </div>
+
         <div class="notice">
           <strong>Your gift is tax-deductible.</strong> 30ActsofKindness NFP is a registered 501(c)(3) nonprofit in Illinois (EIN 41-4058016). Donations are tax-deductible to the extent allowed by law, and we'll email a receipt.
         </div>
@@ -281,6 +291,15 @@
         <li><a href="#contact">Become a tester</a></li>
       </ul>
     </div>
+    <div>
+      <h4>Legal</h4>
+      <ul class="foot-links">
+        <li><a href="terms.html">Terms of Service</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+        <li><a href="guidelines.html">Community Guidelines</a></li>
+        <li><a href="moderation.html">Content Moderation</a></li>
+      </ul>
+    </div>
   </div>
   <div class="wrap foot-bottom">
     <span>© 2026 30ActsofKindness NFP · Illinois</span>
@@ -291,5 +310,23 @@
 <script src="vendor/supabase.js"></script>
 <script src="vendor/libphonenumber-min.js"></script>
 <script src="site.js"></script>
+  <div id="storyModal" role="dialog" aria-modal="true" aria-label="Our story video" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,20,15,.82);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeStory()">
+    <div style="position:relative;width:100%;max-width:340px">
+      <button type="button" aria-label="Close" onclick="closeStory()" style="position:absolute;top:-44px;right:0;width:36px;height:36px;border-radius:50%;border:0;background:#fff;color:#15231B;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)">&times;</button>
+      <div id="storyFrame" style="position:relative;width:100%;aspect-ratio:9/16;border-radius:16px;overflow:hidden;background:#000"></div>
+    </div>
+  </div>
+  <script>
+    function openStory(){
+      var m=document.getElementById('storyModal'), f=document.getElementById('storyFrame');
+      f.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/BkFz6PRGbhU?autoplay=1&rel=0&playsinline=1" title="Our story" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>';
+      m.style.display='flex'; document.body.style.overflow='hidden';
+    }
+    function closeStory(){
+      var m=document.getElementById('storyModal'), f=document.getElementById('storyFrame');
+      f.innerHTML=''; m.style.display='none'; document.body.style.overflow='';
+    }
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeStory(); });
+  </script>
 </body>
 </html>

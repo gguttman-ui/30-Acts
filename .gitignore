@@ -26,3 +26,7 @@ supabase.tar.gz
 .env.txt
 body.json
 dist/
+
+# local edit backups
+*.bak
+*.bak[0-9]
