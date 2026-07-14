@@ -20,13 +20,17 @@ import { AppInput, Badge, Btn, Card, ScreenHeader } from '../components';
 import { C, ACT_CATEGORIES, RECIPIENTS, todayStr, getActIcon, localDateInTZ, formatTimeLabel, formatCostLabel } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveChallengeIds, getActiveChallenges } from '../lib/streak';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 // Supabase REST/Edge-function calls below use these directly. EAS builds do
 // NOT receive the gitignored .env, so fall back to the public project URL +
 // anon key (same values as src/lib/supabase.js) so moderation and Day-30
 // notifications keep working in TestFlight / App Store builds.
 const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10Znlla2R4dGtkaWFxYmdhb3phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMjA2NDAsImV4cCI6MjA4OTU5NjY0MH0.02uXvFMvloJ64E7qH1YgU-zB9E4EsfQGO0dV9GZE8PY';
+// Publishable key, matching lib/supabase.js. The old legacy anon JWT that
+// used to sit here is DISABLED -- any build without EXPO_PUBLIC_SUPABASE_ANON_KEY
+// set (e.g. the preview profile) silently failed every call below.
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
 
 const STORY_MIN = 10;
 const STORY_MAX = 200;
@@ -742,38 +746,6 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } catch (err) { Alert.alert('Error', 'Could not open camera or photos.'); console.error(err); }
   };
 
-  const containsProfanity = (text) => {
-    const lower = text.toLowerCase();
-    const partialBanned = [
-      'fuck','shit','bitch','cunt','cock','dick','pussy','nigger','nigga','faggot','porn','nude','naked',
-      'erotic','orgasm','penis','vagina','boob','breast','masturbat','rape','molest','tit',
-    ];
-    const exactBanned = [
-      'ass','bastard','damn','crap','piss','whore','slut','retard','predator','sex','sexy',
-    ];
-    const partialMatch = partialBanned.some(w => lower.includes(w));
-    const exactMatch   = exactBanned.some(w => new RegExp(`\\b${w}\\b`, 'i').test(lower));
-    return partialMatch || exactMatch;
-  };
-
-  const moderateContent = async (text) => {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/moderate-content`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ text }),
-        }
-      );
-      const data = await res.json();
-      return data.flagged === true;
-    } catch (e) { console.warn('Moderation check failed:', e.message); return false; }
-  };
-
   const handleDeleteAct = async () => {
     setConfirmDelete(false);
     setDeleting(true);
@@ -888,9 +860,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     try {
       const textToCheck = [title, proofType === 'story' ? story : ''].filter(Boolean).join(' ');
       if (textToCheck.trim()) {
-        const localFlagged = containsProfanity(textToCheck);
-        const apiFlagged = await moderateContent(textToCheck);
-        if (localFlagged || apiFlagged) {
+        if (await isContentBlocked(textToCheck)) {
           Alert.alert(
             'Content Not Allowed',
             'Your submission contains content that is not appropriate based on our Terms of Service and will not be submitted. Please review your title and story.'

@@ -31,8 +31,6 @@ const BYPASS_META = {
   [TEST_PHONE_RAW]: { firstName: '',     lastName: '',         state: ''   },
 };
 
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10Znlla2R4dGtkaWFxYmdhb3phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMjA2NDAsImV4cCI6MjA4OTU5NjY0MH0.02uXvFMvloJ64E7qH1YgU-zB9E4EsfQGO0dV9GZE8PY';
 const KB_DONE_ID = 'authKbDone';
 
 // AsyncStorage key for the phone we remember between sessions.
