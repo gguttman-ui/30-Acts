@@ -10,6 +10,8 @@ import { C } from '../constants';
 const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+import { supabase } from '../lib/supabase';
+
 const REST_HEADERS = {
   'apikey':        SUPABASE_ANON_KEY,
   'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
@@ -371,6 +373,7 @@ export default function AdminScreen({ navigation }) {
   const [deletingComp,        setDeletingComp]        = useState(null);
   const [compSearch,          setCompSearch]          = useState('');
   const [sortBy,              setSortBy]              = useState('date');
+  const [userSort,            setUserSort]            = useState('joined'); // joined | name | phone
 
   // Phone state values are RAW DIGITS (e.g. "9177218269"), formatted only on display.
   const [admins,           setAdmins]           = useState([]);
@@ -402,11 +405,14 @@ export default function AdminScreen({ navigation }) {
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_list?select=*&order=created_at.desc`, { headers: REST_HEADERS });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || `Status ${res.status}`);
-      setUsers(Array.isArray(data) ? data : []);
-      setFilteredUsers(Array.isArray(data) ? data : []);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, phone, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const rows = Array.isArray(data) ? data : [];
+      setUsers(rows);
+      setFilteredUsers(rows);
     } catch (e) { console.warn('Error loading users:', e.message); }
     finally { setLoadingUsers(false); }
   }, []);
@@ -414,9 +420,12 @@ export default function AdminScreen({ navigation }) {
   const fetchCompletions = useCallback(async () => {
     setLoadingCompletions(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/completions?select=*&order=completed_at.desc&limit=500`, { headers: REST_HEADERS });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || `Status ${res.status}`);
+      const { data, error } = await supabase
+        .from('completions')
+        .select('*')
+        .order('completed_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
       setCompletions(Array.isArray(data) ? data : []);
       setFilteredCompletions(Array.isArray(data) ? data : []);
     } catch (e) { setCompletions([]); setFilteredCompletions([]); }
@@ -593,20 +602,32 @@ export default function AdminScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (!userSearch.trim()) { setFilteredUsers(users); return; }
-    const q = userSearch.toLowerCase();
-    setFilteredUsers(users.filter(u => u.email?.toLowerCase().includes(q)));
-  }, [userSearch, users]);
+    const fullName = (u) => `${u.first_name || ''} ${u.last_name || ''}`.trim();
+    let list = [...users];
+    if (userSearch.trim()) {
+      const q = userSearch.toLowerCase();
+      list = list.filter(u =>
+        (u.phone || '').toLowerCase().includes(q) ||
+        fullName(u).toLowerCase().includes(q)
+      );
+    }
+    list.sort((a, b) => {
+      if (userSort === 'name')  return fullName(a).localeCompare(fullName(b));
+      if (userSort === 'phone') return (a.phone || '').localeCompare(b.phone || '');
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+    setFilteredUsers(list);
+  }, [userSearch, userSort, users]);
 
   useEffect(() => {
     let list = [...completions];
     if (compSearch.trim()) {
       const q = compSearch.toLowerCase();
-      list = list.filter(c => c.user_email?.toLowerCase().includes(q) || c.act_title?.toLowerCase().includes(q));
+      list = list.filter(c => (c.user_phone || '').toLowerCase().includes(q));
     }
     list.sort(sortBy === 'date'
       ? (a, b) => new Date(b.completed_at) - new Date(a.completed_at)
-      : (a, b) => (a.user_email || '').localeCompare(b.user_email || ''));
+      : (a, b) => (a.user_phone || '').localeCompare(b.user_phone || ''));
     setFilteredCompletions(list);
   }, [compSearch, sortBy, completions]);
 
@@ -627,16 +648,48 @@ export default function AdminScreen({ navigation }) {
     });
   }, []);
 
+  // Reused Terms wording, matching the message DailyActScreen shows on a
+  // blocked submission.
+  const TERMS_SMS = 'Your 30 Acts of Kindness post was removed because it ' +
+    'contains content that is not appropriate based on our Terms of Service.';
+
+  // Remove an inappropriate act AND text the author that it violated our
+  // Terms of Service. All app users are phone-based.
+  const handleRemoveAndNotify = useCallback((comp) => {
+    showConfirm(
+      'Remove & Notify',
+      `Remove "${comp.act_title || 'this act'}" and text ${comp.user_phone} that it violated our Terms of Service?`,
+      async () => {
+        hideConfirm();
+        setDeletingComp(comp.id);
+        try {
+          const { error } = await supabase.from('completions').delete().eq('id', comp.id);
+          if (error) { Alert.alert('Remove Failed', error.message); return; }
+          setCompletions(prev => prev.filter(c => c.id !== comp.id));
+          if (comp.user_phone) {
+            try {
+              await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_sms_notification`, {
+                method: 'POST', headers: REST_HEADERS,
+                body: JSON.stringify({ phone_number: comp.user_phone, message: TERMS_SMS }),
+              });
+            } catch (e) { console.warn('Terms SMS failed:', e.message); }
+          }
+        } finally {
+          setDeletingComp(null);
+        }
+      }
+    );
+  }, []);
+
   const handleDeleteCompletion = useCallback((comp) => {
-    showConfirm('Remove Act', `Remove "${comp.act_title || 'this act'}" by ${comp.user_email}?`, () => {
+    showConfirm('Remove Act', `Remove "${comp.act_title || 'this act'}" by ${comp.user_phone}?`, () => {
       hideConfirm();
       setDeletingComp(comp.id);
-      fetch(`${SUPABASE_URL}/rest/v1/completions?id=eq.${comp.id}`, { method: 'DELETE', headers: REST_HEADERS })
-        .then(res => {
-          if (res.ok || res.status === 204) setCompletions(prev => prev.filter(c => c.id !== comp.id));
-          else res.text().then(t => Alert.alert('Delete Failed', `${res.status}: ${t}`));
+      supabase.from('completions').delete().eq('id', comp.id)
+        .then(({ error }) => {
+          if (error) Alert.alert('Delete Failed', error.message);
+          else setCompletions(prev => prev.filter(c => c.id !== comp.id));
         })
-        .catch(e => Alert.alert('Error', e.message))
         .finally(() => setDeletingComp(null));
     });
   }, []);
@@ -765,11 +818,14 @@ export default function AdminScreen({ navigation }) {
                 <View style={{ flex: 1 }}>
                   <Text style={s.compTitle} numberOfLines={1}>{c.act_title || '(untitled)'}</Text>
                   <Text style={s.compMeta} numberOfLines={1}>
-                    {isProxyEmail(c.user_email) ? proxyEmailToDisplay(c.user_email) : c.user_email}
+                    {c.user_phone || '(no phone)'}
                   </Text>
                   <Text style={s.compDate}>Day {c.day_number}  •  {formatDateTime(c.completed_at)}</Text>
                   {c.notes ? <Text style={s.compNotes} numberOfLines={2}>"{c.notes}"</Text> : null}
                 </View>
+                <TouchableOpacity onPress={() => handleRemoveAndNotify(c)} disabled={deletingComp === c.id} style={s.deleteBtn}>
+                  <Text style={{ fontSize: 16 }}>🚫</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDeleteCompletion(c)} disabled={deletingComp === c.id} style={s.deleteBtn}>
                   {deletingComp === c.id ? <ActivityIndicator size="small" color={C.error} /> : <Text style={{ fontSize: 16 }}>🗑️</Text>}
                 </TouchableOpacity>
@@ -793,7 +849,18 @@ export default function AdminScreen({ navigation }) {
                 <View style={[s.badge, { backgroundColor: C.warning + '22' }]}><Text style={[s.badgeText, { color: C.warning }]}>⏳ {unconfirmedCount}</Text></View>
               </View>
             )}
-            <TextInput value={userSearch} onChangeText={setUserSearch} placeholder="Search by email or phone..." placeholderTextColor={C.muted} style={s.searchInput} />
+            <TextInput value={userSearch} onChangeText={setUserSearch} placeholder="Search by name or phone..." placeholderTextColor={C.muted} style={s.searchInput} />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 4 }}>
+              <TouchableOpacity onPress={() => setUserSort('joined')} style={[s.sortBtn, userSort === 'joined' && s.sortBtnActive]}>
+                <Text style={[s.sortText, userSort === 'joined' && s.sortTextActive]}>{'\uD83D\uDCC5'} Joined</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setUserSort('name')} style={[s.sortBtn, userSort === 'name' && s.sortBtnActive]}>
+                <Text style={[s.sortText, userSort === 'name' && s.sortTextActive]}>{'\uD83D\uDD24'} Name</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setUserSort('phone')} style={[s.sortBtn, userSort === 'phone' && s.sortBtnActive]}>
+                <Text style={[s.sortText, userSort === 'phone' && s.sortTextActive]}>{'\uD83D\uDCDE'} Phone</Text>
+              </TouchableOpacity>
+            </View>
             {loadingUsers ? (
               <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                 <ActivityIndicator color={C.primary} />
