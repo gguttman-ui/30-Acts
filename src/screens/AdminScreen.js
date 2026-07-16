@@ -632,20 +632,47 @@ export default function AdminScreen({ navigation }) {
   }, [compSearch, sortBy, completions]);
 
   const handleDeleteUser = useCallback((user) => {
-    showConfirm('Delete User', `Permanently delete ${user.email}?`, () => {
-      hideConfirm();
-      setDeletingUser(user.id);
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_user`, {
-        method: 'POST', headers: REST_HEADERS,
-        body: JSON.stringify({ user_id: user.id }),
-      })
-        .then(res => {
-          if (res.ok || res.status === 204) setUsers(prev => prev.filter(u => u.id !== user.id));
-          else res.text().then(t => Alert.alert('Delete Failed', `${res.status}: ${t}`));
+    showConfirm(
+      'Delete User',
+      `Permanently delete ${user.email || user.phone} and text them that their account violated our Terms of Service?`,
+      () => {
+        hideConfirm();
+        setDeletingUser(user.id);
+
+        // Resolve the user's phone (E.164) for the Terms-of-Service notice.
+        // Phone accounts store the number on profiles.phone; the proxy email
+        // "+1XXXXXXXXXX@phone.30acts.app" already carries E.164 before the "@".
+        const phone = user.phone
+          || (isProxyEmail(user.email) ? user.email.split('@')[0] : null);
+        const ACCOUNT_TERMS_SMS =
+          'Your 30 Acts of Kindness account has been removed because your ' +
+          'activity violated our Terms of Service.';
+
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_user`, {
+          method: 'POST', headers: REST_HEADERS,
+          body: JSON.stringify({ user_id: user.id }),
         })
-        .catch(e => Alert.alert('Error', e.message))
-        .finally(() => setDeletingUser(null));
-    });
+          .then(async (res) => {
+            if (res.ok || res.status === 204) {
+              setUsers(prev => prev.filter(u => u.id !== user.id));
+              // Notify the removed user. Non-blocking: a Twilio failure must
+              // not make a successful delete look like it failed.
+              if (phone) {
+                try {
+                  await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_sms_notification`, {
+                    method: 'POST', headers: REST_HEADERS,
+                    body: JSON.stringify({ phone_number: phone, message: ACCOUNT_TERMS_SMS }),
+                  });
+                } catch (e) { console.warn('Account Terms SMS failed:', e.message); }
+              }
+            } else {
+              res.text().then(t => Alert.alert('Delete Failed', `${res.status}: ${t}`));
+            }
+          })
+          .catch(e => Alert.alert('Error', e.message))
+          .finally(() => setDeletingUser(null));
+      }
+    );
   }, []);
 
   // Reused Terms wording, matching the message DailyActScreen shows on a
