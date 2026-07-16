@@ -13,6 +13,8 @@ const FONT_BASE_W = 390;
 const fontScale = Math.min(Math.max(SCREEN_W / FONT_BASE_W, 0.85), 1.1);
 const sf = (n) => Math.round(n * fontScale);
 
+const TILES_PER_PAGE = 30;
+
 function localDateStr(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -32,13 +34,73 @@ function fmtMonthDay(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// One tile per CALENDAR DATE across a run's span. Completed dates render as
+// act tiles; an internal single missed day (which does NOT break the run)
+// renders as a gap tile. Used for the consolidated "earlier streaks" pages.
+function buildRunDateTiles(run) {
+  const byDate = new Map();
+  run.rows.forEach((r) => { const d = rowLocalDate(r); if (d) byDate.set(d, r); });
+  const tiles = [];
+  let actNo = 0;
+  const start = new Date(run.startDate + 'T00:00:00');
+  const end   = new Date(run.endDate + 'T00:00:00');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const iso = localDateStr(d);
+    const match = byDate.get(iso);
+    if (match) { actNo++; tiles.push({ type: 'act', date: iso, actNo, row: match }); }
+    else { tiles.push({ type: 'gap', date: iso }); }
+  }
+  return tiles;
+}
+
+// Turn the runs into swipe pages:
+//   - the current (live/last) run's active lap        -> its own page (rightmost)
+//   - any full 30-act lap                             -> its own page
+//   - short/partial runs                              -> consolidated together,
+//     one blank separator tile between them, wrapping at 30 tiles per page.
+// Chronological order: oldest left, current right.
+function buildPages(runs) {
+  const lastIdx = runs.length - 1;
+
+  const segments = [];
+  runs.forEach((run, ri) => {
+    const laps = lapCount(run);
+    for (let li = 0; li < laps; li++) {
+      const isCurrent = ri === lastIdx && li === laps - 1;
+      const actsThisLap = Math.max(0, Math.min(30, run.length - li * 30));
+      if (isCurrent) segments.push({ kind: 'current', run, lapIndex: li });
+      else if (actsThisLap === 30) segments.push({ kind: 'full', run, lapIndex: li });
+      else segments.push({ kind: 'partial', run, lapIndex: li });
+    }
+  });
+
+  const pages = [];
+  let buffer = null;
+  const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
+
+  for (const seg of segments) {
+    if (seg.kind === 'current') { flush(); pages.push({ type: 'current', run: seg.run, lapIndex: seg.lapIndex }); continue; }
+    if (seg.kind === 'full')    { flush(); pages.push({ type: 'full',    run: seg.run, lapIndex: seg.lapIndex }); continue; }
+
+    // partial -> consolidate (single-lap partial => the whole run's date tiles)
+    const tiles = buildRunDateTiles(seg.run);
+    const need = (buffer && buffer.cells.length ? 1 : 0) + tiles.length;
+    if (!buffer) buffer = { type: 'consolidated', cells: [] };
+    if (buffer.cells.length + need > TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
+    if (buffer.cells.length) buffer.cells.push({ type: 'sep' });
+    tiles.forEach((t) => buffer.cells.push(t));
+  }
+  flush();
+
+  pages.forEach((p, i) => { p.id = i; });
+  return pages;
+}
+
 /**
- * Dashboard: shows the CURRENT run only -- the acts you have strung together
- * right now. Swipe right to page back through earlier runs.
- *
- * Deliberately framed as "runs", not "attempts". A 10-day run that ended is
- * still 10 acts of kindness that happened; the history is a record of effort,
- * not a list of failures.
+ * Dashboard: shows the CURRENT streak -- the acts you have strung together
+ * right now. Swipe right to page back through earlier streaks. Earlier short
+ * streaks are consolidated onto shared pages (one blank tile between them);
+ * a full 30-act streak gets its own page.
  */
 export default function DashboardView({ phone, navigation, reloadKey }) {
   const [runs, setRuns]       = useState([]);
@@ -70,7 +132,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     return (
       <View style={s.centerBox}>
         <Text style={s.emptyBig}>No acts yet</Text>
-        <Text style={s.emptySub}>Log your first act and your run starts today.</Text>
+        <Text style={s.emptySub}>Log your first act and your streak starts today.</Text>
       </View>
     );
   }
@@ -80,138 +142,150 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const best       = bestRunLength(runs);
   const lifetime   = lifetimeActs(runs);
 
-  // One page per LAP, flattened across every run. A 32-act run yields two
-  // pages: acts 1-30, then acts 31-60. Oldest leftmost, current rightmost --
-  // same paging feel as the calendar's tiers.
-  const pages = [];
-  runs.forEach((run, ri) => {
-    const laps = lapCount(run);
-    for (let li = 0; li < laps; li++) {
-      pages.push({
-        run,
-        runNumber: ri + 1,
-        lapIndex:  li,
-        totalLaps: laps,
-        isCurrent: ri === runs.length - 1 && li === laps - 1,
-      });
-    }
-  });
+  const pages = buildPages(runs);
   const initialIndex = pages.length - 1;
 
   const currentLap  = lapCount(currentRun) - 1;
   const currentDone = actsInLap(currentRun, currentLap);
 
-  // Is there actually a day the user may log right now?
-  // You may log TODAY, or back-fill YESTERDAY -- nothing else. A run being
-  // "alive" only means it COULD be extended; it does not mean an unlogged
-  // day exists. With both today and yesterday already logged there is no
-  // legal move, so no "+" slot should be offered. (Offering one would invite
-  // logging an act for TOMORROW, which must never be possible.)
-  const loggedDates      = new Set(currentRun.rows.map(r => rowLocalDate(r)));
+  // Is there actually a day the user may log right now? You may log TODAY, or
+  // back-fill YESTERDAY -- nothing else. "Alive" only means a run COULD be
+  // extended; it does not mean an unlogged day exists.
+  const loggedDates      = new Set(currentRun.rows.map((r) => rowLocalDate(r)));
   const canLogToday      = !loggedDates.has(today);
   const canLogYesterday  = !loggedDates.has(yesterday);
   const hasLoggableDay   = isLive && (canLogToday || canLogYesterday);
 
-  const renderRun = ({ item }) => {
-    const { run, runNumber, lapIndex, totalLaps, isCurrent } = item;
-    const grid = buildRunGrid(run, lapIndex);
+  // -- One tile. cell = { type:'act', day } | { type:'gap' } | { type:'sep' }.
+  const renderTileCell = (cell, key, opts) => {
+    if (cell.type === 'sep' || cell.type === 'gap') {
+      return <View key={key} style={[s.dayCell, s.dayCellBlank]} />;
+    }
+
+    const day         = cell.day;
+    const interactive = !!(opts && opts.interactive);
+    const grid        = opts && opts.grid;
+    const isToday     = interactive && day.scheduledDate === today;
+    const isYesterday = interactive && day.scheduledDate === yesterday;
+    const isDone      = day.status === 'COMPLETED';
+    const isNextSlot  = interactive && hasLoggableDay && !isDone
+      && grid.findIndex((d) => d.status === 'NOT_SET') === grid.indexOf(day);
+
+    const tappable = isDone || isNextSlot;
+    const onPress = () => {
+      if (isDone)          navigation.navigate('MyStory', { day });
+      else if (isNextSlot) navigation.navigate('CreateChallenge', { day, returnTo: 'MyStory' });
+    };
 
     return (
-      <View style={{ width: SCREEN_W }}>
-        {!isCurrent && (
-          <Text style={s.pastRunLabel}>
-            RUN {runNumber}
-            {totalLaps > 1 ? ` ${'\u00b7'} LAP ${lapIndex + 1}` : ''}
-            {' '}{'\u00b7'} {actsInLap(run, lapIndex)}{' '}
-            {actsInLap(run, lapIndex) === 1 ? 'ACT' : 'ACTS'} {'\u00b7'}{' '}
-            {fmtMonthDay(run.startDate)}{'\u2013'}{fmtMonthDay(run.endDate)}
-          </Text>
-        )}
+      <TouchableOpacity
+        key={key}
+        disabled={!tappable}
+        onPress={onPress}
+        style={[
+          s.dayCell,
+          isToday      && s.dayCellToday,
+          isYesterday  && s.dayCellYesterday,
+          isNextSlot   && s.dayCellNext,
+          !isDone && !isNextSlot && s.dayCellEmpty,
+        ]}
+      >
+        <Text style={[s.dayNum, isToday && s.dayNumToday]}>{day.dayNumber}</Text>
 
-        <View style={s.grid}>
-          {grid.map(day => {
-            const isToday     = isCurrent && day.scheduledDate === today;
-            const isYesterday = isCurrent && day.scheduledDate === yesterday;
-            const isDone      = day.status === 'COMPLETED';
-
-            // Only the current live run is editable, and only its next slot.
-            const isNextSlot  = isCurrent && hasLoggableDay && !isDone
-              && grid.findIndex(d => d.status === 'NOT_SET') === grid.indexOf(day);
-
-            const tappable = isDone || isNextSlot;
-
-            const onPress = () => {
-              if (isDone)          navigation.navigate('MyStory', { day });
-              else if (isNextSlot) navigation.navigate('CreateChallenge', { day, returnTo: 'MyStory' });
-            };
-
-            return (
-              <TouchableOpacity
-                key={day.dayNumber}
-                disabled={!tappable}
-                onPress={onPress}
-                style={[
-                  s.dayCell,
-                  isToday      && s.dayCellToday,
-                  isYesterday  && s.dayCellYesterday,
-                  isNextSlot   && s.dayCellNext,
-                  !isDone && !isNextSlot && s.dayCellEmpty,
-                ]}
+        {isDone ? (
+          <>
+            <View style={s.centerSlot}>
+              <Text style={s.doneCheck}>{'\u2713'}</Text>
+            </View>
+            <View style={s.bottomSlot}>
+              <Text
+                style={[s.tileDate, s.tileDateDone]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
               >
-                <Text style={[s.dayNum, isToday && s.dayNumToday]}>{day.dayNumber}</Text>
+                {isToday ? 'TODAY' : fmtMonthDay(day.scheduledDate)}
+              </Text>
+            </View>
+          </>
+        ) : isNextSlot ? (
+          <View style={s.centerSlot}>
+            <Text style={s.nextGlyph}>+</Text>
+          </View>
+        ) : (
+          <View style={s.centerSlot} />
+        )}
+      </TouchableOpacity>
+    );
+  };
 
-                {isDone ? (
-                  <>
-                    <View style={s.centerSlot}>
-                      <Text style={s.doneCheck}>{'\u2713'}</Text>
-                    </View>
-                    <View style={s.bottomSlot}>
-                      <Text
-                        style={[s.tileDate, s.tileDateDone]}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                      >
-                        {isToday ? 'TODAY' : fmtMonthDay(day.scheduledDate)}
-                      </Text>
-                    </View>
-                  </>
-                ) : isNextSlot ? (
-                  <View style={s.centerSlot}>
-                    <Text style={s.nextGlyph}>+</Text>
-                  </View>
-                ) : (
-                  <View style={s.centerSlot} />
-                )}
-              </TouchableOpacity>
-            );
+  const renderDots = (item) => (
+    <View style={s.pageDots}>
+      {pages.map((p) => (
+        <View key={p.id} style={[s.pageDot, p.id === item.id && s.pageDotActive]} />
+      ))}
+    </View>
+  );
+
+  const renderPage = ({ item }) => {
+    if (item.type === 'current') {
+      const grid = buildRunGrid(item.run, item.lapIndex);
+      return (
+        <View style={{ width: SCREEN_W }}>
+          <View style={s.grid}>
+            {grid.map((day, i) => renderTileCell({ type: 'act', day }, `c-${i}`, { interactive: true, grid }))}
+          </View>
+          {pages.length > 1 && renderDots(item)}
+        </View>
+      );
+    }
+
+    if (item.type === 'full') {
+      const grid = buildRunGrid(item.run, item.lapIndex);
+      const label = `STREAK ${'\u00b7'} 30 ACTS ${'\u00b7'} ${fmtMonthDay(item.run.startDate)}${'\u2013'}${fmtMonthDay(item.run.endDate)}`;
+      return (
+        <View style={{ width: SCREEN_W }}>
+          <Text style={s.pastRunLabel}>{label}</Text>
+          <View style={s.grid}>
+            {grid.map((day, i) => renderTileCell({ type: 'act', day }, `f-${i}`, { interactive: false }))}
+          </View>
+          {pages.length > 1 && renderDots(item)}
+        </View>
+      );
+    }
+
+    // consolidated
+    return (
+      <View style={{ width: SCREEN_W }}>
+        <Text style={s.pastRunLabel}>EARLIER STREAKS</Text>
+        <View style={s.grid}>
+          {item.cells.map((cell, i) => {
+            if (cell.type === 'act') {
+              const day = {
+                dayNumber:    cell.actNo,
+                scheduledDate: cell.date,
+                status:       'COMPLETED',
+                title:        cell.row ? (cell.row.act_title || '') : '',
+                proofType:    cell.row ? (cell.row.proof_type || null) : null,
+                completionId: cell.row ? (cell.row.id || null) : null,
+              };
+              return renderTileCell({ type: 'act', day }, `k-${i}`, { interactive: false });
+            }
+            return renderTileCell({ type: cell.type }, `k-${i}`, {});
           })}
         </View>
-
-        {pages.length > 1 && (
-          <View style={s.pageDots}>
-            {pages.map((p, i) => (
-              <View
-                key={i}
-                style={[
-                  s.pageDot,
-                  p.runNumber === runNumber && p.lapIndex === lapIndex && s.pageDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
+        {pages.length > 1 && renderDots(item)}
       </View>
     );
   };
 
   return (
     <View>
-      {/* -- Current run header ------------------------------------------- */}
+      {/* -- Current streak header --------------------------------------- */}
       <View style={s.header}>
         <View style={s.headerRow}>
           <View>
             <Text style={s.headerLabel}>
-              {isLive ? 'CURRENT RUN' : 'LAST RUN'}
+              {isLive ? 'CURRENT STREAK' : 'LAST STREAK'}
               {currentLap > 0 ? ` ${'\u00b7'} LAP ${currentLap + 1}` : ''}
             </Text>
             <Text>
@@ -220,8 +294,8 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             </Text>
           </View>
           <View style={s.statsRight}>
-            <Text style={s.statLine}>This run {'\u00b7'} <Text style={s.statVal}>{currentRun.length}</Text></Text>
-            <Text style={s.statLine}>Best run {'\u00b7'} <Text style={s.statVal}>{best}</Text></Text>
+            <Text style={s.statLine}>This streak {'\u00b7'} <Text style={s.statVal}>{currentRun.length}</Text></Text>
+            <Text style={s.statLine}>Best streak {'\u00b7'} <Text style={s.statVal}>{best}</Text></Text>
             <Text style={s.statLine}>Lifetime {'\u00b7'} <Text style={s.statVal}>{lifetime}</Text></Text>
           </View>
         </View>
@@ -237,21 +311,21 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
 
         <Text style={s.subtitle}>
           {!isLive
-            ? 'This run has ended. Log an act to start a new one.'
+            ? 'This streak has ended. Log an act to start a new one.'
             : hasLoggableDay
-              ? 'Tap + to log. Miss two days in a row and a new run begins.'
+              ? 'Tap + to log. Miss two days in a row and a new streak begins.'
               : 'All caught up. Come back tomorrow.'}
         </Text>
         {pages.length > 1 && (
-          <Text style={s.swipeHint}>{'\u2190'} Swipe to see earlier runs</Text>
+          <Text style={s.swipeHint}>{'\u2190'} Swipe to see earlier streaks</Text>
         )}
       </View>
 
       <FlatList
         ref={listRef}
         data={pages}
-        renderItem={renderRun}
-        keyExtractor={(item) => `run-${item.runNumber}-lap-${item.lapIndex}`}
+        renderItem={renderPage}
+        keyExtractor={(item) => `page-${item.id}`}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -336,11 +410,15 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayCellToday: { borderColor: C.primary, borderWidth: 2 },
-  // Same lighter band the calendar uses for yesterday -- it is still
-  // back-fillable, so it reads as 'reachable' rather than 'done and gone'.
   dayCellYesterday: { borderColor: C.primary + '88', borderWidth: 1.5 },
   dayCellNext:  { borderColor: C.primary + '88', borderWidth: 1.5 },
   dayCellEmpty: { opacity: 0.4 },
+  // Separator between consolidated streaks, and internal single-miss gaps.
+  dayCellBlank: {
+    backgroundColor: 'transparent',
+    borderColor: C.border + '44',
+    borderStyle: 'dashed',
+  },
 
   dayNum: {
     fontSize: sf(11), fontWeight: '700', color: C.sub,
