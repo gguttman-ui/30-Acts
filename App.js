@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, AppState } from 'react-native';
+import { View, AppState, Text, TextInput } from 'react-native';
+
+// Freeze font scaling app-wide so tiles render identically on every device,
+// regardless of the iOS Text Size / Display Zoom setting.
+if (!Text.defaultProps) Text.defaultProps = {};
+Text.defaultProps.allowFontScaling = false;
+if (!TextInput.defaultProps) TextInput.defaultProps = {};
+TextInput.defaultProps.allowFontScaling = false;
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
