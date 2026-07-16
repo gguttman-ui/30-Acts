@@ -953,7 +953,7 @@ grid: {
   domNum:       { fontSize: sf(20), fontWeight: '800', color: C.sub },
   domNumDate:   { fontSize: sf(13), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
   domNumDone:   { color: C.primary },
-  doneCheck:    { fontSize: sf(22), fontWeight: '900', color: C.primary, lineHeight: sf(26) },
+  doneCheck:    { fontSize: 20, fontWeight: '900', color: C.primary, lineHeight: 22 },
   domNumMissed: { color: C.error },
   missedGlyph:   { fontSize: sf(14), color: C.error, fontWeight: '900' },
 

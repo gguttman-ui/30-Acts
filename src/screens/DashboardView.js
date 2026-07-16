@@ -173,8 +173,16 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
 
     const tappable = isDone || isNextSlot;
     const onPress = () => {
-      if (isDone)          navigation.navigate('MyStory', { day });
-      else if (isNextSlot) navigation.navigate('CreateChallenge', { day, returnTo: 'MyStory' });
+      if (isDone) {
+        navigation.navigate('MyStory', { day });
+      } else if (isNextSlot) {
+        // The "+" slot has no calendar date of its own (future slots carry an
+        // empty scheduledDate). Attach the day actually being logged -- today,
+        // or yesterday when today is already done -- so the save can build a
+        // valid date instead of crashing on an empty string.
+        const logDate = canLogToday ? today : yesterday;
+        navigation.navigate('CreateChallenge', { day: { ...day, scheduledDate: logDate }, returnTo: 'MyStory' });
+      }
     };
 
     return (
@@ -208,9 +216,20 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             </View>
           </>
         ) : isNextSlot ? (
-          <View style={s.centerSlot}>
-            <Text style={s.nextGlyph}>+</Text>
-          </View>
+          <>
+            <View style={s.centerSlot}>
+              <Text style={s.nextGlyph}>+</Text>
+            </View>
+            <View style={s.bottomSlot}>
+              <Text
+                style={[s.tileDate, isToday && s.tileDateDone]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {isToday ? 'TODAY' : fmtMonthDay(day.scheduledDate)}
+              </Text>
+            </View>
+          </>
         ) : (
           <View style={s.centerSlot} />
         )}
@@ -428,10 +447,10 @@ const s = StyleSheet.create({
 
   centerSlot: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   doneCheck:  {
-    fontSize: sf(22), fontWeight: '900',
-    color: C.primary, lineHeight: sf(26),
+    fontSize: 20, fontWeight: '900',
+    color: C.primary, lineHeight: 22,
   },
-  nextGlyph:  { fontSize: sf(22), fontWeight: '900', color: C.primary + 'aa' },
+  nextGlyph:  { fontSize: 20, fontWeight: '900', color: C.primary + 'aa', lineHeight: 22 },
 
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
   tileDate:     { fontSize: sf(11), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },

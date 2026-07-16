@@ -798,7 +798,7 @@ export default function AdminScreen({ navigation }) {
           keyboardShouldPersistTaps="handled">
           <View style={[s.tabRow, { paddingHorizontal: 2 }]}>
             {[
-              { key: 'completions', label: `✅ Acts${completions.length > 0 ? ` (${completions.length})` : ''}` },
+              { key: 'completions', label: `🔍 Review${completions.length > 0 ? ` (${completions.length})` : ''}` },
               { key: 'users',       label: `👥 Users${users.length > 0 ? ` (${users.length})` : ''}` },
               { key: 'admins',      label: '🔐 Admins' },
               { key: 'reviewers',   label: '🔍 Reviewers' },
@@ -815,7 +815,7 @@ export default function AdminScreen({ navigation }) {
         {activeTab === 'completions' && (
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={s.section}>✅ Acts of Kindness</Text>
+              <Text style={s.section}>🔍 Review Acts of Kindness</Text>
               <TouchableOpacity onPress={fetchCompletions} style={s.refreshBtn}>
                 <Text style={{ color: C.primary, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
               </TouchableOpacity>
@@ -869,15 +869,7 @@ export default function AdminScreen({ navigation }) {
                 <Text style={{ color: C.primary, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
               </TouchableOpacity>
             </View>
-            {!loadingUsers && users.length > 0 && (
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                <View style={s.badge}><Text style={[s.badgeText, { color: C.text }]}>{users.length} total</Text></View>
-                <View style={[s.badge, { backgroundColor: C.success + '22' }]}><Text style={[s.badgeText, { color: C.success }]}>✅ {confirmedCount}</Text></View>
-                <View style={[s.badge, { backgroundColor: C.warning + '22' }]}><Text style={[s.badgeText, { color: C.warning }]}>⏳ {unconfirmedCount}</Text></View>
-              </View>
-            )}
-            <TextInput value={userSearch} onChangeText={setUserSearch} placeholder="Search by name or phone..." placeholderTextColor={C.muted} style={s.searchInput} />
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 }}>
               <TouchableOpacity onPress={() => setUserSort('joined')} style={[s.sortBtn, userSort === 'joined' && s.sortBtnActive]}>
                 <Text style={[s.sortText, userSort === 'joined' && s.sortTextActive]}>{'\uD83D\uDCC5'} Joined</Text>
               </TouchableOpacity>
@@ -895,20 +887,19 @@ export default function AdminScreen({ navigation }) {
               </View>
             ) : filteredUsers.length === 0 ? (
               <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
-                {userSearch ? 'No users match' : 'No users found'}
+                No users found
               </Text>
             ) : filteredUsers.map((u) => {
-              const isPhone = isProxyEmail(u.email);
-              const display = isPhone ? proxyEmailToDisplay(u.email) : (u.email || u.phone || '(no contact)');
+              const nm = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+              const name = nm || 'Test';
+              const phoneDisp = u.phone ? e164ToDisplay(u.phone) : '(no phone)';
+              const acts = completions.filter(c => c.user_phone === u.phone).length;
               return (
                 <View key={u.id} style={s.userRow}>
-                  <View style={s.userAvatar}>
-                    <Text style={{ fontSize: 16 }}>{u.email_confirmed_at ? '✅' : '⏳'}</Text>
-                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.userEmail} numberOfLines={1}>{display}</Text>
-                    <Text style={s.userMeta}>
-                      {isPhone ? 'Phone user · ' : ''}Joined {formatDate(u.created_at)}{!u.email_confirmed_at ? '  •  Unconfirmed' : ''}
+                    <Text style={s.userEmail} numberOfLines={1}>{name}</Text>
+                    <Text style={s.userMeta} numberOfLines={1}>
+                      {phoneDisp}  •  {acts} {acts === 1 ? 'act' : 'acts'}  •  Joined {formatDate(u.created_at)}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => handleDeleteUser(u)} disabled={deletingUser === u.id} style={s.deleteBtn}>
