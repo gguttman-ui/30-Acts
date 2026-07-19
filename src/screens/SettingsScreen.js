@@ -13,6 +13,12 @@ import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
+
+// Version stamp for the SMS reminder consent language shown at opt-in. Bump
+// this whenever the disclosure wording below materially changes, so each stored
+// consent record points at the exact text the user agreed to (A2P / toll-free
+// audit trail).
+const SMS_CONSENT_VERSION = '2026-07-19';
 const AGE_BRACKETS = [
   { label: '18–24',              value: '18-24' },
   { label: '25–34',              value: '25-34' },
@@ -98,6 +104,10 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   const [reminder2Hour,   setReminder2Hour]   = useState(6);
   const [reminder2Minute, setReminder2Minute] = useState(0);
   const [reminder2Period, setReminder2Period] = useState('PM');
+  // ISO timestamp of the first time the user opted in to SMS reminders. Kept as
+  // proof of express consent for toll-free / A2P compliance; never overwritten
+  // once set (only cleared server-side on a STOP opt-out).
+  const [reminderConsentAt, setReminderConsentAt] = useState(null);
 
   // Sponsor admin status: null = not checked yet, object = this user is a
   // sponsor admin, false = checked and not a sponsor admin.
@@ -134,6 +144,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       if (meta.reminder2_period === 'AM' || meta.reminder2_period === 'PM') {
         setReminder2Period(meta.reminder2_period);
       }
+      if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
     });
   }, [user?.firstName, user?.lastName]);
 
@@ -291,6 +302,12 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       return;
     }
 
+    // Stamp (and then preserve) the express-consent timestamp the first time
+    // reminders are enabled — our record that the user opted in to recurring SMS.
+    const nextConsentAt = reminderEnabled
+      ? (reminderConsentAt || new Date().toISOString())
+      : reminderConsentAt;
+
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: {
@@ -311,6 +328,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           reminder2_hour:   reminder2Hour,
           reminder2_minute: reminder2Minute,
           reminder2_period: reminder2Period,
+          reminder_consent_at:      nextConsentAt || null,
+          reminder_consent_version: reminderEnabled ? SMS_CONSENT_VERSION : null,
         },
       });
       if (error) { Alert.alert('Error', error.message); return; }
@@ -336,6 +355,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       }
 
       setSaved(true);
+      setReminderConsentAt(nextConsentAt || null);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       Alert.alert('Error', 'Could not save profile.');
@@ -564,9 +584,9 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           <Text style={s.cardTitle}>Daily Reminder</Text>
           <View style={s.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.toggleTitle}>Send me a daily reminder</Text>
+              <Text style={s.toggleTitle}>Text me a daily reminder</Text>
               <Text style={s.toggleSub}>
-                We'll text you each day to log your act of kindness.
+                We'll text you at the times you set (up to 2 per day) to log your act of kindness.
               </Text>
             </View>
             <Switch
@@ -576,6 +596,30 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               thumbColor={reminderEnabled ? C.primary : '#f4f3f4'}
             />
           </View>
+
+          {/* Express-consent disclosure for recurring SMS (CTIA/TCPA). Shown at
+              the point of opt-in; the timestamp is captured on Save Profile. */}
+          <Text style={s.smsConsent}>
+            By turning this on you agree to receive recurring automated text
+            reminders from 30 Acts of Kindness at your sign-up number — up to 2
+            per day at the times you choose. Msg & data rates may apply. Reply
+            STOP to cancel or HELP for help. Consent is not a condition of using
+            the app.
+          </Text>
+          <View style={s.smsConsentLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })}>
+              <Text style={s.smsConsentLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={s.smsConsentDot}>·</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { docKey: 'terms' })}>
+              <Text style={s.smsConsentLink}>Terms of Service</Text>
+            </TouchableOpacity>
+          </View>
+          {reminderEnabled && reminderConsentAt && (
+            <Text style={s.smsConsentStamp}>
+              ✓ Opted in on {new Date(reminderConsentAt).toLocaleDateString()}
+            </Text>
+          )}
 
 {reminderEnabled && (
             <View style={s.reminderTimeWrap}>
@@ -843,6 +887,20 @@ const s = StyleSheet.create({
   reminderHint: {
     color: C.muted, fontSize: 11, fontStyle: 'italic',
     textAlign: 'center', marginTop: 12,
+  },
+
+  smsConsent: {
+    color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 12,
+  },
+  smsConsentLinks: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6,
+  },
+  smsConsentLink: {
+    color: C.primary, fontSize: 11, fontWeight: '700', textDecorationLine: 'underline',
+  },
+  smsConsentDot: { color: C.muted, fontSize: 11 },
+  smsConsentStamp: {
+    color: C.success, fontSize: 11, fontWeight: '700', marginTop: 8,
   },
 
   // iOS-native Done bar
