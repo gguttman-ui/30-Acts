@@ -95,6 +95,10 @@ const PRIVACY_POLICY = [
     body: 'We use personal information to:\n• Create and manage accounts\n• Operate the 30-day challenge\n• Calculate daily activity based on timezone\n• Send reminders and service notifications\n• Moderate content and enforce safety rules\n• Support rewards such as bracelets\n• Improve performance, reliability, and user support\n• Prevent fraud, abuse, and misuse\n• Comply with legal obligations',
   },
   {
+    heading: '2.3.1 Text Messaging (SMS)',
+    body: 'We use text messages (SMS) in two ways. First, for account verification: when you sign in, we send a one-time code to confirm your mobile number. Second, for optional reminders: if you turn on Daily Reminder in the app, we send automated reminder texts to help you log your act of kindness — up to two per day, at the times you choose. Reminders require a separate opt-in, and consent is not a condition of using the app.\n\nMessage frequency varies. Message and data rates may apply. You can opt out of reminders at any time by replying STOP to any reminder text, or by turning Daily Reminder off in the app; reply HELP for help. Opting out of reminders does not affect the verification codes needed to sign in.\n\nWe do not share or sell your mobile phone number or SMS opt-in status to any third party or affiliate for their marketing purposes. Text messages are delivered through our messaging provider (Twilio) solely to provide these messages on our behalf.',
+  },
+  {
     heading: '2.4 Legal Bases for Processing',
     body: 'Where GDPR or similar law applies, we may process personal data based on consent, performance of a contract, legitimate interests, legal obligation, or protection of vital interests, where applicable.',
   },
