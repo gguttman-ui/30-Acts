@@ -1,6 +1,14 @@
 // Send daily-act reminders (slot 1 + slot 2) to users whose local time
 // matches their configured reminder, skipping anyone who already
 // completed today. Quiet hours: 6 AM - 10 PM in user's local timezone.
+//
+// Compliance guards (added 2026-07-19):
+//   * Only sends to users with a recorded SMS consent timestamp
+//     (user_metadata.reminder_consent_at) — proof of express opt-in.
+//   * Skips any phone present in public.sms_opt_outs (STOP ledger).
+//   * Self-heals: if Twilio reports 21610 (recipient opted out), the phone is
+//     added to sms_opt_outs and the user's reminder_enabled is turned off, so
+//     we stop retrying a number that can no longer be reached.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -25,8 +33,11 @@ const WINDOW_MIN = 2;
 const QUIET_HOUR_START = 6;   // 6 AM
 const QUIET_HOUR_END   = 22;  // 10 PM (exclusive)
 
+// Program name + STOP/HELP in every message (CTIA best practice). Kept to a
+// single SMS segment. HELP/STOP replies themselves are handled by Twilio
+// Advanced Opt-Out on the Messaging Service.
 const REMINDER_TEXT =
-  "30 Acts: don't forget today's act of kindness! Reply STOP to opt out.";
+  "30 Acts of Kindness: don't forget today's act of kindness! Reply STOP to end, HELP for help.";
 
 function to24h(hour12: number, period: string): number {
   if (period === 'AM') return hour12 === 12 ? 0 : hour12;
@@ -57,7 +68,31 @@ function matchesSlot(nowMin: number, hour12: number, minute: number, period: str
   return Math.abs(nowMin - target) <= WINDOW_MIN;
 }
 
-async function sendTwilio(toPhone: string, body: string): Promise<{ ok: boolean; sid?: string; error?: string }> {
+// Load the full opt-out ledger once per run into a Set for O(1) lookups.
+async function loadOptOuts(): Promise<Set<string>> {
+  const set = new Set<string>();
+  const { data, error } = await supabase.from('sms_opt_outs').select('phone');
+  if (error) {
+    console.warn('sms_opt_outs load failed:', error.message);
+    return set; // fail open on read error, but 21610 self-heal still protects us
+  }
+  for (const row of data ?? []) set.add(row.phone as string);
+  return set;
+}
+
+// Record an opt-out (idempotent) and turn the user's reminder toggle off so the
+// app UI reflects reality and we stop scheduling them.
+async function recordOptOut(userId: string, phone: string, meta: Record<string, unknown>, source: string) {
+  await supabase.from('sms_opt_outs').upsert(
+    { phone, source, opted_out_at: new Date().toISOString(), user_id: userId },
+    { onConflict: 'phone' },
+  );
+  await supabase.auth.admin.updateUserById(userId, {
+    user_metadata: { ...meta, reminder_enabled: false },
+  });
+}
+
+async function sendTwilio(toPhone: string, body: string): Promise<{ ok: boolean; sid?: string; error?: string; optedOut?: boolean }> {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
   const auth = btoa(`${TWILIO_SID}:${TWILIO_TOKEN}`);
   const form = new URLSearchParams({
@@ -76,7 +111,9 @@ async function sendTwilio(toPhone: string, body: string): Promise<{ ok: boolean;
   if (!res.ok) {
     const errText = await res.text();
     console.error('Twilio error:', res.status, errText);
-    return { ok: false, error: `${res.status}: ${errText}` };
+    // 21610 = "Attempt to send to unsubscribed recipient" (carrier STOP).
+    const optedOut = errText.includes('21610');
+    return { ok: false, error: `${res.status}: ${errText}`, optedOut };
   }
   const json = await res.json();
   return { ok: true, sid: json.sid };
@@ -143,12 +180,16 @@ Deno.serve(async (req) => {
     });
   }
 
+  const optedOut = await loadOptOuts();
+
   const summary = {
     checked: 0,
     sent: 0,
     skipped_completed: 0,
     skipped_already_sent: 0,
     skipped_quiet: 0,
+    skipped_no_consent: 0,
+    skipped_opted_out: 0,
     errors: 0,
   };
 
@@ -165,7 +206,14 @@ Deno.serve(async (req) => {
       if (!meta.timezone) continue;
       if (!u.email?.endsWith('@phone.30acts.app')) continue;
 
+      // Express-consent gate: never text a user who has no recorded opt-in.
+      if (!meta.reminder_consent_at) { summary.skipped_no_consent++; continue; }
+
       const phone = u.email.replace('@phone.30acts.app', '');
+
+      // Opt-out gate: honor the STOP ledger before doing anything else.
+      if (optedOut.has(phone)) { summary.skipped_opted_out++; continue; }
+
       const tzResult = nowInTz(meta.timezone);
       if (!tzResult) continue;
       const { dateStr, hour, minutes } = tzResult;
@@ -200,6 +248,13 @@ Deno.serve(async (req) => {
         if (result.ok) {
           await recordSend(u.id, dateStr, slot.idx, phone, 'sent', result.sid);
           summary.sent++;
+        } else if (result.optedOut) {
+          // Carrier says this number opted out (replied STOP). Record it so we
+          // never try again, and reflect it in the app.
+          await recordOptOut(u.id, phone, meta, 'twilio_21610');
+          optedOut.add(phone);
+          await recordSend(u.id, dateStr, slot.idx, phone, 'opted_out', undefined, result.error);
+          summary.skipped_opted_out++;
         } else {
           await recordSend(u.id, dateStr, slot.idx, phone, 'failed', undefined, result.error);
           summary.errors++;
