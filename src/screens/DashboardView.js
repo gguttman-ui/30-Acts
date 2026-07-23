@@ -27,6 +27,12 @@ const yesterdayStr = () => {
   return localDateStr(d);
 };
 
+// Whole days from a -> b (both "YYYY-MM-DD"). Positive when b is later.
+function dayDiffDays(a, b) {
+  if (!a || !b) return 0;
+  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+}
+
 function fmtMonthDay(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
@@ -96,7 +102,7 @@ function withGapTiles(grid) {
 //     consolidated page (after one blank tile) when it fits with room to spare;
 //     otherwise its own page.
 // Chronological order: oldest left, current right.
-function buildPages(runs, { hasLoggableDay = false } = {}) {
+function buildPages(runs, { hasLoggableDay = false, needGapBeforeToday = false } = {}) {
   const lastIdx = runs.length - 1;
 
   const segments = [];
@@ -121,7 +127,10 @@ function buildPages(runs, { hasLoggableDay = false } = {}) {
       // fits with >=5 open tiles left; otherwise give it its own page. This
       // stops a tiny live streak from opening a near-empty page.
       const curTiles = buildRunDateTiles(seg.run, seg.lapIndex).map((t) => ({ ...t, interactive: true }));
-      if (hasLoggableDay) curTiles.push({ type: 'next', interactive: true });
+      if (hasLoggableDay) {
+        if (needGapBeforeToday) curTiles.push({ type: 'gap' });
+        curTiles.push({ type: 'next', interactive: true });
+      }
       const sepNeeded = (buffer && buffer.cells.length) ? 1 : 0;
       const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sepNeeded + curTiles.length);
       if (buffer && buffer.cells.length && openAfter >= 5) {
@@ -207,16 +216,21 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const loggedDates      = new Set(currentRun.rows.map((r) => rowLocalDate(r)));
   const canLogToday      = !loggedDates.has(today);
   const canLogYesterday  = !loggedDates.has(yesterday);
-  // The in-grid "+" is for TODAY only, so it always sits on today's tile --
-  // never a stray "+" on the slot after a completed today. (Back-filling a
-  // missed yesterday is handled by the separate missed-yesterday prompt.)
-  const hasLoggableDay   = isLive && canLogToday;
+  // The in-grid "+" TODAY tile shows whenever today is unlogged -- whether the
+  // streak is still alive (logging extends it) or has ended (logging starts a
+  // new one). It replaces the old header "Log today's act" button, so ended
+  // streaks now log the same way live ones do: tap the "+" on today's tile.
+  const hasLoggableDay   = canLogToday;
+  // Put one blank tile before today's "+" when the last logged act is more than
+  // a day back (a missed-day gap), matching how a fresh streak reads after a break.
+  const needGapBeforeToday = canLogToday && dayDiffDays(currentRun.endDate, today) >= 2;
 
   // Build the swipe pages. A short current streak is folded onto the earlier-
   // streaks page (after one blank tile) when there's room to spare, so a 1-act
-  // live streak no longer opens its own near-empty page. hasLoggableDay tells
-  // buildPages whether to append a tappable "+" tile for logging today.
-  const pages = buildPages(runs, { hasLoggableDay });
+  // streak no longer opens its own near-empty page. The flags tell buildPages
+  // whether to append a tappable "+" tile for today, and whether to precede it
+  // with a blank gap tile.
+  const pages = buildPages(runs, { hasLoggableDay, needGapBeforeToday });
   const initialIndex = pages.length - 1;
 
   // When the streak has ENDED there is no in-grid "+" tile, so the dashboard
@@ -444,30 +458,11 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
 
         <Text style={s.subtitle}>
           {!isLive
-            ? 'This streak has ended. Log an act to start a new one.'
+            ? 'This streak ended — tap + to log today and start a new one.'
             : hasLoggableDay
               ? 'Tap + to log. Miss two days in a row and a new streak begins.'
               : 'All caught up. Come back tomorrow.'}
         </Text>
-
-        {/* Streak ended -> no in-grid "+", so offer logging here. */}
-        {!isLive && (canLogToday || canLogYesterday) && (
-          <View style={s.logCtaWrap}>
-            <TouchableOpacity
-              style={s.logCta}
-              onPress={() => startNewAct(canLogToday ? today : yesterday)}
-            >
-              <Text style={s.logCtaText}>
-                {'＋'} Log {canLogToday ? "today's" : "yesterday's"} act
-              </Text>
-            </TouchableOpacity>
-            {canLogToday && canLogYesterday && (
-              <TouchableOpacity onPress={() => startNewAct(yesterday)}>
-                <Text style={s.logCtaAlt}>or log yesterday instead</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
 
         {pages.length > 1 && (
           <Text style={s.swipeHint}>{'\u2190'} Swipe to see earlier streaks</Text>
