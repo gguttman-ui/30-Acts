@@ -100,7 +100,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         {(props) => <TreeScreen {...props} user={user} />}
       </Tab.Screen>
 
-      {isReviewer && (
+      {isReviewer ? (
         <Tab.Screen name="Review"
           options={{
             tabBarLabel: 'Suggestions',
@@ -113,6 +113,24 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
               actCategories={actCategories}
             />
           )}
+        </Tab.Screen>
+      ) : (
+        // Regular users: a 💡 Suggest tab. Tapping it opens the existing
+        // create-act form in suggestion-only mode (no day => no completion,
+        // saved to user_custom_acts flagged for admin review).
+        <Tab.Screen name="Suggest"
+          options={{
+            tabBarLabel: 'Suggest',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💡" />,
+          }}
+          listeners={({ navigation: nav }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              nav.navigate('CreateNewAct');
+            },
+          })}
+        >
+          {() => null}
         </Tab.Screen>
       )}
 

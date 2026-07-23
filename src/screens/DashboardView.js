@@ -290,7 +290,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     if (item.type === 'full') {
       const grid  = buildRunGrid(item.run, item.lapIndex);
       const cells = withGapTiles(grid);
-      const label = `STREAK ${'\u00b7'} 30 ACTS ${'\u00b7'} ${fmtMonthDay(item.run.startDate)}${'\u2013'}${fmtMonthDay(item.run.endDate)}`;
+      const label = `STREAK ${'\u00b7'} Completed ${'\u00b7'} ${fmtMonthDay(item.run.startDate)}${'\u2013'}${fmtMonthDay(item.run.endDate)}`;
       return (
         <View style={{ width: SCREEN_W }}>
           <Text style={s.pastRunLabel}>{label}</Text>
