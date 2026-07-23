@@ -908,7 +908,7 @@ grid: {
   },
   dayCell: {
     width: '15%',
-    height:70,
+    height: 74,
     borderRadius: 10,
     paddingVertical: 4,
     paddingHorizontal: 2,
@@ -953,7 +953,7 @@ grid: {
   domNum:       { fontSize: sf(20), fontWeight: '800', color: C.sub },
   domNumDate:   { fontSize: sf(13), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
   domNumDone:   { color: C.primary },
-  doneCheck:    { fontSize: 20, fontWeight: '900', color: C.primary, lineHeight: 22 },
+  doneCheck:    { fontSize: 18, fontWeight: '900', color: C.primary, lineHeight: 26, textAlign: 'center', includeFontPadding: false },
   domNumMissed: { color: C.error },
   missedGlyph:   { fontSize: sf(14), color: C.error, fontWeight: '900' },
 

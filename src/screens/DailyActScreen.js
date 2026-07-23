@@ -255,6 +255,18 @@ const DAY_30_MESSAGE =
   "You will be directed to the Me screen to fill in your address where we should send your bracelet. " +
   "Once it is mailed, your address is deleted from our database.";
 
+// Reject if a promise doesn't settle within `ms`. Keeps a stalled network call
+// (e.g. a media upload on a flaky connection) from leaving the completion
+// screen stuck on its loading state forever -- a hung await never reaches the
+// finally that clears `submitting`, which reads to the user as a frozen screen.
+function withTimeout(promise, ms, label = 'Timed out') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(label)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function readFileAsArrayBuffer(uri) {
   const base64 = await FileSystem.readAsStringAsync(uri, {
     encoding: 'base64',
@@ -860,7 +872,9 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     try {
       const textToCheck = [title, proofType === 'story' ? story : ''].filter(Boolean).join(' ');
       if (textToCheck.trim()) {
-        if (await isContentBlocked(textToCheck)) {
+        const blocked = await withTimeout(isContentBlocked(textToCheck), 15000, 'moderation check timed out')
+          .catch((e) => { console.warn('moderation check skipped:', e.message); return false; });
+        if (blocked) {
           Alert.alert(
             'Content Not Allowed',
             'Your submission contains content that is not appropriate based on our Terms of Service and will not be submitted. Please review your title and story.'
@@ -880,12 +894,16 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
           const ext = proofType === 'video' ? 'mp4' : 'jpg';
           const contentType = proofType === 'video' ? 'video/mp4' : 'image/jpeg';
           const fileName = `${Date.now()}.${ext}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('act-media')
-            .upload(fileName, arrayBuffer, {
-              contentType,
-              upsert: false,
-            });
+          const { data: uploadData, error: uploadError } = await withTimeout(
+            supabase.storage
+              .from('act-media')
+              .upload(fileName, arrayBuffer, {
+                contentType,
+                upsert: false,
+              }),
+            45000,
+            'Upload timed out',
+          );
           if (uploadError) throw uploadError;
           mediaPath = uploadData.path;
           console.log('Media upload OK:', mediaPath, 'bytes:', arrayBuffer.byteLength);

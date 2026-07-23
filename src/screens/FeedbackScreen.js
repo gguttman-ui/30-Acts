@@ -70,6 +70,19 @@ export default function FeedbackScreen({ navigation }) {
           <Text style={s.heroSub}>We read every piece of feedback and use it to improve.</Text>
         </View>
 
+        <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
+          <Text style={s.suggestTitle}>💡 Suggest an Act of Kindness</Text>
+          <Text style={s.suggestSub}>
+            Have an idea for a kind act? Propose it for the shared catalog — we review every suggestion and add the best ones.
+          </Text>
+          <Btn
+            label="Suggest an Act →"
+            variant="secondary"
+            onPress={() => navigation.navigate('CreateNewAct')}
+            style={{ marginTop: 4, borderColor: C.primary + '66' }}
+          />
+        </Card>
+
         {error ? (
           <View style={s.errorBanner}>
             <Text style={{ color: C.error, fontWeight: '600', textAlign: 'center' }}>{error}</Text>
@@ -135,6 +148,8 @@ const s = StyleSheet.create({
   stars:    { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   star:     { fontSize: 36, color: C.border },
   msgLabel: { color: C.text, fontWeight: '700', marginBottom: 12 },
+  suggestTitle: { color: C.text, fontSize: 16, fontWeight: '800', marginBottom: 6 },
+  suggestSub:   { color: C.sub, fontSize: 13, lineHeight: 18, marginBottom: 14 },
 
   // Success screen
   successWrap: {

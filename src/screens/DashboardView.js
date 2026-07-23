@@ -53,6 +53,30 @@ function buildRunDateTiles(run) {
   return tiles;
 }
 
+// Expand a 30-slot lap grid into display cells, inserting a blank gap tile for
+// each internal missed day. A run's internal gaps are only ever a single day
+// (2+ missed days would have split the run in splitIntoRuns), so at most one
+// blank is inserted between two consecutive completed acts. Act numbering is
+// preserved -- completed slots keep their dayNumber; gaps are unnumbered
+// blanks, matching how the "earlier streaks" pages already render.
+function withGapTiles(grid) {
+  const cells = [];
+  for (let i = 0; i < grid.length; i++) {
+    const cur = grid[i];
+    if (i > 0) {
+      const prev = grid[i - 1];
+      if (prev.status === 'COMPLETED' && cur.status === 'COMPLETED' && prev.scheduledDate && cur.scheduledDate) {
+        const diff = Math.round(
+          (new Date(cur.scheduledDate + 'T00:00:00') - new Date(prev.scheduledDate + 'T00:00:00')) / 86400000
+        );
+        for (let g = 1; g < diff; g++) cells.push({ type: 'gap' });
+      }
+    }
+    cells.push({ type: 'act', day: cur });
+  }
+  return cells;
+}
+
 // Turn the runs into swipe pages:
 //   - the current (live/last) run's active lap        -> its own page (rightmost)
 //   - any full 30-act lap                             -> its own page
@@ -247,11 +271,16 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
 
   const renderPage = ({ item }) => {
     if (item.type === 'current') {
-      const grid = buildRunGrid(item.run, item.lapIndex);
+      const grid  = buildRunGrid(item.run, item.lapIndex);
+      const cells = withGapTiles(grid);
       return (
         <View style={{ width: SCREEN_W }}>
           <View style={s.grid}>
-            {grid.map((day, i) => renderTileCell({ type: 'act', day }, `c-${i}`, { interactive: true, grid }))}
+            {cells.map((cell, i) =>
+              cell.type === 'gap'
+                ? renderTileCell({ type: 'gap' }, `c-${i}`, {})
+                : renderTileCell({ type: 'act', day: cell.day }, `c-${i}`, { interactive: true, grid })
+            )}
           </View>
           {pages.length > 1 && renderDots(item)}
         </View>
@@ -259,13 +288,18 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     }
 
     if (item.type === 'full') {
-      const grid = buildRunGrid(item.run, item.lapIndex);
+      const grid  = buildRunGrid(item.run, item.lapIndex);
+      const cells = withGapTiles(grid);
       const label = `STREAK ${'\u00b7'} 30 ACTS ${'\u00b7'} ${fmtMonthDay(item.run.startDate)}${'\u2013'}${fmtMonthDay(item.run.endDate)}`;
       return (
         <View style={{ width: SCREEN_W }}>
           <Text style={s.pastRunLabel}>{label}</Text>
           <View style={s.grid}>
-            {grid.map((day, i) => renderTileCell({ type: 'act', day }, `f-${i}`, { interactive: false }))}
+            {cells.map((cell, i) =>
+              cell.type === 'gap'
+                ? renderTileCell({ type: 'gap' }, `f-${i}`, {})
+                : renderTileCell({ type: 'act', day: cell.day }, `f-${i}`, { interactive: false })
+            )}
           </View>
           {pages.length > 1 && renderDots(item)}
         </View>
@@ -418,7 +452,7 @@ const s = StyleSheet.create({
 
   dayCell: {
     width: '15%',
-    height: 70,
+    height: 74,
     borderRadius: 10,
     paddingVertical: 4,
     paddingHorizontal: 2,
@@ -447,10 +481,13 @@ const s = StyleSheet.create({
 
   centerSlot: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   doneCheck:  {
-    fontSize: 20, fontWeight: '900',
-    color: C.primary, lineHeight: 22,
+    fontSize: 18, fontWeight: '900',
+    color: C.primary, lineHeight: 26, textAlign: 'center', includeFontPadding: false,
   },
-  nextGlyph:  { fontSize: 20, fontWeight: '900', color: C.primary + 'aa', lineHeight: 22 },
+  nextGlyph:  {
+    fontSize: 22, fontWeight: '900',
+    color: C.primary + 'aa', lineHeight: 26, textAlign: 'center', includeFontPadding: false,
+  },
 
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
   tileDate:     { fontSize: sf(11), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
