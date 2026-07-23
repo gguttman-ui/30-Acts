@@ -89,12 +89,14 @@ function withGapTiles(grid) {
 }
 
 // Turn the runs into swipe pages:
-//   - the current (live/last) run's active lap        -> its own page (rightmost)
 //   - any full 30-act lap                             -> its own page
 //   - short/partial runs                              -> consolidated together,
 //     one blank separator tile between them, wrapping at 30 tiles per page.
+//   - the current (live/last) streak                  -> folded onto the last
+//     consolidated page (after one blank tile) when it fits with room to spare;
+//     otherwise its own page.
 // Chronological order: oldest left, current right.
-function buildPages(runs) {
+function buildPages(runs, { hasLoggableDay = false } = {}) {
   const lastIdx = runs.length - 1;
 
   const segments = [];
@@ -114,7 +116,25 @@ function buildPages(runs) {
   const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
 
   for (const seg of segments) {
-    if (seg.kind === 'current') { flush(); pages.push({ type: 'current', run: seg.run, lapIndex: seg.lapIndex }); continue; }
+    if (seg.kind === 'current') {
+      // Fold the current streak onto the running earlier-streaks page when it
+      // fits with >=5 open tiles left; otherwise give it its own page. This
+      // stops a tiny live streak from opening a near-empty page.
+      const curTiles = buildRunDateTiles(seg.run, seg.lapIndex).map((t) => ({ ...t, interactive: true }));
+      if (hasLoggableDay) curTiles.push({ type: 'next', interactive: true });
+      const sepNeeded = (buffer && buffer.cells.length) ? 1 : 0;
+      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sepNeeded + curTiles.length);
+      if (buffer && buffer.cells.length && openAfter >= 5) {
+        buffer.cells.push({ type: 'sep' });
+        curTiles.forEach((t) => buffer.cells.push(t));
+        buffer.hasCurrent = true;
+        flush();
+      } else {
+        flush();
+        pages.push({ type: 'current', run: seg.run, lapIndex: seg.lapIndex });
+      }
+      continue;
+    }
     if (seg.kind === 'full')    { flush(); pages.push({ type: 'full',    run: seg.run, lapIndex: seg.lapIndex }); continue; }
 
     // partial -> consolidate. Render ONLY this lap's date tiles (a whole-run
@@ -178,9 +198,6 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const best       = bestRunLength(runs);
   const lifetime   = lifetimeActs(runs);
 
-  const pages = buildPages(runs);
-  const initialIndex = pages.length - 1;
-
   const currentLap  = lapCount(currentRun) - 1;
   const currentDone = actsInLap(currentRun, currentLap);
 
@@ -194,6 +211,13 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // never a stray "+" on the slot after a completed today. (Back-filling a
   // missed yesterday is handled by the separate missed-yesterday prompt.)
   const hasLoggableDay   = isLive && canLogToday;
+
+  // Build the swipe pages. A short current streak is folded onto the earlier-
+  // streaks page (after one blank tile) when there's room to spare, so a 1-act
+  // live streak no longer opens its own near-empty page. hasLoggableDay tells
+  // buildPages whether to append a tappable "+" tile for logging today.
+  const pages = buildPages(runs, { hasLoggableDay });
+  const initialIndex = pages.length - 1;
 
   // When the streak has ENDED there is no in-grid "+" tile, so the dashboard
   // gave no way to log at all. Start a fresh act (which begins a new streak)
@@ -216,6 +240,23 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const renderTileCell = (cell, key, opts) => {
     if (cell.type === 'sep' || cell.type === 'gap') {
       return <View key={key} style={[s.dayCell, s.dayCellBlank]} />;
+    }
+
+    // A folded-in current streak carries its own "+" cell for logging today.
+    if (cell.type === 'next') {
+      return (
+        <TouchableOpacity
+          key={key}
+          onPress={() => startNewAct(today)}
+          style={[s.dayCell, s.dayCellNext]}
+        >
+          <Text style={s.dayNum}>{' '}</Text>
+          <View style={s.centerSlot}><Text style={s.nextGlyph}>+</Text></View>
+          <View style={s.bottomSlot}>
+            <Text style={[s.tileDate, s.tileDateDone]} numberOfLines={1} adjustsFontSizeToFit>TODAY</Text>
+          </View>
+        </TouchableOpacity>
+      );
     }
 
     const day         = cell.day;
@@ -343,10 +384,12 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
       );
     }
 
-    // consolidated
+    // consolidated (may end with the current streak folded in)
     return (
       <View style={{ width: SCREEN_W }}>
-        <Text style={s.pastRunLabel}>EARLIER STREAKS</Text>
+        {item.hasCurrent
+          ? <View style={{ height: 8 }} />
+          : <Text style={s.pastRunLabel}>EARLIER STREAKS</Text>}
         <View style={s.grid}>
           {item.cells.map((cell, i) => {
             if (cell.type === 'act') {
@@ -358,7 +401,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
                 proofType:    cell.row ? (cell.row.proof_type || null) : null,
                 completionId: cell.row ? (cell.row.id || null) : null,
               };
-              return renderTileCell({ type: 'act', day }, `k-${i}`, { interactive: false });
+              return renderTileCell({ type: 'act', day }, `k-${i}`, { interactive: !!cell.interactive });
             }
             return renderTileCell({ type: cell.type }, `k-${i}`, {});
           })}
