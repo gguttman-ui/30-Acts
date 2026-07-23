@@ -79,8 +79,6 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
 
   const canSave =
     title.trim().length > 0 &&
-    !!categoryId &&
-    (!day || (actualTimeValid && actualCostValid)) &&
     !saving;
 
   const selectedCategory   = ACT_CATEGORIES.find(c => c.id === categoryId);
@@ -109,9 +107,6 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
         .insert({
           user_phone:           phone,
           title:                trimmedTitle,
-          category_id:          categoryId,
-          time_minutes:         tMins,
-          cost_dollars:         cDolls,
           submitted_for_review: true,
         })
         .select()
@@ -153,8 +148,6 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
             completed_at: new Date().toISOString(),
             local_date:  localDateValue,
             from_list:   false,   // user-authored, not from the canned list
-            time_minutes: totalMinutes,                                  // actual time
-            cost_cents:   Math.round(parseFloat(actualCostDollars) * 100), // actual cost
           });
 
         if (completionErr) {
@@ -242,93 +235,20 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
         {!savedAct && (
           <>
             <Text style={s.helper}>
-              Describe a kind act you did or want to add to the catalog.
-              Time and cost help others picking it from the list.
+              Describe a kind act you did or would like to add to the catalog.
             </Text>
 
             <AppInput
-              label="Act title *"
+              label="Act Description *"
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g., Helped unload groceries"
+              placeholder="e.g., Helped a neighbor carry groceries"
               autoCapitalize="sentences"
               multiline
               inputAccessoryViewID={KB_DONE_ID}
             />
 
-           <Text style={s.sectionLabel}>CATEGORY *</Text>
-<DropdownRow
-  value={selectedCategory?.label}
-  placeholder="Select…"
-  onPress={() => setShowCategoryPicker(true)}
-/>
-
-<Text style={s.sectionLabel}>TIME SPENT</Text>
-<DropdownRow
-  value={selectedTimeBucket?.label}
-  placeholder="Select…"
-  onPress={() => setShowTimePicker(true)}
-/>
-
-<Text style={s.sectionLabel}>COST</Text>
-<DropdownRow
-  value={selectedCostBucket?.label}
-  placeholder="Select…"
-  onPress={() => setShowCostPicker(true)}
-/>
-
-            {/* Actual time & cost — only when logging this as today's act. */}
-            {day && (
-              <>
-                <Text style={s.sectionLabel}>ACTUAL TIME & COST (TODAY) *</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <AppInput
-                      label="Hours"
-                      value={actualHours}
-                      onChangeText={t => setActualHours(t.replace(/\D/g, ''))}
-                      placeholder="0"
-                      keyboardType="number-pad"
-                      inputAccessoryViewID={KB_DONE_ID}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppInput
-                      label="Minutes"
-                      value={actualMinutes}
-                      onChangeText={t => setActualMinutes(t.replace(/\D/g, ''))}
-                      placeholder="0"
-                      keyboardType="number-pad"
-                      inputAccessoryViewID={KB_DONE_ID}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppInput
-                      label="Cost"
-                      value={actualCostDollars ? `$${actualCostDollars}` : ''}
-                      onChangeText={t => {
-                        const stripped = t.replace(/^\$/, '');
-                        const cleaned = stripped.replace(/[^0-9.]/g, '');
-                        const parts = cleaned.split('.');
-                        const normalized = parts.length > 2
-                          ? parts[0] + '.' + parts.slice(1).join('').slice(0, 2)
-                          : (parts[1] !== undefined ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0]);
-                        setActualCostDollars(normalized);
-                      }}
-                      placeholder="$0.00"
-                      keyboardType="decimal-pad"
-                      inputAccessoryViewID={KB_DONE_ID}
-                    />
-                  </View>
-                </View>
-              </>
-            )}
-
-            <Text style={s.hint}>
-              {day
-                ? '* Title, category, and actual time & cost are required. Estimated time and cost are optional but help others choose this act.'
-                : '* Required. Time and cost are optional but help others choose this act.'}
-            </Text>
+            <Text style={s.hint}>* Required.</Text>
 
             <Btn
               label={day ? 'Save & Complete Today\'s Act' : 'Save to My Acts'}
