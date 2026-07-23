@@ -44,19 +44,27 @@ export default function SuggestActScreen({ navigation }) {
 
   if (submitted) {
     return (
-      <View style={s.successWrap}>
-        <Text style={{ fontSize: 64, marginBottom: 16 }}>💡</Text>
-        <Text style={s.successTitle}>Thanks for the idea!</Text>
-        <Text style={s.successMsg}>
-          Your suggestion has been sent for review. If it's a great fit, we'll
-          add it to the shared catalog.
-        </Text>
-        <Btn
-          label="Suggest Another"
-          variant="secondary"
-          onPress={() => { setDescription(''); setSubmitted(false); }}
-          style={{ marginTop: 22, minWidth: 200 }}
-        />
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <ScreenHeader title="Suggest an Act" onBack={() => navigation.goBack()} />
+        <View style={s.successWrap}>
+          <Text style={{ fontSize: 64, marginBottom: 16 }}>💡</Text>
+          <Text style={s.successTitle}>Thanks for the idea!</Text>
+          <Text style={s.successMsg}>
+            Your suggestion has been sent for review. If it's a great fit, we'll
+            add it to the shared catalog.
+          </Text>
+          <Btn
+            label="Suggest Another"
+            variant="secondary"
+            onPress={() => { setDescription(''); setSubmitted(false); }}
+            style={{ marginTop: 22, minWidth: 200 }}
+          />
+          <Btn
+            label="Done"
+            onPress={() => navigation.goBack()}
+            style={{ marginTop: 12, minWidth: 200 }}
+          />
+        </View>
       </View>
     );
   }

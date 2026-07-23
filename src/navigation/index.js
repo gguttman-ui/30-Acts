@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿﻿import React, { useState } from 'react';
 import { Text, Image, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -102,11 +102,31 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         {(props) => <TreeScreen {...props} user={user} />}
       </Tab.Screen>
 
-      {isReviewer ? (
+      {/* Everyone -- including admins/reviewers -- can suggest a new act.
+          Tapping 💡 opens the "Suggest a New Act" create form (no completion). */}
+      <Tab.Screen name="Suggest"
+        options={{
+          tabBarLabel: 'Suggest',
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💡" />,
+        }}
+        listeners={({ navigation: nav }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            nav.navigate('SuggestAct');
+          },
+        })}
+      >
+        {() => null}
+      </Tab.Screen>
+
+      {/* Reviewers/admins additionally get a Review tab: moderate act
+          completions, and from the "Review Suggested Acts" button atop it,
+          review the suggestions users submit. */}
+      {isReviewer && (
         <Tab.Screen name="Review"
           options={{
-            tabBarLabel: 'Suggestions',
-            tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💡" />,
+            tabBarLabel: 'Review',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🔎" />,
           }}
         >
           {(props) => (
@@ -115,24 +135,6 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
               actCategories={actCategories}
             />
           )}
-        </Tab.Screen>
-      ) : (
-        // Regular users: a 💡 Suggest tab. Tapping it opens the existing
-        // create-act form in suggestion-only mode (no day => no completion,
-        // saved to user_custom_acts flagged for admin review).
-        <Tab.Screen name="Suggest"
-          options={{
-            tabBarLabel: 'Suggest',
-            tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💡" />,
-          }}
-          listeners={({ navigation: nav }) => ({
-            tabPress: (e) => {
-              e.preventDefault();
-              nav.navigate('SuggestAct');
-            },
-          })}
-        >
-          {() => null}
         </Tab.Screen>
       )}
 
@@ -277,4 +279,4 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+}

@@ -37,7 +37,20 @@ export function Btn({ label, onPress, variant = 'primary', disabled, loading, st
 }
 
 // ── Text Input ─────────────────────────────────────────────────────
+// On iOS every input gets a keyboard "Done" bar so the user can always
+// dismiss the keyboard -- essential for multiline fields (which have no
+// return-key submit) and numeric pads (which have no return key at all).
+// A caller can still pass its own inputAccessoryViewID to opt out and
+// manage the accessory itself.
+let _appInputAccessoryCounter = 0;
 export function AppInput({ label, value, onChangeText, placeholder, secureTextEntry, error, multiline, maxLength, editable = true, keyboardType, autoCapitalize, inputAccessoryViewID }) {
+  const idRef = React.useRef(null);
+  if (idRef.current === null) {
+    idRef.current = inputAccessoryViewID || `appinput-done-${++_appInputAccessoryCounter}`;
+  }
+  const accessoryId  = idRef.current;
+  const ownAccessory = Platform.OS === 'ios' && !inputAccessoryViewID;
+
   return (
     <View style={{ marginBottom: 16 }}>
       {label && <Text style={styles.inputLabel}>{label}</Text>}
@@ -52,7 +65,7 @@ export function AppInput({ label, value, onChangeText, placeholder, secureTextEn
         editable={editable}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
-        inputAccessoryViewID={inputAccessoryViewID}
+        inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
         style={[
           styles.input,
           multiline && { height: 110, textAlignVertical: 'top', paddingTop: 12 },
@@ -61,6 +74,16 @@ export function AppInput({ label, value, onChangeText, placeholder, secureTextEn
         ]}
       />
       {error ? <Text style={styles.errorText}>⚠ {error}</Text> : null}
+
+      {ownAccessory && (
+        <InputAccessoryView nativeID={accessoryId}>
+          <View style={styles.kbAccessory}>
+            <TouchableOpacity onPress={() => Keyboard.dismiss()} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+              <Text style={styles.kbAccessoryDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
     </View>
   );
 }
@@ -176,6 +199,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.border,
   },
   errorText: { color: C.error, fontSize: 11, marginTop: 5 },
+
+  kbAccessory: {
+    backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border,
+    paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end',
+  },
+  kbAccessoryDone: { color: C.primary, fontSize: 16, fontWeight: '800' },
 
   eyeBtn: {
     position: 'absolute', right: 12, top: 0, bottom: 0,
@@ -315,4 +344,4 @@ const tcStyles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

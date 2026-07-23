@@ -34,16 +34,27 @@ function fmtMonthDay(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// One tile per CALENDAR DATE across a run's span. Completed dates render as
-// act tiles; an internal single missed day (which does NOT break the run)
-// renders as a gap tile. Used for the consolidated "earlier streaks" pages.
-function buildRunDateTiles(run) {
+// One tile per CALENDAR DATE across ONE LAP of a run (acts lapIndex*30 ..
+// +30). Completed dates render as act tiles; an internal single missed day
+// (which does NOT break the run) renders as a gap tile.
+//
+// IMPORTANT: this renders only the requested lap, NOT the whole run. A run
+// that spans more than 30 acts already shows its full laps on their own
+// "STREAK · Completed" pages; rendering the whole run here re-drew those same
+// acts and produced the duplicate "Earlier Streaks" page. Slicing to the lap
+// fixes that -- for a normal short run (single lap) this is the whole run, so
+// nothing changes there.
+function buildRunDateTiles(run, lapIndex = 0) {
+  const offset = lapIndex * 30;
+  const rows   = (run.rows || []).slice(offset, offset + 30);
   const byDate = new Map();
-  run.rows.forEach((r) => { const d = rowLocalDate(r); if (d) byDate.set(d, r); });
+  rows.forEach((r) => { const d = rowLocalDate(r); if (d) byDate.set(d, r); });
+  const dates = [...byDate.keys()].sort();
+  if (!dates.length) return [];
   const tiles = [];
-  let actNo = 0;
-  const start = new Date(run.startDate + 'T00:00:00');
-  const end   = new Date(run.endDate + 'T00:00:00');
+  let actNo = offset;
+  const start = new Date(dates[0] + 'T00:00:00');
+  const end   = new Date(dates[dates.length - 1] + 'T00:00:00');
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const iso = localDateStr(d);
     const match = byDate.get(iso);
@@ -106,8 +117,9 @@ function buildPages(runs) {
     if (seg.kind === 'current') { flush(); pages.push({ type: 'current', run: seg.run, lapIndex: seg.lapIndex }); continue; }
     if (seg.kind === 'full')    { flush(); pages.push({ type: 'full',    run: seg.run, lapIndex: seg.lapIndex }); continue; }
 
-    // partial -> consolidate (single-lap partial => the whole run's date tiles)
-    const tiles = buildRunDateTiles(seg.run);
+    // partial -> consolidate. Render ONLY this lap's date tiles (a whole-run
+    // render here duplicated acts already shown on their own full-lap page).
+    const tiles = buildRunDateTiles(seg.run, seg.lapIndex);
     const need = (buffer && buffer.cells.length ? 1 : 0) + tiles.length;
     if (!buffer) buffer = { type: 'consolidated', cells: [] };
     if (buffer.cells.length + need > TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
@@ -178,7 +190,27 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const loggedDates      = new Set(currentRun.rows.map((r) => rowLocalDate(r)));
   const canLogToday      = !loggedDates.has(today);
   const canLogYesterday  = !loggedDates.has(yesterday);
-  const hasLoggableDay   = isLive && (canLogToday || canLogYesterday);
+  // The in-grid "+" is for TODAY only, so it always sits on today's tile --
+  // never a stray "+" on the slot after a completed today. (Back-filling a
+  // missed yesterday is handled by the separate missed-yesterday prompt.)
+  const hasLoggableDay   = isLive && canLogToday;
+
+  // When the streak has ENDED there is no in-grid "+" tile, so the dashboard
+  // gave no way to log at all. Start a fresh act (which begins a new streak)
+  // straight from the header. Mirrors the Calendar view's tap-to-log flow.
+  const startNewAct = (dateToLog) => {
+    navigation.navigate('CreateChallenge', {
+      day: {
+        dayNumber: 1,
+        scheduledDate: dateToLog,
+        status: 'NOT_SET',
+        title: '',
+        proofType: null,
+        completionId: null,
+      },
+      returnTo: 'MyStory',
+    });
+  };
 
   // -- One tile. cell = { type:'act', day } | { type:'gap' } | { type:'sep' }.
   const renderTileCell = (cell, key, opts) => {
@@ -201,11 +233,10 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         navigation.navigate('MyStory', { day });
       } else if (isNextSlot) {
         // The "+" slot has no calendar date of its own (future slots carry an
-        // empty scheduledDate). Attach the day actually being logged -- today,
-        // or yesterday when today is already done -- so the save can build a
-        // valid date instead of crashing on an empty string.
-        const logDate = canLogToday ? today : yesterday;
-        navigation.navigate('CreateChallenge', { day: { ...day, scheduledDate: logDate }, returnTo: 'MyStory' });
+        // empty scheduledDate). The in-grid "+" only ever logs TODAY, so attach
+        // today's date so the save can build a valid date instead of crashing
+        // on an empty string.
+        navigation.navigate('CreateChallenge', { day: { ...day, scheduledDate: today }, returnTo: 'MyStory' });
       }
     };
 
@@ -290,7 +321,13 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     if (item.type === 'full') {
       const grid  = buildRunGrid(item.run, item.lapIndex);
       const cells = withGapTiles(grid);
-      const label = `STREAK ${'\u00b7'} Completed ${'\u00b7'} ${fmtMonthDay(item.run.startDate)}${'\u2013'}${fmtMonthDay(item.run.endDate)}`;
+      // Label from THIS lap's own dates, not the whole run's span -- otherwise
+      // a multi-lap run showed the run's end date on a page whose tiles stop 30
+      // acts earlier.
+      const doneCells = grid.filter((g) => g.status === 'COMPLETED' && g.scheduledDate);
+      const lapStart  = doneCells[0]?.scheduledDate || item.run.startDate;
+      const lapEnd    = doneCells[doneCells.length - 1]?.scheduledDate || item.run.endDate;
+      const label = `STREAK ${'\u00b7'} Completed ${'\u00b7'} ${fmtMonthDay(lapStart)}${'\u2013'}${fmtMonthDay(lapEnd)}`;
       return (
         <View style={{ width: SCREEN_W }}>
           <Text style={s.pastRunLabel}>{label}</Text>
@@ -369,6 +406,26 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
               ? 'Tap + to log. Miss two days in a row and a new streak begins.'
               : 'All caught up. Come back tomorrow.'}
         </Text>
+
+        {/* Streak ended -> no in-grid "+", so offer logging here. */}
+        {!isLive && (canLogToday || canLogYesterday) && (
+          <View style={s.logCtaWrap}>
+            <TouchableOpacity
+              style={s.logCta}
+              onPress={() => startNewAct(canLogToday ? today : yesterday)}
+            >
+              <Text style={s.logCtaText}>
+                {'＋'} Log {canLogToday ? "today's" : "yesterday's"} act
+              </Text>
+            </TouchableOpacity>
+            {canLogToday && canLogYesterday && (
+              <TouchableOpacity onPress={() => startNewAct(yesterday)}>
+                <Text style={s.logCtaAlt}>or log yesterday instead</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {pages.length > 1 && (
           <Text style={s.swipeHint}>{'\u2190'} Swipe to see earlier streaks</Text>
         )}
@@ -434,6 +491,18 @@ const s = StyleSheet.create({
   swipeHint: {
     color: C.muted, fontSize: sf(10), fontWeight: '700',
     textAlign: 'center', marginTop: 4,
+  },
+
+  logCtaWrap: { alignItems: 'center', marginTop: 12 },
+  logCta: {
+    backgroundColor: C.primary, borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 28,
+    minWidth: 220, alignItems: 'center',
+  },
+  logCtaText: { color: C.bg, fontSize: sf(15), fontWeight: '900' },
+  logCtaAlt: {
+    color: C.muted, fontSize: sf(12), fontWeight: '700',
+    marginTop: 8, textDecorationLine: 'underline',
   },
 
   pastRunLabel: {

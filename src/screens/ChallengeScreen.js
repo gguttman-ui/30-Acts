@@ -67,8 +67,8 @@ const [exportData,     setExportData]     = useState(null);
 const [confirmWipe,    setConfirmWipe]    = useState(false);
 const [confirmSeed,    setConfirmSeed]    = useState(false);
 
-  // -- A/B TOGGLE (temporary, for design review -- remove after we pick) --
-  const [viewMode,  setViewMode]  = useState('calendar'); // 'calendar' | 'dashboard'
+  // Dashboard is the chosen view. (Calendar render kept below but unreachable.)
+  const [viewMode,  setViewMode]  = useState('dashboard'); // 'calendar' | 'dashboard'
   const [dashPhone, setDashPhone] = useState(null);
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
@@ -486,22 +486,6 @@ const handleConfirmWipe = async () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="My Challenge" />
-
-      {/* -- TEMP A/B SWITCH -- delete once we have picked a view -------- */}
-      <View style={s.abRow}>
-        <TouchableOpacity
-          onPress={() => setViewMode('calendar')}
-          style={[s.abPill, viewMode === 'calendar' && s.abPillOn]}
-        >
-          <Text style={[s.abText, viewMode === 'calendar' && s.abTextOn]}>Calendar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setViewMode('dashboard')}
-          style={[s.abPill, viewMode === 'dashboard' && s.abPillOn]}
-        >
-          <Text style={[s.abText, viewMode === 'dashboard' && s.abTextOn]}>Dashboard</Text>
-        </TouchableOpacity>
-      </View>
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>
@@ -1004,4 +988,4 @@ grid: {
     padding: 10,
   },
   exportText: { color: C.text, fontSize: sf(11), fontFamily: 'Courier' },
-});
+});

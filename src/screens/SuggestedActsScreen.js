@@ -4,17 +4,12 @@ import {
 } from 'react-native';
 import { Card, ScreenHeader } from '../components';
 import { C } from '../constants';
+import { supabase } from '../lib/supabase';
 
 // Admin review of user-submitted act suggestions (public.act_suggestions).
-// Reached from a button atop the Review screen. Mirrors ReviewerScreen's
-// anon-key REST pattern.
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const REST_HEADERS = {
-  'apikey':        SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type':  'application/json',
-};
+// Reached from a button atop the Review screen. Reads/writes through the
+// authenticated supabase-js client -- the anon key is blocked by RLS on this
+// table (403), which is why the list previously showed nothing.
 
 const FILTERS = ['pending', 'approved', 'rejected', 'all'];
 const statusColor = (st) => st === 'approved' ? C.success : st === 'rejected' ? C.error : C.warning;
@@ -29,14 +24,16 @@ export default function SuggestedActsScreen({ navigation, user }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/act_suggestions?select=*&order=created_at.desc&limit=500`,
-        { headers: REST_HEADERS }
-      );
-      const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
+      const { data, error } = await supabase
+        .from('act_suggestions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) { console.warn('load suggestions failed:', error.message); setItems([]); }
+      else setItems(Array.isArray(data) ? data : []);
     } catch (e) {
       console.warn('load suggestions failed:', e.message);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -47,19 +44,18 @@ export default function SuggestedActsScreen({ navigation, user }) {
   const setStatus = async (item, status) => {
     setBusy(item.id);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/act_suggestions?id=eq.${item.id}`, {
-        method: 'PATCH',
-        headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('act_suggestions')
+        .update({
           status,
           reviewed_by: user?.email || '',
           reviewed_at: new Date().toISOString(),
-        }),
-      });
-      if (res.ok || res.status === 204) {
+        })
+        .eq('id', item.id);
+      if (!error) {
         setItems(prev => prev.map(i => (i.id === item.id ? { ...i, status, reviewed_by: user?.email } : i)));
       } else {
-        Alert.alert('Update failed', await res.text());
+        Alert.alert('Update failed', error.message);
       }
     } catch (e) {
       Alert.alert('Error', e.message);
