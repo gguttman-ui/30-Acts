@@ -24,6 +24,8 @@ import DonationScreen    from '../screens/DonationScreen';
 import LegalScreen       from '../screens/LegalScreen';
 import SponsorDashboardScreen from '../screens/SponsorDashboardScreen';
 import CreateChallengeScreen  from '../screens/CreateChallengeScreen';
+import SuggestActScreen       from '../screens/SuggestActScreen';
+import SuggestedActsScreen    from '../screens/SuggestedActsScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -126,7 +128,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
           listeners={({ navigation: nav }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              nav.navigate('CreateNewAct');
+              nav.navigate('SuggestAct');
             },
           })}
         >
@@ -198,6 +200,10 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
                 User picks an act, then we replace() to DailyAct with
                 the chosen act in route.params.preselectedAct. */}
             <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+            <Stack.Screen name="SuggestAct" component={SuggestActScreen} />
+            <Stack.Screen name="SuggestedActs">
+              {(props) => <SuggestedActsScreen {...props} user={user} />}
+            </Stack.Screen>
 
             <Stack.Screen name="DailyAct">
               {(props) => (

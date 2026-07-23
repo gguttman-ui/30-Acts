@@ -251,6 +251,19 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Review Acts" onBack={() => navigation.goBack()} />
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate('SuggestedActs')}
+        style={{
+          marginHorizontal: 12, marginTop: 12,
+          backgroundColor: C.primary + '18', borderColor: C.primary + '55',
+          borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        }}
+      >
+        <Text style={{ color: C.primary, fontWeight: '800', fontSize: 14 }}>💡 Review Suggested Acts</Text>
+        <Text style={{ color: C.primary, fontWeight: '800', fontSize: 16 }}>{'→'}</Text>
+      </TouchableOpacity>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}>
 
         {/* Filter toggle */}
