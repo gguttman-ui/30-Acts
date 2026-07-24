@@ -94,78 +94,86 @@ function withGapTiles(grid) {
   return cells;
 }
 
-// Turn the runs into swipe pages:
-//   - any full 30-act lap                             -> its own page
-//   - short/partial runs                              -> consolidated together,
-//     one blank separator tile between them, wrapping at 30 tiles per page.
-//   - the current (live/last) streak                  -> folded onto the last
-//     consolidated page (after one blank tile) when it fits with room to spare;
-//     otherwise its own page.
+// Turn the completion history into swipe pages, built from CONSECUTIVE-DAY
+// blocks (ANY missed day ends a block):
+//   - a block of 30+ days in a row -> its own "Completed" challenge page
+//   - the current (latest) block   -> the interactive current page (with the
+//     "+" tile for logging today); folds onto the packed page when it is small
+//     and there is room to spare, otherwise its own page
+//   - every other short block      -> packed together as much as possible
+//     (one blank tile between blocks), wrapping at 30 tiles per page
 // Chronological order: oldest left, current right.
-function buildPages(runs, { hasLoggableDay = false, needGapBeforeToday = false } = {}) {
-  const lastIdx = runs.length - 1;
+const CHALLENGE_LEN = 30;
+function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
+  // Every completion row, de-duped by calendar date, oldest first.
+  const byDate = new Map();
+  runs.forEach((run) => (run.rows || []).forEach((r) => {
+    const d = rowLocalDate(r);
+    if (d && !byDate.has(d)) byDate.set(d, r);
+  }));
+  const dates = [...byDate.keys()].sort();
+  if (!dates.length) return [];
 
-  const segments = [];
-  runs.forEach((run, ri) => {
-    const laps = lapCount(run);
-    for (let li = 0; li < laps; li++) {
-      const isCurrent = ri === lastIdx && li === laps - 1;
-      const actsThisLap = Math.max(0, Math.min(30, run.length - li * 30));
-      if (isCurrent) segments.push({ kind: 'current', run, lapIndex: li });
-      else if (actsThisLap === 30) segments.push({ kind: 'full', run, lapIndex: li });
-      else segments.push({ kind: 'partial', run, lapIndex: li });
-    }
-  });
+  // Split into maximal consecutive-day blocks.
+  const blocks = [];
+  let curBlock = [dates[0]];
+  for (let i = 1; i < dates.length; i++) {
+    if (dayDiffDays(dates[i - 1], dates[i]) === 1) curBlock.push(dates[i]);
+    else { blocks.push(curBlock); curBlock = [dates[i]]; }
+  }
+  blocks.push(curBlock);
 
+  const tilesFor = (blk) =>
+    blk.map((d, i) => ({ type: 'act', date: d, actNo: i + 1, row: byDate.get(d) }));
+
+  const lastIdx = blocks.length - 1;
   const pages = [];
   let buffer = null;
   const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
 
-  for (const seg of segments) {
-    if (seg.kind === 'current') {
-      // Fold the current streak onto the running earlier-streaks page when it
-      // fits with >=5 open tiles left; otherwise give it its own page. This
-      // stops a tiny live streak from opening a near-empty page.
-      const curTiles = buildRunDateTiles(seg.run, seg.lapIndex).map((t) => ({ ...t, interactive: true }));
+  blocks.forEach((blk, bi) => {
+    const isCurrent = bi === lastIdx;
+    const start = blk[0], end = blk[blk.length - 1];
+
+    // 30+ days in a row = a completed challenge on its own page (unless it is
+    // the live current block, which stays interactive on the current page).
+    if (blk.length >= CHALLENGE_LEN && !isCurrent) {
+      flush();
+      pages.push({ type: 'challenge', tiles: tilesFor(blk), start, end });
+      return;
+    }
+
+    if (isCurrent) {
+      const cells = tilesFor(blk).map((t) => ({ ...t, interactive: true }));
       if (hasLoggableDay) {
-        if (needGapBeforeToday) curTiles.push({ type: 'gap' });
-        curTiles.push({ type: 'next', interactive: true });
+        // One blank tile before today's "+" when the last act is >1 day back.
+        if (dayDiffDays(end, today) >= 2) cells.push({ type: 'gap' });
+        cells.push({ type: 'next', interactive: true });
       }
       const sepNeeded = (buffer && buffer.cells.length) ? 1 : 0;
-      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sepNeeded + curTiles.length);
-      if (buffer && buffer.cells.length && openAfter >= 5) {
+      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sepNeeded + cells.length);
+      // Fold a SMALL current block onto the packed page when there is room to
+      // spare; a challenge-length current block always gets its own page.
+      if (blk.length < CHALLENGE_LEN && buffer && buffer.cells.length && openAfter >= 5) {
         buffer.cells.push({ type: 'sep' });
-        curTiles.forEach((t) => buffer.cells.push(t));
+        cells.forEach((t) => buffer.cells.push(t));
         buffer.hasCurrent = true;
         flush();
       } else {
         flush();
-        pages.push({ type: 'current', run: seg.run, lapIndex: seg.lapIndex });
+        pages.push({ type: 'current', cells, hasCurrent: true });
       }
-      continue;
-    }
-    if (seg.kind === 'full')    { flush(); pages.push({ type: 'full',    run: seg.run, lapIndex: seg.lapIndex }); continue; }
-
-    // A continuation lap (lapIndex >= 1) is the "bonus" days a run logged past
-    // its completed 30-act challenge. Give it its OWN page so a completed
-    // challenge and its leftover days stay separate from an unrelated new
-    // streak -- never folded together. (Standalone short runs, lap 0, still
-    // consolidate below.)
-    if (seg.lapIndex >= 1) {
-      flush();
-      pages.push({ type: 'continuation', run: seg.run, lapIndex: seg.lapIndex });
-      continue;
+      return;
     }
 
-    // partial -> consolidate. Render ONLY this lap's date tiles (a whole-run
-    // render here duplicated acts already shown on their own full-lap page).
-    const tiles = buildRunDateTiles(seg.run, seg.lapIndex);
+    // A short, past block -> pack it (fit as much as possible).
+    const tiles = tilesFor(blk);
     const need = (buffer && buffer.cells.length ? 1 : 0) + tiles.length;
     if (!buffer) buffer = { type: 'consolidated', cells: [] };
     if (buffer.cells.length + need > TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
     if (buffer.cells.length) buffer.cells.push({ type: 'sep' });
     tiles.forEach((t) => buffer.cells.push(t));
-  }
+  });
   flush();
 
   pages.forEach((p, i) => { p.id = i; });
@@ -232,16 +240,9 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // new one). It replaces the old header "Log today's act" button, so ended
   // streaks now log the same way live ones do: tap the "+" on today's tile.
   const hasLoggableDay   = canLogToday;
-  // Put one blank tile before today's "+" when the last logged act is more than
-  // a day back (a missed-day gap), matching how a fresh streak reads after a break.
-  const needGapBeforeToday = canLogToday && dayDiffDays(currentRun.endDate, today) >= 2;
 
-  // Build the swipe pages. A short current streak is folded onto the earlier-
-  // streaks page (after one blank tile) when there's room to spare, so a 1-act
-  // streak no longer opens its own near-empty page. The flags tell buildPages
-  // whether to append a tappable "+" tile for today, and whether to precede it
-  // with a blank gap tile.
-  const pages = buildPages(runs, { hasLoggableDay, needGapBeforeToday });
+  // Build the swipe pages from consecutive-day blocks (see buildPages).
+  const pages = buildPages(runs, { today, hasLoggableDay });
   const initialIndex = pages.length - 1;
 
   // When the streak has ENDED there is no in-grid "+" tile, so the dashboard
@@ -366,77 +367,45 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     </View>
   );
 
+  // Build a day object from a block act cell and render it.
+  const renderActCell = (cell, key, interactive) => {
+    const day = {
+      dayNumber:    cell.actNo,
+      scheduledDate: cell.date,
+      status:       'COMPLETED',
+      title:        cell.row ? (cell.row.act_title || '') : '',
+      proofType:    cell.row ? (cell.row.proof_type || null) : null,
+      completionId: cell.row ? (cell.row.id || null) : null,
+    };
+    return renderTileCell({ type: 'act', day }, key, { interactive });
+  };
+
   const renderPage = ({ item }) => {
+    // A completed challenge: 30+ consecutive days on its own page.
+    if (item.type === 'challenge') {
+      const label = `STREAK ${'·'} Completed ${'·'} ${fmtMonthDay(item.start)}${'–'}${fmtMonthDay(item.end)}`;
+      return (
+        <View style={{ width: SCREEN_W }}>
+          <Text style={s.pastRunLabel}>{label}</Text>
+          <View style={s.grid}>
+            {item.tiles.map((cell, i) => renderActCell(cell, `ch-${i}`, false))}
+          </View>
+          {pages.length > 1 && renderDots(item)}
+        </View>
+      );
+    }
+
+    // The current (latest) block -- interactive, may end with the "+" tile.
     if (item.type === 'current') {
-      const grid  = buildRunGrid(item.run, item.lapIndex);
-      const cells = withGapTiles(grid);
       return (
         <View style={{ width: SCREEN_W }}>
+          <View style={{ height: 8 }} />
           <View style={s.grid}>
-            {cells.map((cell, i) =>
-              cell.type === 'gap'
-                ? renderTileCell({ type: 'gap' }, `c-${i}`, {})
-                : renderTileCell({ type: 'act', day: cell.day }, `c-${i}`, { interactive: true, grid })
+            {item.cells.map((cell, i) =>
+              cell.type === 'act'
+                ? renderActCell(cell, `cu-${i}`, true)
+                : renderTileCell({ type: cell.type }, `cu-${i}`, {})
             )}
-          </View>
-          {pages.length > 1 && renderDots(item)}
-        </View>
-      );
-    }
-
-    if (item.type === 'full') {
-      const grid  = buildRunGrid(item.run, item.lapIndex);
-      const cells = withGapTiles(grid);
-      // Label from THIS lap's own dates, not the whole run's span -- otherwise
-      // a multi-lap run showed the run's end date on a page whose tiles stop 30
-      // acts earlier.
-      const doneCells = grid.filter((g) => g.status === 'COMPLETED' && g.scheduledDate);
-      const lapStart  = doneCells[0]?.scheduledDate || item.run.startDate;
-      const lapEnd    = doneCells[doneCells.length - 1]?.scheduledDate || item.run.endDate;
-      const label = `STREAK ${'\u00b7'} Completed ${'\u00b7'} ${fmtMonthDay(lapStart)}${'\u2013'}${fmtMonthDay(lapEnd)}`;
-      return (
-        <View style={{ width: SCREEN_W }}>
-          <Text style={s.pastRunLabel}>{label}</Text>
-          <View style={s.grid}>
-            {cells.map((cell, i) =>
-              cell.type === 'gap'
-                ? renderTileCell({ type: 'gap' }, `f-${i}`, {})
-                : renderTileCell({ type: 'act', day: cell.day }, `f-${i}`, { interactive: false })
-            )}
-          </View>
-          {pages.length > 1 && renderDots(item)}
-        </View>
-      );
-    }
-
-    if (item.type === 'continuation') {
-      // Bonus days a run logged past its completed 30 -- its own page, just the
-      // real act tiles (no 27 empty slots), separate from any new streak.
-      const tiles   = buildRunDateTiles(item.run, item.lapIndex);
-      const actTiles = tiles.filter((t) => t.type === 'act');
-      const startNo = item.lapIndex * 30 + 1;
-      const endNo   = startNo + actTiles.length - 1;
-      const first   = actTiles[0]?.date;
-      const last    = actTiles[actTiles.length - 1]?.date;
-      const label   = `DAYS ${startNo}${'–'}${endNo} ${'·'} ${fmtMonthDay(first)}${'–'}${fmtMonthDay(last)}`;
-      return (
-        <View style={{ width: SCREEN_W }}>
-          <Text style={s.pastRunLabel}>{label}</Text>
-          <View style={s.grid}>
-            {tiles.map((cell, i) => {
-              if (cell.type === 'act') {
-                const day = {
-                  dayNumber:    cell.actNo,
-                  scheduledDate: cell.date,
-                  status:       'COMPLETED',
-                  title:        cell.row ? (cell.row.act_title || '') : '',
-                  proofType:    cell.row ? (cell.row.proof_type || null) : null,
-                  completionId: cell.row ? (cell.row.id || null) : null,
-                };
-                return renderTileCell({ type: 'act', day }, `ct-${i}`, { interactive: false });
-              }
-              return renderTileCell({ type: cell.type }, `ct-${i}`, {});
-            })}
           </View>
           {pages.length > 1 && renderDots(item)}
         </View>
