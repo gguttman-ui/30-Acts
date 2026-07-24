@@ -559,7 +559,7 @@ const s = StyleSheet.create({
 
   dayCell: {
     width: '15%',
-    height: 74,
+    height: 80,
     borderRadius: 10,
     paddingVertical: 4,
     paddingHorizontal: 2,
@@ -586,14 +586,17 @@ const s = StyleSheet.create({
   },
   dayNumToday: { color: C.primary },
 
-  centerSlot: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  centerSlot: { alignItems: 'center', justifyContent: 'center', flex: 1, alignSelf: 'stretch' },
+  // No explicit lineHeight / includeFontPadding here: on iOS a fixed lineHeight
+  // clips the tall check glyph at the top. Letting the font's natural metrics
+  // size the line box (and centering it in the flex slot) keeps it whole.
   doneCheck:  {
-    fontSize: 18, fontWeight: '900',
-    color: C.primary, lineHeight: 26, textAlign: 'center', includeFontPadding: false,
+    fontSize: 20, fontWeight: '900',
+    color: C.primary, textAlign: 'center',
   },
   nextGlyph:  {
-    fontSize: 22, fontWeight: '900',
-    color: C.primary + 'aa', lineHeight: 26, textAlign: 'center', includeFontPadding: false,
+    fontSize: 24, fontWeight: '900',
+    color: C.primary + 'aa', textAlign: 'center',
   },
 
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
