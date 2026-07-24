@@ -146,6 +146,17 @@ function buildPages(runs, { hasLoggableDay = false, needGapBeforeToday = false }
     }
     if (seg.kind === 'full')    { flush(); pages.push({ type: 'full',    run: seg.run, lapIndex: seg.lapIndex }); continue; }
 
+    // A continuation lap (lapIndex >= 1) is the "bonus" days a run logged past
+    // its completed 30-act challenge. Give it its OWN page so a completed
+    // challenge and its leftover days stay separate from an unrelated new
+    // streak -- never folded together. (Standalone short runs, lap 0, still
+    // consolidate below.)
+    if (seg.lapIndex >= 1) {
+      flush();
+      pages.push({ type: 'continuation', run: seg.run, lapIndex: seg.lapIndex });
+      continue;
+    }
+
     // partial -> consolidate. Render ONLY this lap's date tiles (a whole-run
     // render here duplicated acts already shown on their own full-lap page).
     const tiles = buildRunDateTiles(seg.run, seg.lapIndex);
@@ -392,6 +403,40 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
                 ? renderTileCell({ type: 'gap' }, `f-${i}`, {})
                 : renderTileCell({ type: 'act', day: cell.day }, `f-${i}`, { interactive: false })
             )}
+          </View>
+          {pages.length > 1 && renderDots(item)}
+        </View>
+      );
+    }
+
+    if (item.type === 'continuation') {
+      // Bonus days a run logged past its completed 30 -- its own page, just the
+      // real act tiles (no 27 empty slots), separate from any new streak.
+      const tiles   = buildRunDateTiles(item.run, item.lapIndex);
+      const actTiles = tiles.filter((t) => t.type === 'act');
+      const startNo = item.lapIndex * 30 + 1;
+      const endNo   = startNo + actTiles.length - 1;
+      const first   = actTiles[0]?.date;
+      const last    = actTiles[actTiles.length - 1]?.date;
+      const label   = `DAYS ${startNo}${'–'}${endNo} ${'·'} ${fmtMonthDay(first)}${'–'}${fmtMonthDay(last)}`;
+      return (
+        <View style={{ width: SCREEN_W }}>
+          <Text style={s.pastRunLabel}>{label}</Text>
+          <View style={s.grid}>
+            {tiles.map((cell, i) => {
+              if (cell.type === 'act') {
+                const day = {
+                  dayNumber:    cell.actNo,
+                  scheduledDate: cell.date,
+                  status:       'COMPLETED',
+                  title:        cell.row ? (cell.row.act_title || '') : '',
+                  proofType:    cell.row ? (cell.row.proof_type || null) : null,
+                  completionId: cell.row ? (cell.row.id || null) : null,
+                };
+                return renderTileCell({ type: 'act', day }, `ct-${i}`, { interactive: false });
+              }
+              return renderTileCell({ type: cell.type }, `ct-${i}`, {});
+            })}
           </View>
           {pages.length > 1 && renderDots(item)}
         </View>
