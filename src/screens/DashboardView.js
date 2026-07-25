@@ -4,8 +4,8 @@ import {
 } from 'react-native';
 import { C, todayStr } from '../constants';
 import {
-  loadRuns, buildRunGrid, bestRunLength, lifetimeActs, lapCount, actsInLap,
-  rowLocalDate,
+  loadRuns, buildRunGrid, bestRunLength, lifetimeActs, lifetimeCompletionCount,
+  lapCount, actsInLap, rowLocalDate,
 } from '../lib/runs';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -188,6 +188,7 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
  */
 export default function DashboardView({ phone, navigation, reloadKey }) {
   const [runs, setRuns]       = useState([]);
+  const [lifetimeCount, setLifetimeCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const listRef = useRef(null);
 
@@ -198,8 +199,8 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const r = await loadRuns(phone);
-      if (!cancelled) { setRuns(r); setLoading(false); }
+      const [r, cnt] = await Promise.all([loadRuns(phone), lifetimeCompletionCount(phone)]);
+      if (!cancelled) { setRuns(r); setLifetimeCount(cnt); setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [phone, reloadKey]);
@@ -224,7 +225,9 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const currentRun = runs[runs.length - 1];
   const isLive     = currentRun.isAlive;
   const best       = bestRunLength(runs);
-  const lifetime   = lifetimeActs(runs);
+  // Lifetime = straight count of completion rows (falls back to the runs-based
+  // sum only if the count query didn't come back).
+  const lifetime   = lifetimeCount != null ? lifetimeCount : lifetimeActs(runs);
 
   const currentLap  = lapCount(currentRun) - 1;
   const currentDone = actsInLap(currentRun, currentLap);

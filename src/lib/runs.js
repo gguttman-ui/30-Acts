@@ -210,3 +210,25 @@ export function bestRunLength(runs) {
 export function lifetimeActs(runs) {
   return runs.reduce((sum, r) => sum + r.length, 0);
 }
+
+/**
+ * Lifetime = a straight count of the user's completion rows -- every act they
+ * have ever logged, regardless of streaks, gaps, or restarts. This is a direct
+ * COUNT on the table (head request, no rows transferred), so it never drifts
+ * from "how many acts have I done" the way the runs-based sum can (that one
+ * de-dupes by date). Returns null on any failure so the caller can fall back.
+ */
+export async function lifetimeCompletionCount(phone) {
+  if (!phone) return null;
+  try {
+    const { count, error } = await supabase
+      .from('completions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_phone', phone);
+    if (error) { console.warn('lifetimeCompletionCount error:', error.message); return null; }
+    return count ?? 0;
+  } catch (e) {
+    console.warn('lifetimeCompletionCount failed:', e.message);
+    return null;
+  }
+}
