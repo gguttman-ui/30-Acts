@@ -94,14 +94,19 @@ function withGapTiles(grid) {
   return cells;
 }
 
-// Turn the completion history into swipe pages, built from CONSECUTIVE-DAY
-// blocks (ANY missed day ends a block):
-//   - a block of 30+ days in a row -> its own "Completed" challenge page
-//   - the current (latest) block   -> the interactive current page (with the
-//     "+" tile for logging today); folds onto the packed page when it is small
-//     and there is room to spare, otherwise its own page
-//   - every other short block      -> packed together as much as possible
-//     (one blank tile between blocks), wrapping at 30 tiles per page
+// Turn the completion history into swipe pages.
+//
+// The history is cut into "pieces". A single missed day is NEVER a page break --
+// it shows as a blank tile inside the streak, and numbering stays continuous
+// (day 1, 2, 3 ...). A piece only ends at:
+//   - a break of 2+ missed days in a row (a real streak break), OR
+//   - the edge of a 30-days-in-a-row completed challenge (carved out).
+//
+// Each piece is then:
+//   - a "challenge" (30+ consecutive days) -> its own "Completed" page, or
+//   - a "fragment" (an ordinary streak, single misses shown as blanks) ->
+//     the interactive current page if it's the latest piece, otherwise packed
+//     together with other short fragments (30 tiles per page).
 // Chronological order: oldest left, current right.
 const CHALLENGE_LEN = 30;
 function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
@@ -114,69 +119,117 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
   const dates = [...byDate.keys()].sort();
   if (!dates.length) return [];
 
-  // Split into maximal consecutive-day blocks.
-  const blocks = [];
-  let curBlock = [dates[0]];
-  for (let i = 1; i < dates.length; i++) {
-    if (dayDiffDays(dates[i - 1], dates[i]) === 1) curBlock.push(dates[i]);
-    else { blocks.push(curBlock); curBlock = [dates[i]]; }
+  // Which dates belong to a 30+ consecutive-day block (a completed challenge)?
+  const challengeDates = new Set();
+  {
+    let s = 0;
+    for (let i = 1; i <= dates.length; i++) {
+      if (i === dates.length || dayDiffDays(dates[i - 1], dates[i]) !== 1) {
+        if (i - s >= CHALLENGE_LEN) for (let k = s; k < i; k++) challengeDates.add(dates[k]);
+        s = i;
+      }
+    }
   }
-  blocks.push(curBlock);
 
-  const tilesFor = (blk) =>
-    blk.map((d, i) => ({ type: 'act', date: d, actNo: i + 1, row: byDate.get(d) }));
+  // Cut the history into pieces: a challenge block, or a fragment (ordinary
+  // streak that tolerates single-day gaps but breaks at 2+ missed days).
+  const pieces = [];
+  let i = 0;
+  while (i < dates.length) {
+    if (challengeDates.has(dates[i])) {
+      let j = i + 1;
+      while (j < dates.length && challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1) j++;
+      pieces.push({ kind: 'challenge', dates: dates.slice(i, j) });
+      i = j;
+    } else {
+      let j = i + 1;
+      while (j < dates.length && !challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) <= 2) j++;
+      pieces.push({ kind: 'fragment', dates: dates.slice(i, j) });
+      i = j;
+    }
+  }
 
-  const lastIdx = blocks.length - 1;
+  // Fragment -> cells, with a blank tile for each internal missed day and
+  // continuous numbering across those blanks.
+  const fragmentCells = (ds, interactive) => {
+    const cells = [];
+    let actNo = 0;
+    for (let k = 0; k < ds.length; k++) {
+      if (k > 0) {
+        const diff = dayDiffDays(ds[k - 1], ds[k]);
+        for (let g = 1; g < diff; g++) cells.push({ type: 'gap' });
+      }
+      actNo++;
+      cells.push({ type: 'act', date: ds[k], actNo, row: byDate.get(ds[k]), interactive });
+    }
+    return cells;
+  };
+
+  const lastIdx = pieces.length - 1;
   const pages = [];
   let buffer = null;
   const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
 
-  blocks.forEach((blk, bi) => {
-    const isCurrent = bi === lastIdx;
-    const start = blk[0], end = blk[blk.length - 1];
+  // Pack a set of cells into the running consolidated buffer, keeping a piece
+  // together when it fits and wrapping only a piece too big for one page.
+  const packInto = (cells) => {
+    const sep = (buffer && buffer.cells.length) ? 1 : 0;
+    if (buffer && buffer.cells.length && buffer.cells.length + sep + cells.length > TILES_PER_PAGE) flush();
+    if (!buffer) buffer = { type: 'consolidated', cells: [] };
+    if (buffer.cells.length) buffer.cells.push({ type: 'sep' });
+    for (const c of cells) {
+      if (buffer.cells.length >= TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
+      buffer.cells.push(c);
+    }
+  };
 
-    // 30+ days in a row = a completed challenge on its own page (unless it is
-    // the live current block, which stays interactive on the current page).
-    if (blk.length >= CHALLENGE_LEN && !isCurrent) {
+  let currentPlaced = false;
+  pieces.forEach((pc, pi) => {
+    const isCurrent = pi === lastIdx;
+
+    if (pc.kind === 'challenge') {
       flush();
-      pages.push({ type: 'challenge', tiles: tilesFor(blk), start, end });
+      const tiles = pc.dates.map((d, k) => ({ type: 'act', date: d, actNo: k + 1, row: byDate.get(d) }));
+      pages.push({ type: 'challenge', tiles, start: pc.dates[0], end: pc.dates[pc.dates.length - 1] });
       return;
     }
 
+    // fragment
     if (isCurrent) {
-      const cells = tilesFor(blk).map((t) => ({ ...t, interactive: true }));
+      const cells = fragmentCells(pc.dates, true);
       if (hasLoggableDay) {
-        // One blank tile before today's "+" when the last act is >1 day back.
-        if (dayDiffDays(end, today) >= 2) cells.push({ type: 'gap' });
+        if (dayDiffDays(pc.dates[pc.dates.length - 1], today) >= 2) cells.push({ type: 'gap' });
         cells.push({ type: 'next', interactive: true });
       }
-      const sepNeeded = (buffer && buffer.cells.length) ? 1 : 0;
-      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sepNeeded + cells.length);
-      // Fold a SMALL current block onto the packed page when there is room to
-      // spare; a challenge-length current block always gets its own page.
-      if (blk.length < CHALLENGE_LEN && buffer && buffer.cells.length && openAfter >= 5) {
+      const sep = (buffer && buffer.cells.length) ? 1 : 0;
+      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sep + cells.length);
+      if (cells.length <= TILES_PER_PAGE && buffer && buffer.cells.length && openAfter >= 5) {
         buffer.cells.push({ type: 'sep' });
-        cells.forEach((t) => buffer.cells.push(t));
+        cells.forEach((c) => buffer.cells.push(c));
         buffer.hasCurrent = true;
         flush();
       } else {
         flush();
         pages.push({ type: 'current', cells, hasCurrent: true });
       }
-      return;
+      currentPlaced = true;
+    } else {
+      packInto(fragmentCells(pc.dates, false));
     }
-
-    // A short, past block -> pack it (fit as much as possible).
-    const tiles = tilesFor(blk);
-    const need = (buffer && buffer.cells.length ? 1 : 0) + tiles.length;
-    if (!buffer) buffer = { type: 'consolidated', cells: [] };
-    if (buffer.cells.length + need > TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
-    if (buffer.cells.length) buffer.cells.push({ type: 'sep' });
-    tiles.forEach((t) => buffer.cells.push(t));
   });
   flush();
 
-  pages.forEach((p, i) => { p.id = i; });
+  // Edge case: the latest piece was a 30+ challenge (a live long streak) and
+  // today is still open -> give a small current page to log today.
+  if (hasLoggableDay && !currentPlaced) {
+    const cells = [];
+    const lastDate = dates[dates.length - 1];
+    if (dayDiffDays(lastDate, today) >= 2) cells.push({ type: 'gap' });
+    cells.push({ type: 'next', interactive: true });
+    pages.push({ type: 'current', cells, hasCurrent: true });
+  }
+
+  pages.forEach((p, idx) => { p.id = idx; });
   return pages;
 }
 
