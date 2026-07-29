@@ -1,0 +1,15 @@
+name: Publish production update
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch: {}
+
+jobs:
+  publish_update:
+    name: Publish OTA update to production
+    type: update
+    params:
+      branch: production
+      message: OTA - grid fit, tile glyph, Phone label wrap
+      platform: all
