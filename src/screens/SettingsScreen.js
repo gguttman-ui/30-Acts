@@ -454,7 +454,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
         <Card style={s.mb}>
           <Text style={s.cardTitle}>Profile</Text>
           <View style={s.emailRow}>
-            <Text style={s.emailLabel}>{user?.email?.includes('@phone.30acts.app') ? 'Phone' : 'Email'}</Text>
+            <Text style={s.emailLabel} numberOfLines={1}>{user?.email?.includes('@phone.30acts.app') ? 'Phone' : 'Email'}</Text>
             <Text style={s.emailVal} numberOfLines={1}>
               {user?.email?.includes('@phone.30acts.app')
                 ? (user?.phone || user?.email?.replace('@phone.30acts.app', ''))
@@ -823,7 +823,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: C.card2,
     borderRadius: 10, padding: 12, marginBottom: 14, gap: 8,
   },
-  emailLabel: { color: C.muted, fontSize: 12, fontWeight: '600', width: 48 },
+  emailLabel: { color: C.muted, fontSize: 12, fontWeight: '600', width: 56 },
   emailVal:   { color: C.sub, fontSize: 13, flex: 1 },
   zipStatus:  { color: C.muted, fontSize: 12, marginBottom: 10, fontStyle: 'italic' },
   tzPill: {
@@ -917,7 +917,7 @@ const s = StyleSheet.create({
   backgroundColor: C.card2, borderRadius: 10,
   padding: 12, marginBottom: 14, gap: 8,
 },
-ageBracketLabel: { color: C.muted, fontSize: 12, fontWeight: '600', width: 48 },
+ageBracketLabel: { color: C.muted, fontSize: 12, fontWeight: '600', width: 56 },
 ageBracketVal:   { color: C.text, fontSize: 13, flex: 1 },
 modalHeader: {
   flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -938,4 +938,4 @@ legalRow: {
 legalRowLast: { borderBottomWidth: 0 },
 legalRowText: { color: C.text, fontSize: 14 },
 legalRowChevron: { color: C.muted, fontSize: 18, fontWeight: '600' },
-});
+});

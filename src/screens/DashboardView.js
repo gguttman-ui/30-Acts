@@ -15,6 +15,15 @@ const sf = (n) => Math.round(n * fontScale);
 
 const TILES_PER_PAGE = 30;
 
+// Tile grid sizing. Compute the tile width in pixels from the screen width so
+// six columns + gaps + padding are GUARANTEED to fit inside the page on every
+// device (a percentage width + gaps could overflow the right edge on some
+// screens). Rows are centered, so any leftover splits evenly on both sides.
+const GRID_COLS  = 6;
+const GRID_PAD_H = 8;
+const GRID_GAP   = 4;
+const TILE_W = Math.floor((SCREEN_W - GRID_PAD_H * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS);
+
 function localDateStr(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -622,13 +631,14 @@ const s = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 4,
+    justifyContent: 'center',
+    columnGap: GRID_GAP,
     rowGap: 12,
-    paddingHorizontal: 6,
+    paddingHorizontal: GRID_PAD_H,
   },
 
   dayCell: {
-    width: '15%',
+    width: TILE_W,
     height: 80,
     borderRadius: 10,
     paddingVertical: 4,
@@ -667,6 +677,9 @@ const s = StyleSheet.create({
   nextGlyph:  {
     fontSize: 24, fontWeight: '900',
     color: C.primary + 'aa', textAlign: 'center',
+    // The "+" glyph sits low in its line box (unlike the top-heavy check),
+    // so nudge it up to visually center it in the tile like the checkmarks.
+    transform: [{ translateY: -3 }],
   },
 
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
