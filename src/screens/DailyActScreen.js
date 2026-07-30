@@ -985,6 +985,27 @@ const today = todayStr();
         }
       }
 
+      // One act per calendar day: if the user already logged a DIFFERENT act
+      // today (same local_date, different day_number), block it with a friendly
+      // message. The database also enforces this via a unique index on
+      // (user_phone, local_date); this check just avoids a raw error.
+      const { data: existingToday } = await supabase
+        .from('completions')
+        .select('day_number')
+        .eq('user_phone', phone)
+        .eq('local_date', localDateValue)
+        .maybeSingle();
+
+      if (existingToday && existingToday.day_number !== day.dayNumber) {
+        Alert.alert(
+          'Already logged today',
+          "You've already logged an act of kindness today. Come back tomorrow for your next one!",
+          [{ text: 'OK' }]
+        );
+        setSubmitting(false);
+        return;
+      }
+
       await supabase
         .from('completions')
         .delete()
@@ -1013,7 +1034,20 @@ const today = todayStr();
         .select()
         .single();
 
-      if (completionError) throw completionError;
+      if (completionError) {
+        // 23505 = unique-index violation on (user_phone, local_date): a second
+        // act on the same calendar day. Show a friendly message, not a crash.
+        if (completionError.code === '23505') {
+          Alert.alert(
+            'Already logged today',
+            "You've already logged an act of kindness today. Come back tomorrow for your next one!",
+            [{ text: 'OK' }]
+          );
+          setSubmitting(false);
+          return;
+        }
+        throw completionError;
+      }
 
 // Tag this completion against every challenge the user is currently
       // a participant in (forward-only — past completions are never
@@ -2229,4 +2263,4 @@ dropdownModalRowText: { color: C.text, fontSize: sf(15), flex: 1 },
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-});
+});
