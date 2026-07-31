@@ -42,73 +42,18 @@ export default function TreeScreen({ user }) {
       let cancelled = false;
       (async () => {
         try {
-          const phone = extractPhone(user?.email);
-          if (!phone) { if (!cancelled) setLoading(false); return; }
-
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          const myUserId = authUser?.id || null;
-
-          // --- My Acts: acts I personally performed. This drives the tree. ---
-          const { data: mine, error } = await supabase
-            .from('completions')
-            .select('id')
-            .eq('user_phone', phone);
+          // My Acts / Total Acts / People Under Me are computed server-side by
+          // the get_tree_stats() SECURITY DEFINER function. This is required:
+          // completions RLS is own-rows-only for non-admins, so the app itself
+          // cannot read a downline member's acts. The function tallies them with
+          // elevated permissions and returns only the three totals.
+          const { data, error } = await supabase.rpc('get_tree_stats');
           if (error) throw error;
-          const myActCount = (mine || []).length;
-
-          // --- People under me = people I referred UNION members of any
-          // challenge I created, de-duplicated by phone (completions are keyed
-          // by user_phone, so phone is the shared identity). ---
-          const underPhones = new Set();
-
-          // Referral downline: profiles.referred_by = my phone.
-          const { data: refRows } = await supabase
-            .from('profiles')
-            .select('phone')
-            .eq('referred_by', phone);
-          (refRows || []).forEach(r => { if (r.phone) underPhones.add(r.phone); });
-
-          // Members of challenges I created: participant user_ids -> phones.
-          if (myUserId) {
-            const { data: myCh } = await supabase
-              .from('challenges')
-              .select('id')
-              .eq('created_by', myUserId);
-            const chIds = (myCh || []).map(c => c.id);
-            if (chIds.length) {
-              const { data: parts } = await supabase
-                .from('challenge_participants')
-                .select('user_id')
-                .in('challenge_id', chIds);
-              const memberIds = [...new Set((parts || []).map(p => p.user_id).filter(Boolean))];
-              if (memberIds.length) {
-                const { data: memberProfiles } = await supabase
-                  .from('profiles')
-                  .select('phone')
-                  .in('id', memberIds);
-                (memberProfiles || []).forEach(p => { if (p.phone) underPhones.add(p.phone); });
-              }
-            }
-          }
-
-          // Never count myself as being under me.
-          underPhones.delete(phone);
-
-          // --- Acts performed by everyone under me ---
-          let underActCount = 0;
-          if (underPhones.size) {
-            const { data: theirs } = await supabase
-              .from('completions')
-              .select('id')
-              .in('user_phone', [...underPhones]);
-            underActCount = (theirs || []).length;
-          }
-
           if (cancelled) return;
 
-          setMyActs(myActCount);
-          setTotalActs(myActCount + underActCount);   // my acts + acts by people under me
-          setPeopleUnderMe(underPhones.size);
+          setMyActs(data?.my_acts || 0);
+          setTotalActs(data?.total_acts || 0);
+          setPeopleUnderMe(data?.people_under_me || 0);
         } catch (e) {
           console.warn('Tree screen load failed:', e.message);
         } finally {
