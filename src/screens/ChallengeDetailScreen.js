@@ -93,7 +93,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
         message:
           `Join me in the "${name}" kindness challenge on 30 Acts of Kindness™!\n\n` +
           `Use invite code: ${code}\n\n` +
-          `https://apps.apple.com/app/30-acts-of-kindness`,
+          `https://apps.apple.com/app/id6762151038`,
       });
     } catch (e) {
       console.warn('Share invite failed:', e.message);
@@ -292,9 +292,14 @@ export default function ChallengeDetailScreen({ route, navigation }) {
             </View>
             {me.count === 0 && (
               <Text style={s.cheerText}>
-                You're in! Head to today's act and log your first one to get on the board.
+                You're in! Tap below to log your first act and get on the board.
               </Text>
             )}
+            <Btn
+              label={me.count === 0 ? "Log Today's Act →" : "Log Another Act →"}
+              onPress={() => navigation.navigate('Main', { screen: 'Challenge' })}
+              style={{ marginTop: 14 }}
+            />
           </Card>
         )}
 

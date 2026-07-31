@@ -781,7 +781,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               </TouchableOpacity>
 
               <TouchableOpacity onPress={goToCalendar} style={s.skipShare}>
-                <Text style={s.skipShareText}>Done → Back to Calendar</Text>
+                <Text style={s.skipShareText}>Done → Back to Dashboard</Text>
               </TouchableOpacity>
             </View>
           )}

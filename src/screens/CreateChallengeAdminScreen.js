@@ -132,8 +132,8 @@ export default function CreateChallengeAdminScreen({ navigation }) {
 setCreated(data);
   };
 
-  // TODO: replace with live App Store URL once published.
-  const APP_STORE_URL = 'https://apps.apple.com/app/30-acts-of-kindness';
+  // Live App Store listing (works once the app is public).
+  const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
 
   const handleInvite = async () => {
     if (!created) return;

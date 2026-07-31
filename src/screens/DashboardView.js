@@ -548,6 +548,13 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         )}
       </View>
 
+      {/* The pages are full-screen-width (SCREEN_W) and paging snaps on
+          SCREEN_W boundaries. This pager lives inside ChallengeScreen's
+          ScrollView, whose content has paddingHorizontal: 6 — so without
+          this the real viewport is 12px narrower than each page and the
+          snap points drift, leaving the dashboard off-center (worse the
+          more streak pages there are). marginLeft: -6 + width: SCREEN_W
+          makes the pager span the true screen width so page == viewport. */}
       <FlatList
         ref={listRef}
         data={pages}
@@ -556,6 +563,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        style={{ width: SCREEN_W, marginLeft: -6 }}
         initialScrollIndex={initialIndex}
         getItemLayout={(_, index) => ({
           length: SCREEN_W,

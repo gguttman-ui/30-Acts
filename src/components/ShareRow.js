@@ -12,7 +12,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const APP_URL = 'https://apps.apple.com/app/id0000000000'; // TODO: replace with real App Store URL once live
+const APP_URL = 'https://apps.apple.com/app/id6762151038'; // live App Store listing (works once the app is public)
 const APP_HASHTAG = '#30ActsOfKindness';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

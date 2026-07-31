@@ -378,7 +378,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // pick SMS, email, etc. and edit the message before sending.
   // TODO: Replace with the live App Store URL once the app is published.
   const APP_STORE_LIVE = false;  // flip to true when app is live in the App Store
-  const APP_STORE_URL = 'https://apps.apple.com/app/30-acts-of-kindness';
+  const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
   const handleInviteShare = async () => {
     const message =
       "I am working on making the world a kinder place by participating in a 30-day challenge to do 30 Acts of Kindness™ in 30 Days. " +
@@ -938,4 +938,4 @@ legalRow: {
 legalRowLast: { borderBottomWidth: 0 },
 legalRowText: { color: C.text, fontSize: 14 },
 legalRowChevron: { color: C.muted, fontSize: 18, fontWeight: '600' },
-});
+});
