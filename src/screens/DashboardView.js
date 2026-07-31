@@ -276,10 +276,30 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   }
 
   if (!runs.length) {
+    // Brand-new user: no completions yet. Without a button here the only way to
+    // log a first act was the in-grid "+" tile, which doesn't render in this
+    // empty state — so a fresh user had no way to log at all. This CTA opens
+    // the same act-logging flow the "+" tile and header use (startNewAct).
     return (
       <View style={s.centerBox}>
         <Text style={s.emptyBig}>No acts yet</Text>
         <Text style={s.emptySub}>Log your first act and your streak starts today.</Text>
+        <TouchableOpacity
+          style={[s.logCta, { marginTop: 20 }]}
+          onPress={() => navigation.navigate('CreateChallenge', {
+            day: {
+              dayNumber: 1,
+              scheduledDate: today,
+              status: 'NOT_SET',
+              title: '',
+              proofType: null,
+              completionId: null,
+            },
+            returnTo: 'MyStory',
+          })}
+        >
+          <Text style={s.logCtaText}>+ Log Today's Act</Text>
+        </TouchableOpacity>
       </View>
     );
   }
