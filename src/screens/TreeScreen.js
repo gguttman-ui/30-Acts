@@ -31,6 +31,7 @@ export default function TreeScreen({ user }) {
   const [loading, setLoading]     = useState(true);
   const [actCount, setActCount]   = useState(0);
   const [teamCount, setTeamCount] = useState(0);
+  const [challengeCount, setChallengeCount] = useState(0);
   const [totalMin, setTotalMin]   = useState(0);
   const [totalCents, setTotalCts] = useState(0);
 
@@ -44,6 +45,10 @@ export default function TreeScreen({ user }) {
           const phone = extractPhone(user?.email);
           if (!phone) { if (!cancelled) setLoading(false); return; }
 
+          // My auth id — needed to find the challenges I created.
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const myUserId = authUser?.id || null;
+
           // My team = everyone who joined from my invite (profiles.referred_by = my phone).
           const { data: tree } = await supabase
             .from('profiles')
@@ -51,29 +56,61 @@ export default function TreeScreen({ user }) {
             .eq('referred_by', phone);
           const teamPhones = (tree || []).map(r => r.phone).filter(Boolean);
 
+          // My own acts.
           const { data: mine, error } = await supabase
             .from('completions')
             .select('id')
             .eq('user_phone', phone);
+          if (error) throw error;
+          const myIds = new Set((mine || []).map(r => r.id));
 
-          let teamRows = [];
+          // My team's acts — every completion by someone I referred.
+          let teamIds = new Set();
           if (teamPhones.length) {
             const { data: t } = await supabase
               .from('completions')
               .select('id')
               .in('user_phone', teamPhones);
-            teamRows = t || [];
+            teamIds = new Set((t || []).map(r => r.id));
+          }
+
+          // My challenges' acts — completions tagged to any challenge I created.
+          // completion_challenges can list one completion under several of my
+          // challenges, so a Set collapses it to distinct acts.
+          let challengeIds = new Set();
+          if (myUserId) {
+            const { data: myCh } = await supabase
+              .from('challenges')
+              .select('id')
+              .eq('created_by', myUserId);
+            const chIds = (myCh || []).map(c => c.id);
+            if (chIds.length) {
+              const { data: links } = await supabase
+                .from('completion_challenges')
+                .select('completion_id')
+                .in('challenge_id', chIds);
+              challengeIds = new Set((links || []).map(l => l.completion_id));
+            }
           }
 
           if (cancelled) return;
-          if (error) {
-            console.warn('Tree stats fetch error:', error.message);
-            setLoading(false);
-            return;
-          }
 
-          setActCount((mine || []).length);
-          setTeamCount(teamRows.length);
+          // "My Challenges" = acts by the people who joined my challenges
+          // (my own acts inside my challenge are excluded so this reflects
+          // the kindness my challenges inspired in others).
+          let challengeMemberCount = 0;
+          challengeIds.forEach(id => { if (!myIds.has(id)) challengeMemberCount++; });
+
+          // "Acts of Kindness" headline = total distinct impact: my own acts +
+          // my team's acts + my challenges' acts, de-duplicated so nobody who
+          // is both a referral and a challenge member is counted twice.
+          const union = new Set(myIds);
+          teamIds.forEach(id => union.add(id));
+          challengeIds.forEach(id => union.add(id));
+
+          setActCount(union.size);
+          setTeamCount(teamIds.size);
+          setChallengeCount(challengeMemberCount);
         } catch (e) {
           console.warn('Tree screen load failed:', e.message);
         } finally {
@@ -110,6 +147,10 @@ export default function TreeScreen({ user }) {
               <View style={s.stat}>
                 <Text style={s.statValue}>{actCount}</Text>
                 <Text style={s.statLabel}>Acts of{'\n'}Kindness</Text>
+              </View>
+              <View style={s.stat}>
+                <Text style={s.statValue}>{challengeCount}</Text>
+                <Text style={s.statLabel}>My{'\n'}Challenges</Text>
               </View>
               <View style={s.stat}>
                 <Text style={s.statValue}>{teamCount}</Text>
