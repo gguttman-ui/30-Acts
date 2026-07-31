@@ -29,9 +29,9 @@ const stageLabel = (count) => {
 
 export default function TreeScreen({ user }) {
   const [loading, setLoading]     = useState(true);
-  const [actCount, setActCount]   = useState(0);
-  const [teamCount, setTeamCount] = useState(0);
-  const [challengeCount, setChallengeCount] = useState(0);
+  const [myActs, setMyActs]               = useState(0);
+  const [totalActs, setTotalActs]         = useState(0);
+  const [peopleUnderMe, setPeopleUnderMe] = useState(0);
   const [totalMin, setTotalMin]   = useState(0);
   const [totalCents, setTotalCts] = useState(0);
 
@@ -45,39 +45,30 @@ export default function TreeScreen({ user }) {
           const phone = extractPhone(user?.email);
           if (!phone) { if (!cancelled) setLoading(false); return; }
 
-          // My auth id — needed to find the challenges I created.
           const { data: { user: authUser } } = await supabase.auth.getUser();
           const myUserId = authUser?.id || null;
 
-          // My team = everyone who joined from my invite (profiles.referred_by = my phone).
-          const { data: tree } = await supabase
-            .from('profiles')
-            .select('phone')
-            .eq('referred_by', phone);
-          const teamPhones = (tree || []).map(r => r.phone).filter(Boolean);
-
-          // My own acts.
+          // --- My Acts: acts I personally performed. This drives the tree. ---
           const { data: mine, error } = await supabase
             .from('completions')
             .select('id')
             .eq('user_phone', phone);
           if (error) throw error;
-          const myIds = new Set((mine || []).map(r => r.id));
+          const myActCount = (mine || []).length;
 
-          // My team's acts — every completion by someone I referred.
-          let teamIds = new Set();
-          if (teamPhones.length) {
-            const { data: t } = await supabase
-              .from('completions')
-              .select('id')
-              .in('user_phone', teamPhones);
-            teamIds = new Set((t || []).map(r => r.id));
-          }
+          // --- People under me = people I referred UNION members of any
+          // challenge I created, de-duplicated by phone (completions are keyed
+          // by user_phone, so phone is the shared identity). ---
+          const underPhones = new Set();
 
-          // My challenges' acts — completions tagged to any challenge I created.
-          // completion_challenges can list one completion under several of my
-          // challenges, so a Set collapses it to distinct acts.
-          let challengeIds = new Set();
+          // Referral downline: profiles.referred_by = my phone.
+          const { data: refRows } = await supabase
+            .from('profiles')
+            .select('phone')
+            .eq('referred_by', phone);
+          (refRows || []).forEach(r => { if (r.phone) underPhones.add(r.phone); });
+
+          // Members of challenges I created: participant user_ids -> phones.
           if (myUserId) {
             const { data: myCh } = await supabase
               .from('challenges')
@@ -85,32 +76,39 @@ export default function TreeScreen({ user }) {
               .eq('created_by', myUserId);
             const chIds = (myCh || []).map(c => c.id);
             if (chIds.length) {
-              const { data: links } = await supabase
-                .from('completion_challenges')
-                .select('completion_id')
+              const { data: parts } = await supabase
+                .from('challenge_participants')
+                .select('user_id')
                 .in('challenge_id', chIds);
-              challengeIds = new Set((links || []).map(l => l.completion_id));
+              const memberIds = [...new Set((parts || []).map(p => p.user_id).filter(Boolean))];
+              if (memberIds.length) {
+                const { data: memberProfiles } = await supabase
+                  .from('profiles')
+                  .select('phone')
+                  .in('id', memberIds);
+                (memberProfiles || []).forEach(p => { if (p.phone) underPhones.add(p.phone); });
+              }
             }
+          }
+
+          // Never count myself as being under me.
+          underPhones.delete(phone);
+
+          // --- Acts performed by everyone under me ---
+          let underActCount = 0;
+          if (underPhones.size) {
+            const { data: theirs } = await supabase
+              .from('completions')
+              .select('id')
+              .in('user_phone', [...underPhones]);
+            underActCount = (theirs || []).length;
           }
 
           if (cancelled) return;
 
-          // "My Challenges" = acts by the people who joined my challenges
-          // (my own acts inside my challenge are excluded so this reflects
-          // the kindness my challenges inspired in others).
-          let challengeMemberCount = 0;
-          challengeIds.forEach(id => { if (!myIds.has(id)) challengeMemberCount++; });
-
-          // "Acts of Kindness" headline = total distinct impact: my own acts +
-          // my team's acts + my challenges' acts, de-duplicated so nobody who
-          // is both a referral and a challenge member is counted twice.
-          const union = new Set(myIds);
-          teamIds.forEach(id => union.add(id));
-          challengeIds.forEach(id => union.add(id));
-
-          setActCount(union.size);
-          setTeamCount(teamIds.size);
-          setChallengeCount(challengeMemberCount);
+          setMyActs(myActCount);
+          setTotalActs(myActCount + underActCount);   // my acts + acts by people under me
+          setPeopleUnderMe(underPhones.size);
         } catch (e) {
           console.warn('Tree screen load failed:', e.message);
         } finally {
@@ -138,23 +136,23 @@ export default function TreeScreen({ user }) {
         ) : (
           <>
             <View style={s.treeWrap}>
-              <Image source={treeForCount(actCount)} style={s.tree} resizeMode="contain" />
+              <Image source={treeForCount(myActs)} style={s.tree} resizeMode="contain" />
             </View>
 
-            <Text style={s.stageLabel}>{stageLabel(actCount).toUpperCase()}</Text>
+            <Text style={s.stageLabel}>{stageLabel(myActs).toUpperCase()}</Text>
 
             <View style={s.statsRow}>
               <View style={s.stat}>
-                <Text style={s.statValue}>{actCount}</Text>
-                <Text style={s.statLabel}>Acts of{'\n'}Kindness</Text>
+                <Text style={s.statValue}>{myActs}</Text>
+                <Text style={s.statLabel}>My{'\n'}Acts</Text>
               </View>
               <View style={s.stat}>
-                <Text style={s.statValue}>{challengeCount}</Text>
-                <Text style={s.statLabel}>My{'\n'}Challenges</Text>
+                <Text style={s.statValue}>{totalActs}</Text>
+                <Text style={s.statLabel}>Total{'\n'}Acts</Text>
               </View>
               <View style={s.stat}>
-                <Text style={s.statValue}>{teamCount}</Text>
-                <Text style={s.statLabel}>My Team's{'\n'}Acts</Text>
+                <Text style={s.statValue}>{peopleUnderMe}</Text>
+                <Text style={s.statLabel}>People{'\n'}Under Me</Text>
               </View>
             </View>
           </>
