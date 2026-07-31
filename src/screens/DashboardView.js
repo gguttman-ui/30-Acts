@@ -223,16 +223,27 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
 
     // fragment
     if (isCurrent) {
-      const cells = fragmentCells(pc.dates, true);
-      if (hasLoggableDay) {
-        if (dayDiffDays(pc.dates[pc.dates.length - 1], today) >= 2) cells.push({ type: 'gap' });
-        cells.push({ type: 'next', interactive: true });
+      const lastDate   = pc.dates[pc.dates.length - 1];
+      const gapToToday = dayDiffDays(lastDate, today);
+      if (gapToToday <= 2) {
+        // Streak still alive (today, or within the 1-missed-day grace window):
+        // today extends THIS streak, so it owns the current 30-slot board.
+        const cells = fragmentCells(pc.dates, true);
+        if (hasLoggableDay) {
+          if (gapToToday === 2) cells.push({ type: 'gap' }); // the one missed day
+          cells.push({ type: 'next', interactive: true });
+        }
+        flush();
+        pages.push({ type: 'current', cells: padBoard(cells, pc.dates[0]), hasCurrent: true });
+      } else {
+        // The last streak ENDED (2+ missed days). Show it as a past streak, and
+        // start today on a brand-new board as day 1 — first tile, own page.
+        packInto(fragmentCells(pc.dates, false));
+        flush();
+        if (hasLoggableDay) {
+          pages.push({ type: 'current', cells: padBoard([{ type: 'next', interactive: true }], today), hasCurrent: true });
+        }
       }
-      // The current streak always gets its own full 30-slot board (never folded
-      // onto a consolidated page): logged days fill from the top-left, the "+"
-      // sits on today's slot, and the remaining slots are empty placeholders.
-      flush();
-      pages.push({ type: 'current', cells: padBoard(cells, pc.dates[0]), hasCurrent: true });
       currentPlaced = true;
     } else {
       packInto(fragmentCells(pc.dates, false));
