@@ -174,6 +174,15 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     return cells;
   };
 
+  // Pad the current streak's cells out to a full 30-slot board so the current
+  // page always shows the whole 30-day journey: logged days fill from the
+  // top-left, the "+" sits on today's slot, and the rest are empty placeholders.
+  const padBoard = (cells) => {
+    const out = cells.slice(0, CHALLENGE_LEN);
+    while (out.length < CHALLENGE_LEN) out.push({ type: 'future' });
+    return out;
+  };
+
   const lastIdx = pieces.length - 1;
   const pages = [];
   let buffer = null;
@@ -210,17 +219,11 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
         if (dayDiffDays(pc.dates[pc.dates.length - 1], today) >= 2) cells.push({ type: 'gap' });
         cells.push({ type: 'next', interactive: true });
       }
-      const sep = (buffer && buffer.cells.length) ? 1 : 0;
-      const openAfter = TILES_PER_PAGE - ((buffer ? buffer.cells.length : 0) + sep + cells.length);
-      if (cells.length <= TILES_PER_PAGE && buffer && buffer.cells.length && openAfter >= 5) {
-        buffer.cells.push({ type: 'sep' });
-        cells.forEach((c) => buffer.cells.push(c));
-        buffer.hasCurrent = true;
-        flush();
-      } else {
-        flush();
-        pages.push({ type: 'current', cells, hasCurrent: true });
-      }
+      // The current streak always gets its own full 30-slot board (never folded
+      // onto a consolidated page): logged days fill from the top-left, the "+"
+      // sits on today's slot, and the remaining slots are empty placeholders.
+      flush();
+      pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
       currentPlaced = true;
     } else {
       packInto(fragmentCells(pc.dates, false));
@@ -235,7 +238,7 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     const lastDate = dates[dates.length - 1];
     if (dayDiffDays(lastDate, today) >= 2) cells.push({ type: 'gap' });
     cells.push({ type: 'next', interactive: true });
-    pages.push({ type: 'current', cells, hasCurrent: true });
+    pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
   }
 
   pages.forEach((p, idx) => { p.id = idx; });
@@ -351,6 +354,12 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const renderTileCell = (cell, key, opts) => {
     if (cell.type === 'sep' || cell.type === 'gap') {
       return <View key={key} style={[s.dayCell, s.dayCellBlank]} />;
+    }
+
+    // A not-yet-reached day on the current 30-slot board: a faint empty
+    // placeholder (visually distinct from a dashed missed-day blank).
+    if (cell.type === 'future') {
+      return <View key={key} style={[s.dayCell, s.dayCellEmpty]} />;
     }
 
     // A folded-in current streak carries its own "+" cell for logging today.
