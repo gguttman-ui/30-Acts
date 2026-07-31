@@ -579,7 +579,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       if (completionError) throw completionError;
 
       try {
-        const challengeIds = await getActiveChallengeIds(user?.id);
+        // The `user` PROP has no `id` (it's {email, firstName, lastName, phone,
+        // role}), so getActiveChallengeIds(user?.id) always got undefined and
+        // no act ever tagged to a challenge from this flow. Read the auth id
+        // from the live session instead.
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const challengeIds = await getActiveChallengeIds(authUser?.id);
         if (challengeIds.length > 0 && completionData?.id) {
           const joinRows = challengeIds.map(cid => ({
             completion_id: completionData.id,
