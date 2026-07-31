@@ -176,10 +176,19 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
 
   // Pad the current streak's cells out to a full 30-slot board so the current
   // page always shows the whole 30-day journey: logged days fill from the
-  // top-left, the "+" sits on today's slot, and the rest are empty placeholders.
-  const padBoard = (cells) => {
+  // top-left, the "+" sits on today's slot, and every remaining slot is an
+  // empty placeholder that still shows its day number and projected date.
+  const addDaysStr = (dateStr, n) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + n);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
+  const padBoard = (cells, startDate) => {
     const out = cells.slice(0, CHALLENGE_LEN);
-    while (out.length < CHALLENGE_LEN) out.push({ type: 'future' });
+    for (let i = out.length; i < CHALLENGE_LEN; i++) {
+      out.push({ type: 'future', dayNo: i + 1, date: startDate ? addDaysStr(startDate, i) : null });
+    }
     return out;
   };
 
@@ -223,7 +232,7 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
       // onto a consolidated page): logged days fill from the top-left, the "+"
       // sits on today's slot, and the remaining slots are empty placeholders.
       flush();
-      pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
+      pages.push({ type: 'current', cells: padBoard(cells, pc.dates[0]), hasCurrent: true });
       currentPlaced = true;
     } else {
       packInto(fragmentCells(pc.dates, false));
@@ -234,11 +243,9 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
   // Edge case: the latest piece was a 30+ challenge (a live long streak) and
   // today is still open -> give a small current page to log today.
   if (hasLoggableDay && !currentPlaced) {
-    const cells = [];
-    const lastDate = dates[dates.length - 1];
-    if (dayDiffDays(lastDate, today) >= 2) cells.push({ type: 'gap' });
-    cells.push({ type: 'next', interactive: true });
-    pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
+    // Fresh board after a completed 30-day challenge: today is day 1.
+    const cells = [{ type: 'next', interactive: true }];
+    pages.push({ type: 'current', cells: padBoard(cells, today), hasCurrent: true });
   }
 
   pages.forEach((p, idx) => { p.id = idx; });
@@ -356,10 +363,21 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
       return <View key={key} style={[s.dayCell, s.dayCellBlank]} />;
     }
 
-    // A not-yet-reached day on the current 30-slot board: a faint empty
-    // placeholder (visually distinct from a dashed missed-day blank).
+    // A not-yet-reached day on the current 30-slot board: a faint placeholder
+    // that still shows its day number and projected date so the whole 30-day
+    // plan is visible up front.
     if (cell.type === 'future') {
-      return <View key={key} style={[s.dayCell, s.dayCellEmpty]} />;
+      return (
+        <View key={key} style={[s.dayCell, s.dayCellEmpty]}>
+          <Text style={s.dayNum}>{cell.dayNo != null ? cell.dayNo : ' '}</Text>
+          <View style={s.centerSlot} />
+          <View style={s.bottomSlot}>
+            <Text style={s.tileDate} numberOfLines={1} adjustsFontSizeToFit>
+              {cell.date ? fmtMonthDay(cell.date) : ''}
+            </Text>
+          </View>
+        </View>
+      );
     }
 
     // A folded-in current streak carries its own "+" cell for logging today.
@@ -498,7 +516,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             {item.cells.map((cell, i) =>
               cell.type === 'act'
                 ? renderActCell(cell, `cu-${i}`, true)
-                : renderTileCell({ type: cell.type }, `cu-${i}`, {})
+                : renderTileCell(cell, `cu-${i}`, {})
             )}
           </View>
           {pages.length > 1 && renderDots(item)}
