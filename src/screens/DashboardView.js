@@ -400,7 +400,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
           style={[s.dayCell, s.dayCellNext]}
         >
           <Text style={s.dayNum}>{' '}</Text>
-          <View style={s.centerSlot}><Text style={s.nextGlyph}>+</Text></View>
+          <View style={s.centerSlot}><Text style={s.nextGlyph} allowFontScaling={false}>+</Text></View>
           <View style={s.bottomSlot}>
             <Text style={[s.tileDate, s.tileDateDone]} numberOfLines={1} adjustsFontSizeToFit>TODAY</Text>
           </View>
@@ -463,7 +463,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         ) : isNextSlot ? (
           <>
             <View style={s.centerSlot}>
-              <Text style={s.nextGlyph}>+</Text>
+              <Text style={s.nextGlyph} allowFontScaling={false}>+</Text>
             </View>
             <View style={s.bottomSlot}>
               <Text
