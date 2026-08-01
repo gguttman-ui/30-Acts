@@ -73,6 +73,7 @@ export default function CreateChallengeAdminScreen({ navigation }) {
   // After a successful create, hold onto the new row so we can show
   // the post-creation success screen (invite code + share button).
   const [created, setCreated] = useState(null);
+  const [isExisting, setIsExisting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -82,12 +83,28 @@ export default function CreateChallengeAdminScreen({ navigation }) {
         return;
       }
       const phone = extractPhone(user.email);
-      const { data, error } = await supabase
+      const { data: sp, error } = await supabase
         .from('sponsor_admins')
         .select('id')
         .eq('phone', phone)
         .maybeSingle();
-      setIsSponsor(!error && !!data);
+
+      // One challenge per creator: if this person already created a challenge,
+      // jump straight to its invite screen so "Create a Challenge" becomes
+      // "add more people to your existing challenge" instead of making another.
+      const { data: mine } = await supabase
+        .from('challenges')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (mine) {
+        setIsExisting(true);
+        setCreated(mine);
+      }
+
+      setIsSponsor(!error && !!sp);   // set last so the spinner covers both loads
     })();
   }, []);
 
@@ -156,14 +173,16 @@ setCreated(data);
   if (created) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.title}>🎉 Challenge created!</Text>
+        <Text style={styles.title}>{isExisting ? 'Your Challenge' : '🎉 Challenge created!'}</Text>
         <Text style={styles.successName}>{created.name}</Text>
 
         <View style={styles.codeCard}>
           <Text style={styles.codeLabel}>INVITE CODE</Text>
           <Text style={styles.codeValue}>{created.invite_code}</Text>
           <Text style={styles.codeHint}>
-            Share this code with friends so they can join your challenge.
+            {isExisting
+              ? 'You can run one challenge at a time. Share this code to add more people to yours.'
+              : 'Share this code with friends so they can join your challenge.'}
           </Text>
         </View>
 
