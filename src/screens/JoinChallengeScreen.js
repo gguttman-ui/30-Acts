@@ -76,10 +76,23 @@ export default function JoinChallengeScreen({ navigation }) {
         return;
       }
 
+      // One challenge at a time: is the user already in a DIFFERENT challenge?
+      // If so, joining this one MOVES them — past acts stay credited to the old
+      // challenge, all future acts credit here. Surface it as a switch choice.
+      const { data: others } = await supabase
+        .from('challenge_participants')
+        .select('challenge_id, challenges ( name )')
+        .eq('user_id', user.id)
+        .neq('challenge_id', challenge.id);
+      const switchFrom = (others || []).map(o => ({
+        id:   o.challenge_id,
+        name: o.challenges?.name || 'your current challenge',
+      }));
+
       // Local: default opt-in to TRUE but make the user see the toggle.
       // Non-Local (Worship/Business): show_name is forced to true.
       setShowName(true);
-      setPendingChallenge({ challenge, user });
+      setPendingChallenge({ challenge, user, switchFrom });
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {
@@ -90,11 +103,26 @@ export default function JoinChallengeScreen({ navigation }) {
   // Step 2: actually insert the participant row.
   const handleConfirmJoin = async () => {
     if (!pendingChallenge) return;
-    const { challenge, user } = pendingChallenge;
+    const { challenge, user, switchFrom } = pendingChallenge;
     const isLocal = challenge.type === 'Local';
 
     setSubmitting(true);
     try {
+      // One challenge at a time: leave any current challenge(s) first so future
+      // acts credit here. Past acts stay tagged to the old challenge (their
+      // completion_challenges rows are never touched).
+      if (switchFrom && switchFrom.length) {
+        const { error: leaveErr } = await supabase
+          .from('challenge_participants')
+          .delete()
+          .eq('user_id', user.id)
+          .in('challenge_id', switchFrom.map(sf => sf.id));
+        if (leaveErr) {
+          Alert.alert('Could not switch', leaveErr.message);
+          return;
+        }
+      }
+
       const { error: joinErr } = await supabase
         .from('challenge_participants')
         .insert({
@@ -121,6 +149,9 @@ export default function JoinChallengeScreen({ navigation }) {
   if (pendingChallenge) {
     const c = pendingChallenge.challenge;
     const isLocal = c.type === 'Local';
+    const switchFrom = pendingChallenge.switchFrom || [];
+    const isSwitch = switchFrom.length > 0;
+    const fromName = switchFrom[0]?.name || 'your current challenge';
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScreenHeader title="Confirm Join" onBack={() => setPendingChallenge(null)} />
@@ -141,6 +172,14 @@ export default function JoinChallengeScreen({ navigation }) {
               <Text style={s.detailLabel}>Started</Text>
               <Text style={s.detailValue}>{c.start_date}</Text>
             </View>
+
+            {isSwitch && (
+              <Text style={s.switchNotice}>
+                You're currently in "{fromName}". You can be in only one challenge at a
+                time. Moving here keeps your past acts credited to "{fromName}" — all
+                future acts will count toward "{c.name}".
+              </Text>
+            )}
 
             {isLocal && (
               <View style={s.privacyBox}>
@@ -164,13 +203,13 @@ export default function JoinChallengeScreen({ navigation }) {
           </View>
 
           <Btn
-            label="Confirm & Join"
+            label={isSwitch ? 'Move to this challenge' : 'Confirm & Join'}
             onPress={handleConfirmJoin}
             loading={submitting}
             style={{ marginTop: 18 }}
           />
           <Btn
-            label="Cancel"
+            label={isSwitch ? `Stay in ${fromName}` : 'Cancel'}
             variant="secondary"
             onPress={() => setPendingChallenge(null)}
             style={{ marginTop: 8 }}
@@ -236,8 +275,8 @@ export default function JoinChallengeScreen({ navigation }) {
           <>
             <Text style={s.helper}>
               Got an invite code from a friend, employer, or community? Enter it
-              below to join their challenge. You can be part of multiple challenges
-              at the same time.
+              below to join their challenge. You can be in one challenge at a time —
+              if you're already in one, you'll choose whether to stay or move here.
             </Text>
 
             <AppInput
@@ -323,6 +362,13 @@ const s = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 12,
     lineHeight: 17,
+  },
+  switchNotice: {
+    color: C.warning,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 14,
   },
 
   privacyBox: {
