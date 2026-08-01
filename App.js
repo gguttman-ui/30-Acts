@@ -303,15 +303,24 @@ const handleComplete = async (completedDay) => {
   // pick up the new tier window.
   if (user?.email) await reloadDays();
 };
-  const handleDelete = async (dayNumber) => {
+  const handleDelete = async (day) => {
     if (!user?.email) return;
     try {
       const phone = extractPhone(user.email);
-      const { error } = await supabase
-        .from('completions')
-        .delete()
-        .eq('user_phone', phone)
-        .eq('day_number', dayNumber);
+      // Delete the ONE act by its unique completion id, or failing that its
+      // calendar date (unique per user via the one-act-per-day index). NEVER
+      // delete by day_number — that number is reused across streaks, so it can
+      // wipe several dates at once (deleting today also removed yesterday).
+      let q = supabase.from('completions').delete().eq('user_phone', phone);
+      if (day && typeof day === 'object' && day.completionId) {
+        q = q.eq('id', day.completionId);
+      } else if (day && typeof day === 'object' && day.scheduledDate) {
+        q = q.eq('local_date', day.scheduledDate);
+      } else {
+        console.warn('Delete aborted: no completion id or date on the day; refusing to delete by day_number.');
+        return;
+      }
+      const { error } = await q;
       if (error) console.warn('Delete completion error:', error.message);
       await reloadDays();
     } catch (e) {

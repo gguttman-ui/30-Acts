@@ -634,10 +634,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const dn = dayNumber ?? targetDay?.dayNumber;
-            if (dn == null) { goToCalendar(); return; }
+            // Pass the day OBJECT (has completionId / scheduledDate) so the
+            // delete targets exactly this date — never day_number.
+            if (!targetDay || !targetDay.scheduledDate) { goToCalendar(); return; }
             try {
-              await onDelete?.(dn);
+              await onDelete?.(targetDay);
             } catch (e) {
               console.warn('Delete failed:', e.message);
             }

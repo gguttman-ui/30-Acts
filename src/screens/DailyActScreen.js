@@ -762,7 +762,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     setConfirmDelete(false);
     setDeleting(true);
     try {
-      if (onDelete) await onDelete(day.dayNumber);
+      if (onDelete) await onDelete(day);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Could not delete this act.');
@@ -2263,4 +2263,4 @@ dropdownModalRowText: { color: C.text, fontSize: sf(15), flex: 1 },
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-});
+});

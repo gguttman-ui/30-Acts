@@ -173,7 +173,7 @@ export function DayDetailScreen({ route, navigation, onDelete }) {
     setConfirmDelete(false);
     setDeleting(true);
     try {
-      if (onDelete) await onDelete(day.dayNumber);
+      if (onDelete) await onDelete(day);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Could not delete this act.');
