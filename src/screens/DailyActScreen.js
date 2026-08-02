@@ -1134,9 +1134,9 @@ const today = todayStr();
       return;
     }
     try {
-      navigation.navigate('Main', { screen: 'Challenge' });
+      navigation.navigate('Main', { screen: 'Home' });
     } catch (e) {
-      try { navigation.navigate('Challenge'); }
+      try { navigation.navigate('Home'); }
       catch (_) { navigation.goBack(); }
     }
   };

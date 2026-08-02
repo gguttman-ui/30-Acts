@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, ScreenHeader, TypedConfirmModal } from '../components';
 import { C, todayStr, getActIcon, ALL_ACTS, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
-import { rowLocalDate, windowStartDate, currentWindowIndex, getActiveSponsors } from '../lib/streak';
+import { rowLocalDate, windowStartDate, currentWindowIndex } from '../lib/streak';
 import DashboardView from './DashboardView';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
@@ -56,7 +56,7 @@ const extractPhone = (email) => {
 // the calendar grid loads). Resets on a full app restart, not on tab switches.
 let documentPromptShownThisSession = false;
 
-export default function ChallengeScreen({ days, daysReloading, navigation, onRestart, onLogout, user, onReloadDays }) {
+export default function HomeScreen({ days, daysReloading, navigation, onRestart, onLogout, user, onReloadDays }) {
 const [confirmRestart, setConfirmRestart] = useState(false);
 const [missedPrompt,   setMissedPrompt]   = useState(false);
 const [documentPrompt, setDocumentPrompt] = useState(false);
@@ -70,7 +70,6 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // Dashboard is the chosen view. (Calendar render kept below but unreachable.)
   const [viewMode,  setViewMode]  = useState('dashboard'); // 'calendar' | 'dashboard'
   const [dashPhone, setDashPhone] = useState(null);
-  const [groupName, setGroupName] = useState(null);
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
   // Newest tier is the live `days` prop; older tiers are fetched lazily.
@@ -92,18 +91,6 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   const isOwner   = user?.role === 'OWNER';
 
   useEffect(() => { hasScrolled.current = false; }, [days]);
-  // Home header shows the user's current group name (falls back to "My 30 Acts").
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        const groups = await getActiveSponsors(authUser?.id);
-        if (!cancelled) setGroupName(groups?.[0]?.name || null);
-      } catch (e) { if (!cancelled) setGroupName(null); }
-    })();
-    return () => { cancelled = true; };
-  }, [days]);
   // Build past tiers (everything before the current tier window).
   useEffect(() => {
     if (!days || days.length === 0) { setPastTiers([]); return; }
@@ -235,7 +222,7 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
     if (isEmpty) {
       // New flow: pick an act, then land on the MyStory screen (act + story),
       // not the full DailyAct form. The picker honors returnTo: 'MyStory'.
-      navigation.navigate('CreateChallenge', { day, returnTo: 'MyStory' });
+      navigation.navigate('ChooseAct', { day, returnTo: 'MyStory' });
     } else if (day.status === 'COMPLETED') {
       // Completed → open MyStory in share mode (loads the saved story).
       navigation.navigate('MyStory', { day });
@@ -489,7 +476,17 @@ const handleConfirmWipe = async () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title={groupName || 'My 30 Acts'} />
+      <ScreenHeader
+        title="My 30 Acts"
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={{ fontSize: 22 }}>⚙️</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>

@@ -147,7 +147,7 @@ export function buildGridFromStreak(streak) {
 
 /**
  * The calendar date a 30-day window starts on, given the anchor (first act)
- * and a 0-based window index. Exported so ChallengeScreen can build the past
+ * and a 0-based window index. Exported so HomeScreen can build the past
  * windows on exactly the same dates the current grid uses.
  */
 export function windowStartDate(anchorDateStr, windowIndex) {

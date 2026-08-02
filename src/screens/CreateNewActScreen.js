@@ -44,7 +44,7 @@ const extractPhone = (email) => {
 export default function CreateNewActScreen({ navigation, route, user, onComplete }) {
   const insets = useSafeAreaInsets();
   // The day for which we're auto-completing this new act.
-  // Passed in from CreateChallengeScreen via route.params.day.
+  // Passed in from ChooseActScreen via route.params.day.
   const day = route?.params?.day || null;
 
   const [title,       setTitle]       = useState(route?.params?.prefillTitle || '');
@@ -244,7 +244,7 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
               label={savedAct.completed ? 'Back to My 30 Acts' : 'Done'}
               onPress={() => {
                 if (savedAct.completed) {
-                  navigation.navigate('Main', { screen: 'Challenge' });
+                  navigation.navigate('Main', { screen: 'Home' });
                 } else {
                   navigation.goBack();
                 }
@@ -265,6 +265,15 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
             <Text style={s.helper}>
               Describe a kind act you did or would like to add to the catalog.
             </Text>
+
+            {day && (
+              <Btn
+                label="💡 Want suggestions for today's act?"
+                variant="secondary"
+                onPress={() => navigation.navigate('ChooseAct', { day, returnTo: 'MyStory' })}
+                style={{ marginBottom: 14 }}
+              />
+            )}
 
             <AppInput
               label="Act Description *"

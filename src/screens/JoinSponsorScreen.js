@@ -261,7 +261,7 @@ export default function JoinSponsorScreen({ navigation }) {
             <Btn
               label="Go to Today's Act"
               variant="secondary"
-              onPress={() => navigation.navigate('Main', { screen: 'Challenge' })}
+              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
               style={{ marginTop: 8 }}
             />
             <Btn

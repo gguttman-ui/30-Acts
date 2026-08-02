@@ -7,7 +7,7 @@ import SponsorDetailScreen   from '../screens/SponsorDetailScreen';
 import { C, ACT_CATEGORIES } from '../constants';
 import TreeScreen        from '../screens/TreeScreen';
 import SettingsScreen    from '../screens/SettingsScreen';
-import ChallengeScreen   from '../screens/ChallengeScreen';
+import HomeScreen   from '../screens/HomeScreen';
 import CreateSponsorScreen from '../screens/CreateSponsorScreen';
 import CreateNewActScreen from '../screens/CreateNewActScreen';
 import MyStoryScreen from '../screens/MyStoryScreen';
@@ -22,7 +22,7 @@ import ReviewerScreen    from '../screens/ReviewerScreen';
 import OnboardingScreen  from '../screens/OnboardingScreen';
 import DonationScreen    from '../screens/DonationScreen';
 import LegalScreen       from '../screens/LegalScreen';
-import CreateChallengeScreen  from '../screens/CreateChallengeScreen';
+import ChooseActScreen  from '../screens/ChooseActScreen';
 import SuggestActScreen       from '../screens/SuggestActScreen';
 import SuggestedActsScreen    from '../screens/SuggestedActsScreen';
 
@@ -59,7 +59,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
 
   return (
     <Tab.Navigator
-      initialRouteName="Challenge"
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarStyle: { backgroundColor: C.card, borderTopColor: C.border, borderTopWidth: 1 },
@@ -68,11 +68,11 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
       }}
     >
-<Tab.Screen name="Challenge"
+<Tab.Screen name="Home"
   options={{ tabBarLabel: 'Home', tabBarIcon: ({ focused }) => <TabIcon focused={focused} image={require('../../assets/logo.png')} /> }}
 >
         {(props) => (
-          <ChallengeScreen {...props}
+          <HomeScreen {...props}
             days={days}
             daysReloading={daysReloading}
             user={user}
@@ -200,7 +200,7 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             {/* Tap on an empty today/yesterday cell routes here first.
                 User picks an act, then we replace() to DailyAct with
                 the chosen act in route.params.preselectedAct. */}
-            <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+            <Stack.Screen name="ChooseAct" component={ChooseActScreen} />
             <Stack.Screen name="SuggestAct" component={SuggestActScreen} />
             <Stack.Screen name="SuggestedActs">
               {(props) => <SuggestedActsScreen {...props} user={user} />}

@@ -307,7 +307,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         <Text style={s.emptySub}>Log your first act and your streak starts today.</Text>
         <TouchableOpacity
           style={[s.logCta, { marginTop: 20 }]}
-          onPress={() => navigation.navigate('CreateChallenge', {
+          onPress={() => navigation.navigate('CreateNewAct', {
             day: {
               dayNumber: 1,
               scheduledDate: today,
@@ -355,7 +355,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // gave no way to log at all. Start a fresh act (which begins a new streak)
   // straight from the header. Mirrors the Calendar view's tap-to-log flow.
   const startNewAct = (dateToLog) => {
-    navigation.navigate('CreateChallenge', {
+    navigation.navigate('CreateNewAct', {
       day: {
         dayNumber: 1,
         scheduledDate: dateToLog,
@@ -426,7 +426,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         // empty scheduledDate). The in-grid "+" only ever logs TODAY, so attach
         // today's date so the save can build a valid date instead of crashing
         // on an empty string.
-        navigation.navigate('CreateChallenge', { day: { ...day, scheduledDate: today }, returnTo: 'MyStory' });
+        navigation.navigate('CreateNewAct', { day: { ...day, scheduledDate: today }, returnTo: 'MyStory' });
       }
     };
 
@@ -607,7 +607,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
       </View>
 
       {/* The pages are full-screen-width (SCREEN_W) and paging snaps on
-          SCREEN_W boundaries. This pager lives inside ChallengeScreen's
+          SCREEN_W boundaries. This pager lives inside HomeScreen's
           ScrollView, whose content has paddingHorizontal: 6 — so without
           this the real viewport is 12px narrower than each page and the
           snap points drift, leaving the dashboard off-center (worse the

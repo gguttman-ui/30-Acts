@@ -297,7 +297,7 @@ export default function SponsorDetailScreen({ route, navigation }) {
             )}
             <Btn
               label={me.count === 0 ? "Log Today's Act →" : "Log Another Act →"}
-              onPress={() => navigation.navigate('Main', { screen: 'Challenge' })}
+              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
               style={{ marginTop: 14 }}
             />
           </Card>

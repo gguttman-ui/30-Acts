@@ -289,10 +289,13 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
   // ── Share message + media ────────────────────────────────────────────────
 
+  const invitePhone = extractPhone(user?.email);
+  const inviteUrl = invitePhone ? `${APP_URL}?ref=${encodeURIComponent(invitePhone)}` : APP_URL;
+
   const buildShareMessage = () => {
     const s = completedStory.trim();
     const storyPart = s ? `\n\nHere's what I did:\n"${s}"` : '';
-    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${extractPhone(user?.email) ? `${APP_URL}?ref=${encodeURIComponent(extractPhone(user?.email))}` : APP_URL}`;
+    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\n\nWant to join me? Here's how:\n1. Scan the QR code, or tap the link below\n2. Download the free 30 Acts of Kindness app\n3. Sign up with your phone number\n4. Do one kind act a day — you'll be added to my kindness tree 🌳\n\n${inviteUrl}`;
   };
 
   const handleShareText = () => {
@@ -622,7 +625,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  const goToCalendar = () => navigation.navigate('Main', { screen: 'Challenge' });
+  const goToCalendar = () => navigation.navigate('Main', { screen: 'Home' });
 
   const handleDelete = () => {
     Alert.alert(
@@ -662,6 +665,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           title={completedTitle}
           story={completedStory}
           dayNumber={dayNumber}
+          inviteUrl={inviteUrl}
         />
       ) : null}
 
@@ -782,12 +786,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-                <Text style={s.deleteBtnText}>🗑️  Delete this act</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity onPress={goToCalendar} style={s.skipShare}>
                 <Text style={s.skipShareText}>Done → Back to Dashboard</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+                <Text style={s.deleteBtnText}>🗑️  Delete this act</Text>
               </TouchableOpacity>
             </View>
           )}

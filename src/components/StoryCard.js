@@ -21,13 +21,14 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import React, { forwardRef } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Text } from './scaledText'; // font-scaling locked, matches app-wide work
 import { C } from '../constants';
 
 // Fixed canvas size → predictable, high-res square export (~1080px after PR scaling).
 export const STORY_CARD_SIZE = 1080;
 
-const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber }, ref) {
+const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber, inviteUrl }, ref) {
   const quote = (story || '').trim();
   return (
     <View style={styles.captureHost} pointerEvents="none">
@@ -45,10 +46,18 @@ const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber }, ref
 
             <View style={styles.footer}>
               <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.brand}>30 Acts of Kindness™</Text>
                 <Text style={styles.hashtag}>#30ActsOfKindness</Text>
               </View>
+              {inviteUrl ? (
+                <View style={styles.qrWrap}>
+                  <View style={styles.qrBox}>
+                    <QRCode value={inviteUrl} size={150} backgroundColor="#ffffff" color="#111111" />
+                  </View>
+                  <Text style={styles.scanLabel}>Scan to join</Text>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>
@@ -122,6 +131,9 @@ const styles = StyleSheet.create({
   quoteMark: { color: C.gold, fontSize: 90, lineHeight: 70, height: 56, fontWeight: '800' },
   quote: { color: C.sub, fontSize: 44, lineHeight: 60, fontStyle: 'italic' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 24, marginTop: 28 },
+  qrWrap: { alignItems: 'center', marginLeft: 8 },
+  qrBox: { backgroundColor: '#ffffff', padding: 14, borderRadius: 18 },
+  scanLabel: { color: C.text, fontSize: 26, fontWeight: '700', marginTop: 10 },
   logo: { width: 64, height: 64, marginRight: 4 },
   brand: { color: C.text, fontSize: 38, fontWeight: '800' },
   hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },

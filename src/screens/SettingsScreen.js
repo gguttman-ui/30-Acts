@@ -329,7 +329,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   };
 
   const handleGoToChallenge = () => {
-    if (navigation) navigation.navigate('Challenge');
+    if (navigation) navigation.navigate('Home');
   };
 
   // Invite-a-friend share. Uses the native iOS share sheet so the user can
