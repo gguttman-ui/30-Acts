@@ -955,35 +955,11 @@ const today = todayStr();
       } catch (e) {
         console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
       }
-// GUARDRAIL: before destroying any existing row at this day_number,
-      // check whether it looks legitimate. If the existing row's local_date
-      // is more than 1 day away from today's local date, the day.dayNumber
-      // we received is almost certainly stale — refuse the write rather
-      // than silently destroying real history (see Ghenno bug, May 2026).
-      const { data: existingAtDay } = await supabase
-        .from('completions')
-        .select('local_date')
-        .eq('user_phone', phone)
-        .eq('day_number', day.dayNumber)
-        .maybeSingle();
-
-      if (existingAtDay?.local_date) {
-        const todayLocal = localDateValue; // already computed in home TZ above
-        const existingMs = new Date(existingAtDay.local_date).getTime();
-        const todayMs    = new Date(todayLocal).getTime();
-        const diffDays   = Math.abs(Math.round((todayMs - existingMs) / 86_400_000));
-
-        if (diffDays > 1) {
-          Alert.alert(
-            'Something looks off',
-            `Day ${day.dayNumber} already has an entry from ${existingAtDay.local_date}. ` +
-            `Please pull down to refresh and try again.`,
-            [{ text: 'OK' }]
-          );
-          setSubmitting(false);
-          return;
-        }
-      }
+// (Removed the day_number "staleness" guardrail that used to live here: its
+      // only job was to protect the day_number-based delete below, which is now
+      // gone. We replace today's row by local_date/id instead, which is
+      // inherently safe — it can never touch a different streak's row that
+      // happens to reuse the same day_number.)
 
       // One act per calendar day: if the user already logged a DIFFERENT act
       // today (same local_date, different day_number), block it with a friendly
@@ -1006,11 +982,21 @@ const today = todayStr();
         return;
       }
 
-      await supabase
+      // Replace ONLY the row we're editing — today's entry. Never delete by
+      // day_number (it's reused across streaks, so that could wipe an unrelated
+      // older act with the same number — the history-loss bug). Prefer the
+      // stable row id when we have it; otherwise target today's local_date,
+      // which the (user_phone, local_date) unique index guarantees is one row.
+      let replaceQ = supabase
         .from('completions')
         .delete()
-        .eq('user_phone', phone)
-        .eq('day_number', day.dayNumber);
+        .eq('user_phone', phone);
+      if (day.completionId) {
+        replaceQ = replaceQ.eq('id', day.completionId);
+      } else {
+        replaceQ = replaceQ.eq('local_date', localDateValue);
+      }
+      await replaceQ;
 
       const isSponsorAct = preselectedAct?.categoryId === 'sponsor';
 

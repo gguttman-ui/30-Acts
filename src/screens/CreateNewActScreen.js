@@ -11,6 +11,7 @@ import {
   TIME_BUCKETS, COST_BUCKETS,
 } from '../constants';
 import { supabase } from '../lib/supabase';
+import { getActiveChallengeIds } from '../lib/streak';
 
 const KB_DONE_ID = 'createActKbDone';
 
@@ -121,11 +122,15 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
       // 2. Auto-complete today's act with this new one (if a day was passed in).
       //    Skips this step if user reached the screen outside the daily flow.
       if (day) {
+        // Resolve the auth session once — needed both for the timezone lookup
+        // and for challenge attribution below. The `user` PROP has no id, so we
+        // must read it from the auth session (same fix as MyStoryScreen).
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+
         // Compute local date in user's home timezone so the streak is anchored
         // correctly even if user is currently traveling.
         let localDateValue = day.scheduledDate;
         try {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
           if (authUser?.id) {
             const { data: profile } = await supabase
               .from('profiles')
@@ -139,7 +144,7 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
           console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
         }
 
-        const { error: completionErr } = await supabase
+        const { data: completionData, error: completionErr } = await supabase
           .from('completions')
           .insert({
             user_phone:  phone,
@@ -148,19 +153,42 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
             completed_at: new Date().toISOString(),
             local_date:  localDateValue,
             from_list:   false,   // user-authored, not from the canned list
-          });
+          })
+          .select()
+          .single();
 
         if (completionErr) {
           console.warn('Auto-complete failed:', completionErr.message);
           // Non-fatal: the act is saved to the catalog, user can still use it later.
-        } else if (onComplete) {
-          // Update parent state so the calendar refreshes when we return.
-          onComplete({
-            dayNumber: day.dayNumber,
-            status:    'COMPLETED',
-            title:     trimmedTitle,
-            proofType: null,
-          });
+        } else {
+          // Tag this completion against every challenge the user is currently in
+          // (forward-only). Uses the auth session id, not the `user` prop (which
+          // has no id). Non-fatal on failure — the act still counts personally.
+          try {
+            const challengeIds = await getActiveChallengeIds(authUser?.id);
+            if (challengeIds.length > 0 && completionData?.id) {
+              const joinRows = challengeIds.map(cid => ({
+                completion_id: completionData.id,
+                challenge_id:  cid,
+              }));
+              const { error: linkError } = await supabase
+                .from('completion_challenges')
+                .insert(joinRows);
+              if (linkError) console.warn('completion_challenges link error:', linkError.message);
+            }
+          } catch (e) {
+            console.warn('Challenge attribution failed:', e.message);
+          }
+
+          if (onComplete) {
+            // Update parent state so the calendar refreshes when we return.
+            onComplete({
+              dayNumber: day.dayNumber,
+              status:    'COMPLETED',
+              title:     trimmedTitle,
+              proofType: null,
+            });
+          }
         }
       }
 
