@@ -69,7 +69,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
       }}
     >
 <Tab.Screen name="Challenge"
-  options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} image={require('../../assets/logo.png')} /> }}
+  options={{ tabBarLabel: 'Home', tabBarIcon: ({ focused }) => <TabIcon focused={focused} image={require('../../assets/logo.png')} /> }}
 >
         {(props) => (
           <ChallengeScreen {...props}
