@@ -55,14 +55,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
   const [picked,       setPicked]       = useState(null);
   const [pickerOpen,   setPickerOpen]   = useState(null);
 
-  // Company toggle: only shown if user is in sponsor_admins / sponsor_employees.
-  // When checked, list shows ALL acts (standard + sponsor) sorted A-Z by title.
-  // When unchecked, list shows only standard ALL_ACTS (already A-Z).
-const [isSponsorUser,      setIsSponsorUser]      = useState(false);
-  const [companyFilterOn,    setCompanyFilterOn]    = useState(false);
-  const [sponsorActs,        setSponsorActs]        = useState([]);
-  const [loadingSponsorActs, setLoadingSponsorActs] = useState(false);
-
   // User's own custom acts. Fetched once on mount, merged into the
   // pickable list alongside ALL_ACTS.
   const [userCustomActs, setUserCustomActs] = useState([]);
@@ -103,87 +95,21 @@ const [isSponsorUser,      setIsSponsorUser]      = useState(false);
     })();
   }, []);
 
-  // Determine sponsor membership on mount.
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const phone = extractPhone(user?.email);
-        if (!phone) return;
-
-        const { data, error } = await supabase
-          .from('sponsor_employees')
-          .select('sponsor_id')
-          .eq('phone', phone);
-
-        if (error) {
-          console.warn('Sponsor employee check error:', error.message);
-          return;
-        }
-
-        const sponsorIds = (data || []).map(r => r.sponsor_id);
-        if (sponsorIds.length > 0) {
-          setIsSponsorUser(true);
-          fetchSponsorActs(sponsorIds);
-        }
-      } catch (e) {
-        console.warn('Sponsor membership check failed:', e.message);
-      }
-    })();
-  }, []);
-
-  const fetchSponsorActs = async (sponsorIds) => {
-    setLoadingSponsorActs(true);
-    try {
-      const { data, error } = await supabase
-        .from('sponsor_custom_acts')
-        .select('*')
-        .in('sponsor_id', sponsorIds)
-        .eq('active', true);
-
-      if (error) {
-        console.warn('Fetch sponsor acts error:', error.message);
-        setSponsorActs([]);
-        return;
-      }
-
-      // Normalize to the same shape ALL_ACTS uses so rendering can stay generic.
-      const normalized = (data || []).map(row => ({
-        id:            `sca-${row.id}`,
-        title:         row.act_text,
-        timeMinutes:   row.time_minutes,
-        costDollars:   row.cost_dollars,
-        categoryId:    'sponsor',
-        categoryLabel: row.category || 'Company',
-        categoryEmoji: COMPANY_ICON,
-        sponsorId:     row.sponsor_id,
-      }));
-      setSponsorActs(normalized);
-    } catch (e) {
-      console.warn('Fetch sponsor acts failed:', e.message);
-      setSponsorActs([]);
-    } finally {
-      setLoadingSponsorActs(false);
-    }
-  };
   const timeOption      = findOption(TIME_OPTIONS, timeFilterId);
   const costOption      = findOption(COST_OPTIONS, costFilterId);
   const timeActive      = timeFilterId !== 'any';
   const costActive      = costFilterId !== 'any';
 
-// Toggle ON  → only sponsor acts (filtered company view)
-  // Toggle OFF → standard ALL_ACTS + user's personal acts, A-Z by title
+  // Standard acts + the user's personal acts, A-Z by title.
   const sourceActs = useMemo(() => {
-    const list = companyFilterOn
-      ? [...sponsorActs]
-      : [
-          ...ALL_ACTS.filter(a => a.categoryId !== 'sponsor' && a.categoryLabel !== 'Company'),
-          ...userCustomActs,
-        ];
+    const list = [
+      ...ALL_ACTS.filter(a => a.categoryId !== 'sponsor' && a.categoryLabel !== 'Company'),
+      ...userCustomActs,
+    ];
     return list.sort((a, b) =>
       a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
     );
-  }, [companyFilterOn, sponsorActs, userCustomActs]);
+  }, [userCustomActs]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -194,10 +120,6 @@ const [isSponsorUser,      setIsSponsorUser]      = useState(false);
       return true;
     });
   }, [sourceActs, timeOption, costOption, search]);
-
-  // Reset selection when toggling source so a previously-picked act doesn't
-  // linger after switching list types.
-  useEffect(() => { setPicked(null); }, [companyFilterOn]);
 
 const canCreate = !!picked;
 
@@ -280,22 +202,6 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
       />
 
       <View style={s.controls}>
-        {/* Sponsor checkbox row — only shown for sponsor-affiliated users */}
-       {isSponsorUser && (
-          <TouchableOpacity
-            style={[s.checkRow, companyFilterOn && s.checkRowActive]}
-            onPress={() => setCompanyFilterOn(v => !v)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.checkbox, companyFilterOn && s.checkboxChecked]}>
-              {companyFilterOn && <Text style={s.checkboxMark}>✓</Text>}
-            </View>
-            <Text style={[s.checkLabel, companyFilterOn && s.checkLabelActive]}>
-              Only Company Acts of Kindness
-            </Text>
-          </TouchableOpacity>
-        )}
-
         {/* Search row */}
         <View style={s.searchRow}>
           <Text style={s.searchLabel}>Search</Text>
@@ -314,7 +220,6 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
 
         <Text style={s.matchCount}>
           {filtered.length} {filtered.length === 1 ? 'match' : 'matches'}
-          {companyFilterOn && loadingSponsorActs ? ' (loading…)' : ''}
         </Text>
       </View>
 
@@ -328,20 +233,16 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
           <View style={s.emptyWrap}>
             <Text style={{ fontSize: 36 }}>🔍</Text>
             <Text style={s.emptyText}>
-              {companyFilterOn
-                ? 'No acts match those filters.'
-                : 'No acts match those filters. Try widening the time or cost.'}
+              No acts match those filters. Try widening the time or cost.
             </Text>
-            {!companyFilterOn && (
-              <Btn
-                label="+ Create a New Act"
-                onPress={() => navigation.navigate('MyStory', {
-                  day,
-                  draftStory: search.trim() ? `${search.trim()} ` : '',
-                })}
-                style={{ marginTop: 16 }}
-              />
-            )}
+            <Btn
+              label="+ Create a New Act"
+              onPress={() => navigation.navigate('MyStory', {
+                day,
+                draftStory: search.trim() ? `${search.trim()} ` : '',
+              })}
+              style={{ marginTop: 16 }}
+            />
           </View>
         }
       />

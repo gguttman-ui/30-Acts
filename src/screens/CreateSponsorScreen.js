@@ -7,8 +7,8 @@ import { supabase } from '../lib/supabase';
 import { extractPhone } from '../lib/streak';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
-const CHALLENGE_TYPES = ['Local', 'Place of Worship', 'Business'];
-const CHALLENGE_LENGTHS = [
+const GROUP_TYPES = ['Local', 'Place of Worship', 'Business'];
+const GROUP_LENGTHS = [
   { label: '30 days', value: 30 },
   { label: '90 days', value: 90 },
   { label: '1 year', value: 365 },
@@ -63,10 +63,10 @@ function Dropdown({ value, options, onChange, placeholder }) {
   );
 }
 
-export default function CreateChallengeAdminScreen({ navigation }) {
-  const [isSponsor, setIsSponsor] = useState(null);
+export default function CreateSponsorScreen({ navigation }) {
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
-  const [type, setType] = useState(CHALLENGE_TYPES[0]);
+  const [type, setType] = useState(GROUP_TYPES[0]);
   const [lengthDays, setLengthDays] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,22 +78,13 @@ export default function CreateChallengeAdminScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsSponsor(false);
-        return;
-      }
-      const phone = extractPhone(user.email);
-      const { data: sp, error } = await supabase
-        .from('sponsor_admins')
-        .select('id')
-        .eq('phone', phone)
-        .maybeSingle();
+      if (!user) { setLoading(false); return; }
 
-      // One challenge per creator: if this person already created a challenge,
-      // jump straight to its invite screen so "Create a Challenge" becomes
-      // "add more people to your existing challenge" instead of making another.
+      // One group per creator: if this person already created a group, jump
+      // straight to its invite screen so "Create a Group" becomes "add more
+      // people to your existing group" instead of making another.
       const { data: mine } = await supabase
-        .from('challenges')
+        .from('sponsors')
         .select('*')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false })
@@ -103,14 +94,13 @@ export default function CreateChallengeAdminScreen({ navigation }) {
         setIsExisting(true);
         setCreated(mine);
       }
-
-      setIsSponsor(!error && !!sp);   // set last so the spinner covers both loads
+      setLoading(false);
     })();
   }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      Alert.alert('Missing info', 'Please enter a challenge name.');
+      Alert.alert('Missing info', 'Please enter a group name.');
       return;
     }
     setSubmitting(true);
@@ -127,13 +117,13 @@ export default function CreateChallengeAdminScreen({ navigation }) {
     const inviteCode = generateInviteCode();
 
     const { data, error } = await supabase
-      .from('challenges')
+      .from('sponsors')
       .insert({
         created_by: user.id,
         name: name.trim(),
         type,
         length_days: lengthDays,
-        invite_code: inviteCode,
+        join_code: inviteCode,
         start_date: new Date().toISOString().split('T')[0],
       })
       .select()
@@ -142,7 +132,7 @@ export default function CreateChallengeAdminScreen({ navigation }) {
     setSubmitting(false);
 
     if (error) {
-      Alert.alert('Error creating challenge', error.message);
+      Alert.alert('Error creating group', error.message);
       return;
     }
 
@@ -155,8 +145,8 @@ setCreated(data);
   const handleInvite = async () => {
     if (!created) return;
     const message =
-      `Hey, I'm running a 30 Acts of Kindness™ challenge called "${created.name}". ` +
-      `Join me using code ${created.invite_code}. ` +
+      `Hey, I'm running a 30 Acts of Kindness™ group called "${created.name}". ` +
+      `Join me using code ${created.join_code}. ` +
       `Download: ${APP_STORE_URL}`;
     try {
       await Share.share({ message });
@@ -165,7 +155,7 @@ setCreated(data);
     }
   };
 
-  if (isSponsor === null) {
+  if (loading) {
     return <View style={styles.center}><ActivityIndicator /></View>;
   }
 // Post-creation success screen — shows the invite code and lets the
@@ -173,16 +163,16 @@ setCreated(data);
   if (created) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.title}>{isExisting ? 'Your Challenge' : '🎉 Challenge created!'}</Text>
+        <Text style={styles.title}>{isExisting ? 'Your Group' : '🎉 Group created!'}</Text>
         <Text style={styles.successName}>{created.name}</Text>
 
         <View style={styles.codeCard}>
           <Text style={styles.codeLabel}>INVITE CODE</Text>
-          <Text style={styles.codeValue}>{created.invite_code}</Text>
+          <Text style={styles.codeValue}>{created.join_code}</Text>
           <Text style={styles.codeHint}>
             {isExisting
-              ? 'You can run one challenge at a time. Share this code to add more people to yours.'
-              : 'Share this code with friends so they can join your challenge.'}
+              ? 'You can run one group at a time. Share this code to add more people to yours.'
+              : 'Share this code with friends so they can join your group.'}
           </Text>
         </View>
 
@@ -203,14 +193,14 @@ setCreated(data);
   if (created) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.title}>🎉 Challenge created!</Text>
+        <Text style={styles.title}>🎉 Group created!</Text>
         <Text style={styles.successName}>{created.name}</Text>
 
         <View style={styles.codeCard}>
           <Text style={styles.codeLabel}>INVITE CODE</Text>
-          <Text style={styles.codeValue}>{created.invite_code}</Text>
+          <Text style={styles.codeValue}>{created.join_code}</Text>
           <Text style={styles.codeHint}>
-            Share this code with friends so they can join your challenge.
+            Share this code with friends so they can join your group.
           </Text>
         </View>
 
@@ -229,13 +219,13 @@ setCreated(data);
   }
 
   // Convert types to {label, value} shape for the Dropdown
-  const typeOptions = CHALLENGE_TYPES.map(t => ({ label: t, value: t }));
+  const typeOptions = GROUP_TYPES.map(t => ({ label: t, value: t }));
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.title}>Create a Challenge</Text>
+      <Text style={styles.title}>Create a Group</Text>
 
-      <Text style={styles.label}>Challenge Name</Text>
+      <Text style={styles.label}>Group Name</Text>
       <TextInput
         style={styles.input}
         value={name}
@@ -243,7 +233,7 @@ setCreated(data);
         placeholder="e.g. Spring Kindness Drive"
       />
 
-      <Text style={styles.label}>Challenge Type</Text>
+      <Text style={styles.label}>Group Type</Text>
       <Dropdown
         value={type}
         options={typeOptions}
@@ -251,10 +241,10 @@ setCreated(data);
         placeholder="Select type"
       />
 
-      <Text style={styles.label}>Challenge Length</Text>
+      <Text style={styles.label}>Group Length</Text>
       <Dropdown
         value={lengthDays}
-        options={CHALLENGE_LENGTHS}
+        options={GROUP_LENGTHS}
         onChange={setLengthDays}
         placeholder="Select length"
       />
@@ -265,7 +255,7 @@ setCreated(data);
         disabled={submitting}
       >
         <Text style={styles.buttonText}>
-          {submitting ? 'Creating...' : 'Create Challenge'}
+          {submitting ? 'Creating...' : 'Create Group'}
         </Text>
       </TouchableOpacity>
     </ScrollView>

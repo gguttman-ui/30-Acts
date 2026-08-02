@@ -117,7 +117,7 @@ export function HistoryScreen({ route, navigation, days }) {
     return (
       <View style={s.empty}>
         <Text style={{ fontSize: 48 }}>📖</Text>
-        <Text style={s.emptySub}>No challenge history yet</Text>
+        <Text style={s.emptySub}>No history yet</Text>
       </View>
     );
   }
@@ -219,32 +219,7 @@ return () => { cancelled = true; };
 
   // matching act_text to the day's title.
   const standardAct = getActByTitle(day?.title);
-  const [sponsorAct, setSponsorAct] = useState(null);
-  const actInfo = standardAct || sponsorAct;
-
-  useEffect(() => {
-    if (standardAct || !day?.title) return;
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sponsor_custom_acts')
-          .select('category, time_minutes, cost_dollars')
-          .eq('act_text', day.title)
-          .limit(1)
-          .maybeSingle();
-        if (error) { console.warn('Sponsor act lookup error:', error.message); return; }
-        if (data) {
-          setSponsorAct({
-            categoryLabel: data.category || 'Company',
-            timeMinutes:   data.time_minutes,
-            costDollars:   data.cost_dollars,
-          });
-        }
-      } catch (e) {
-        console.warn('Sponsor act lookup failed:', e.message);
-      }
-    })();
-  }, [day?.title, standardAct]);
+  const actInfo = standardAct;
 
   useEffect(() => {
     if (day?.status !== 'COMPLETED') return;
@@ -307,7 +282,7 @@ return () => { cancelled = true; };
     const storyPart = story.trim()
       ? `\n\nHere's what I did:\n"${story.trim()}"`
       : '';
-    return `🕊️ I completed Day ${day.dayNumber} of the 30 Acts of Kindness™ challenge!\n\nMy act: "${day.title}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
+    return `🕊️ I completed Day ${day.dayNumber} of the 30 Acts of Kindness™!\n\nMy act: "${day.title}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
   };
 
   const handleShareText = () => {
@@ -596,7 +571,7 @@ const handleShareEmail = () => {
 
             <Text style={s.shareHeader}>Share this Act</Text>
             <Text style={s.sharePrompt}>
-              Spread the kindness — invite someone to join the challenge!
+              Spread the kindness — invite someone to join in!
             </Text>
 
             {/* Social row: icon-only buttons. */}
@@ -658,7 +633,7 @@ const handleShareEmail = () => {
             <Text style={{ fontSize: 44, textAlign: 'center', marginBottom: 12 }}>🗑️</Text>
             <Text style={s.modalTitle}>Delete this act?</Text>
             <Text style={s.modalBody}>
-              This will remove Day {day.dayNumber} from your challenge. If this
+              This will remove Day {day.dayNumber} from your 30 Acts. If this
               breaks your streak, your progress will collapse to your most
               recent unbroken streak.
             </Text>

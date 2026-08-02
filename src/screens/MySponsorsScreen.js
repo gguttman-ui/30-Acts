@@ -8,7 +8,7 @@ import { Btn, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 
-export default function MyChallengesScreen({ navigation }) {
+export default function MySponsorsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [created, setCreated] = useState([]);
   const [joined,  setJoined]  = useState([]);
@@ -24,8 +24,8 @@ export default function MyChallengesScreen({ navigation }) {
 
       // Challenges this user created
       const { data: createdRows, error: createdErr } = await supabase
-        .from('challenges')
-        .select('id, name, type, length_days, invite_code, start_date, created_at')
+        .from('sponsors')
+        .select('id, name, type, length_days, join_code, start_date, created_at')
         .eq('created_by', user.id)
         .order('created_at', { ascending: false });
 
@@ -34,13 +34,13 @@ export default function MyChallengesScreen({ navigation }) {
 
       // Challenges this user has joined (excluding ones they created — those go in Created)
       const { data: participantRows, error: partErr } = await supabase
-        .from('challenge_participants')
-        .select('challenge_id, joined_at, challenges(id, name, type, length_days, invite_code, start_date, created_by)')
+        .from('sponsor_members')
+        .select('sponsor_id, joined_at, sponsors(id, name, type, length_days, join_code, start_date, created_by)')
         .eq('user_id', user.id);
 
       if (partErr) console.warn('Participant challenges error:', partErr.message);
       const joinedFiltered = (participantRows || [])
-        .map(r => ({ ...r.challenges, joined_at: r.joined_at }))
+        .map(r => ({ ...r.sponsors, joined_at: r.joined_at }))
         .filter(c => c && c.created_by !== user.id);
       setJoined(joinedFiltered);
     } catch (e) {
@@ -54,7 +54,7 @@ export default function MyChallengesScreen({ navigation }) {
 
 const confirmDelete = (challenge) => {
         Alert.alert(
-      'Delete challenge?',
+      'Delete group?',
       `Delete "${challenge.name}"? Participants will lose access. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -67,13 +67,13 @@ const confirmDelete = (challenge) => {
     try {
       // Remove participants first (FK dependency)
       const { error: partErr } = await supabase
-        .from('challenge_participants')
+        .from('sponsor_members')
         .delete()
-        .eq('challenge_id', challenge.id);
+        .eq('sponsor_id', challenge.id);
       if (partErr) { Alert.alert('Could not delete', partErr.message); return; }
 
       const { error: chErr } = await supabase
-        .from('challenges')
+        .from('sponsors')
         .delete()
         .eq('id', challenge.id);
       if (chErr) { Alert.alert('Could not delete', chErr.message); return; }
@@ -86,7 +86,7 @@ const confirmDelete = (challenge) => {
 
   const confirmLeave = (challenge) => {
     Alert.alert(
-      'Leave challenge?',
+      'Leave group?',
       `Leave "${challenge.name}"? Your completed acts stay in your record. You can rejoin later with the invite code.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -99,9 +99,9 @@ const confirmDelete = (challenge) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
-        .from('challenge_participants')
+        .from('sponsor_members')
         .delete()
-        .eq('challenge_id', challenge.id)
+        .eq('sponsor_id', challenge.id)
         .eq('user_id', user.id);
       if (error) { Alert.alert('Could not leave', error.message); return; }
       setJoined(prev => prev.filter(c => c.id !== challenge.id));
@@ -112,26 +112,26 @@ const confirmDelete = (challenge) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="My Challenges" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="My Groups" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={s.scroll}>
         {loading ? (
           <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 60 }} />
         ) : (
           <>
-            <Text style={s.sectionLabel}>CHALLENGES I CREATED</Text>
+            <Text style={s.sectionLabel}>GROUPS I CREATED</Text>
             {created.length === 0 ? (
-              <Text style={s.empty}>You haven't created any challenges yet.</Text>
+              <Text style={s.empty}>You haven't created any groups yet.</Text>
             ) : (
               created.map(c => (
                 <View key={c.id} style={s.card}>
                   <Text style={s.cardName}>{c.name}</Text>
                   <View style={s.metaRow}>
-                    <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.invite_code}</Text>
+                    <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.join_code}</Text>
                   </View>
                   <Text style={s.metaSub}>Started {c.start_date}</Text>
                   <Btn
-                    label="Delete Challenge"
+                    label="Delete Group"
                     variant="danger"
                     onPress={() => confirmDelete(c)}
                     style={{ marginTop: 12 }}
@@ -140,19 +140,19 @@ const confirmDelete = (challenge) => {
               ))
             )}
 
-            <Text style={[s.sectionLabel, { marginTop: 30 }]}>CHALLENGES I JOINED</Text>
+            <Text style={[s.sectionLabel, { marginTop: 30 }]}>GROUPS I JOINED</Text>
             {joined.length === 0 ? (
-              <Text style={s.empty}>You haven't joined any challenges yet.</Text>
+              <Text style={s.empty}>You haven't joined any groups yet.</Text>
             ) : (
               joined.map(c => (
                 <View key={c.id} style={s.card}>
                   <Text style={s.cardName}>{c.name}</Text>
                   <View style={s.metaRow}>
-                    <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.invite_code}</Text>
+                    <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.join_code}</Text>
                   </View>
                   <Text style={s.metaSub}>Started {c.start_date}</Text>
                   <Btn
-                    label="Leave Challenge"
+                    label="Leave Group"
                     variant="secondary"
                     onPress={() => confirmLeave(c)}
                     style={{ marginTop: 12 }}
@@ -163,8 +163,8 @@ const confirmDelete = (challenge) => {
 
             <View style={s.createWrap}>
               <Btn
-                label="+ Create a New Challenge"
-                onPress={() => navigation.navigate('CreateChallengeAdmin')}
+                label="+ Create a New Group"
+                onPress={() => navigation.navigate('CreateSponsor')}
               />
             </View>
           </>

@@ -19,7 +19,7 @@ import StoryCard from '../components/StoryCard';
 import { AppInput, Badge, Btn, Card, ScreenHeader } from '../components';
 import { C, ACT_CATEGORIES, RECIPIENTS, todayStr, getActIcon, localDateInTZ, formatTimeLabel, formatCostLabel } from '../constants';
 import { supabase } from '../lib/supabase';
-import { getActiveChallengeIds, getActiveChallenges } from '../lib/streak';
+import { getActiveSponsorIds, getActiveSponsors } from '../lib/streak';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 // Supabase REST/Edge-function calls below use these directly. EAS builds do
@@ -251,7 +251,7 @@ function BalloonBurst({ visible, onDismiss }) {
 }
 
 const DAY_30_MESSAGE =
-  "Congratulations, you have completed the 30 Day challenge and are now a certifiably Kind Person. " +
+  "Congratulations, you have completed the 30 Days and are now a certifiably Kind Person. " +
   "You will be directed to the Me screen to fill in your address where we should send your bracelet. " +
   "Once it is mailed, your address is deleted from our database.";
 
@@ -403,7 +403,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser?.id) return;
-        const chs = await getActiveChallenges(authUser.id);
+        const chs = await getActiveSponsors(authUser.id);
         setActiveChallenges(chs);
       } catch (e) {
         console.warn('Load active challenges failed:', e.message);
@@ -549,7 +549,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
 
   const buildShareMessage = (t, pt, s) => {
     const storyPart = pt === 'story' && s.trim() ? `\n\nHere's what I did:\n"${s.trim()}"` : '';
-    return `🕊️ I just completed Day ${day.dayNumber} of the 30 Acts of Kindness™ challenge!\n\nMy act today: "${t}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
+    return `🕊️ I just completed Day ${day.dayNumber} of the 30 Acts of Kindness™!\n\nMy act today: "${t}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
   };
 
   const handleShareText = () => {
@@ -1041,14 +1041,14 @@ const today = todayStr();
       // non-fatal: the act still saves, but the user's challenge
       // attribution will be missing. Logged and visible in Sentry.
       try {
-        const challengeIds = await getActiveChallengeIds(user?.id);
-        if (challengeIds.length > 0 && completionData?.id) {
-          const joinRows = challengeIds.map(cid => ({
+        const sponsorIds = await getActiveSponsorIds(user?.id);
+        if (sponsorIds.length > 0 && completionData?.id) {
+          const joinRows = sponsorIds.map(cid => ({
             completion_id: completionData.id,
-            challenge_id:  cid,
+            sponsor_id:  cid,
           }));
           const { error: linkError } = await supabase
-            .from('completion_challenges')
+            .from('completion_sponsors')
             .insert(joinRows);
           if (linkError) {
             console.warn('completion_challenges link error:', linkError.message);
@@ -1376,15 +1376,15 @@ const today = todayStr();
     activeOpacity={0.7}
     onPress={() => {
       if (activeChallenges.length === 1) {
-        navigation.navigate('ChallengeDetail', { challengeId: activeChallenges[0].id });
+        navigation.navigate('SponsorDetail', { challengeId: activeChallenges[0].id });
       } else {
         Alert.alert(
           'Which challenge?',
-          "You're in multiple challenges. Pick one to view.",
+          "You're in multiple groups. Pick one to view.",
           [
             ...activeChallenges.map(ch => ({
               text: ch.name,
-              onPress: () => navigation.navigate('ChallengeDetail', { challengeId: ch.id }),
+              onPress: () => navigation.navigate('SponsorDetail', { challengeId: ch.id }),
             })),
             { text: 'Cancel', style: 'cancel' },
           ]

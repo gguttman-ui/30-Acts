@@ -11,7 +11,7 @@ import {
   TIME_BUCKETS, COST_BUCKETS,
 } from '../constants';
 import { supabase } from '../lib/supabase';
-import { getActiveChallengeIds } from '../lib/streak';
+import { getActiveSponsorIds } from '../lib/streak';
 
 const KB_DONE_ID = 'createActKbDone';
 
@@ -165,14 +165,14 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
           // (forward-only). Uses the auth session id, not the `user` prop (which
           // has no id). Non-fatal on failure — the act still counts personally.
           try {
-            const challengeIds = await getActiveChallengeIds(authUser?.id);
-            if (challengeIds.length > 0 && completionData?.id) {
-              const joinRows = challengeIds.map(cid => ({
+            const sponsorIds = await getActiveSponsorIds(authUser?.id);
+            if (sponsorIds.length > 0 && completionData?.id) {
+              const joinRows = sponsorIds.map(cid => ({
                 completion_id: completionData.id,
-                challenge_id:  cid,
+                sponsor_id:  cid,
               }));
               const { error: linkError } = await supabase
-                .from('completion_challenges')
+                .from('completion_sponsors')
                 .insert(joinRows);
               if (linkError) console.warn('completion_challenges link error:', linkError.message);
             }
@@ -241,7 +241,7 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
               {'\n'}It will also be reviewed for the global catalog.
             </Text>
             <Btn
-              label={savedAct.completed ? 'Back to My Challenge' : 'Done'}
+              label={savedAct.completed ? 'Back to My 30 Acts' : 'Done'}
               onPress={() => {
                 if (savedAct.completed) {
                   navigation.navigate('Main', { screen: 'Challenge' });

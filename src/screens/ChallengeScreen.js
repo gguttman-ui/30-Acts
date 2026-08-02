@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, ScreenHeader, TypedConfirmModal } from '../components';
 import { C, todayStr, getActIcon, ALL_ACTS, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
-import { rowLocalDate, windowStartDate, currentWindowIndex } from '../lib/streak';
+import { rowLocalDate, windowStartDate, currentWindowIndex, getActiveSponsors } from '../lib/streak';
 import DashboardView from './DashboardView';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
@@ -70,6 +70,7 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // Dashboard is the chosen view. (Calendar render kept below but unreachable.)
   const [viewMode,  setViewMode]  = useState('dashboard'); // 'calendar' | 'dashboard'
   const [dashPhone, setDashPhone] = useState(null);
+  const [groupName, setGroupName] = useState(null);
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
   // Newest tier is the live `days` prop; older tiers are fetched lazily.
@@ -91,6 +92,18 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   const isOwner   = user?.role === 'OWNER';
 
   useEffect(() => { hasScrolled.current = false; }, [days]);
+  // Home header shows the user's current group name (falls back to "My 30 Acts").
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const groups = await getActiveSponsors(authUser?.id);
+        if (!cancelled) setGroupName(groups?.[0]?.name || null);
+      } catch (e) { if (!cancelled) setGroupName(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [days]);
   // Build past tiers (everything before the current tier window).
   useEffect(() => {
     if (!days || days.length === 0) { setPastTiers([]); return; }
@@ -325,13 +338,6 @@ const handleConfirmSeed = async () => {
         .eq('id', authUser.id);
     }
 
-    // Look up the sponsor custom act for Day 28 so we can mark it as a sponsor act.
-    const { data: sponsorAct } = await supabase
-      .from('sponsor_custom_acts')
-      .select('id, act_text')
-      .eq('act_text', "Covered a coworker's shift")
-      .maybeSingle();
-
     const rows = [];
     for (let i = 0; i < 29; i++) {
       const d = new Date();
@@ -341,12 +347,10 @@ const handleConfirmSeed = async () => {
       const dayNum = i + 1;
       let proofType;
       let actTitle;
-      let isSponsorAct = false;
 
       if (dayNum === 28) {
         proofType    = 'photo';
         actTitle     = "Covered a coworker's shift";
-        isSponsorAct = true;
       } else if (dayNum === 29) {
         proofType = 'video';
         actTitle  = "Watched a neighbor's pet for free";
@@ -374,7 +378,7 @@ const handleConfirmSeed = async () => {
         local_date:     localDateInTZ(user?.timezone || 'America/New_York', d),
         from_list:      true,
         has_media:      hasMedia,
-        is_sponsor_act: isSponsorAct,
+        is_sponsor_act: false,
       });
     }
 
@@ -461,7 +465,7 @@ const handleConfirmWipe = async () => {
     return (
       <View style={s.empty}>
         <Text style={{ fontSize: sf(56) }}>🕊️</Text>
-        <Text style={s.emptyTitle}>No Active Challenge</Text>
+        <Text style={s.emptyTitle}>You haven't started yet</Text>
         <Text style={s.emptySub}>Start your 30-day journey from Settings.</Text>
         <Btn label="Go to Settings" onPress={() => navigation.navigate('Settings')} style={{ width: 200 }} />
       </View>
@@ -485,7 +489,7 @@ const handleConfirmWipe = async () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="My Challenge" />
+      <ScreenHeader title={groupName || 'My 30 Acts'} />
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>
@@ -670,8 +674,8 @@ const handleConfirmWipe = async () => {
         </View>
 
         <Btn
-          label="🎟️ Join a Challenge"
-          onPress={() => navigation.navigate('JoinChallenge')}
+          label="🎟️ Join a Group"
+          onPress={() => navigation.navigate('JoinSponsor')}
           variant="secondary"
           style={{ marginTop: 10 }}
         />
@@ -743,7 +747,7 @@ const handleConfirmWipe = async () => {
               unbroken streak.
             </Text>
             <Btn label="Add yesterday's act" onPress={handleAddYesterday} style={{ marginBottom: 10 }} />
-            <Btn label="Restart challenge" onPress={handleMissedRestart} variant="secondary" style={{ marginBottom: 10 }} />
+            <Btn label="Restart" onPress={handleMissedRestart} variant="secondary" style={{ marginBottom: 10 }} />
             <TouchableOpacity onPress={() => setMissedPrompt(false)}>
               <Text style={s.dismissLink}>Remind me later</Text>
             </TouchableOpacity>
@@ -769,7 +773,7 @@ const handleConfirmWipe = async () => {
         <View style={s.modalBg}>
           <View style={s.modalCard}>
             <Text style={{ fontSize: sf(44), textAlign: 'center', marginBottom: 12 }}>⚠️</Text>
-            <Text style={s.modalTitle}>Restart Challenge?</Text>
+            <Text style={s.modalTitle}>Restart?</Text>
             <Text style={s.modalBody}>
               We'll keep your most recent unbroken streak of completed days
               and drop the rest. If you have no completed days, you'll start

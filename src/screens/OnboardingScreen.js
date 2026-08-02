@@ -22,7 +22,7 @@ export default function OnboardingScreen({ onDone }) {
         <Text style={s.emoji}>💚</Text>
         <Text style={s.sectionTitle}>One Act at a Time</Text>
         <Text style={s.body}>
-          A simple, daily challenge that helps people build a real habit of kindness — one
+          A simple, daily practice that helps people build a real habit of kindness — one
           meaningful act at a time. Pick a good deed that fits your day, complete it, and log
           proof with a photo, video, or short description.
         </Text>

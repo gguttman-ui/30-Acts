@@ -3,16 +3,16 @@ import { Text, Image, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import ChallengeDetailScreen   from '../screens/ChallengeDetailScreen';
+import SponsorDetailScreen   from '../screens/SponsorDetailScreen';
 import { C, ACT_CATEGORIES } from '../constants';
 import TreeScreen        from '../screens/TreeScreen';
 import SettingsScreen    from '../screens/SettingsScreen';
 import ChallengeScreen   from '../screens/ChallengeScreen';
-import CreateChallengeAdminScreen from '../screens/CreateChallengeAdminScreen';
+import CreateSponsorScreen from '../screens/CreateSponsorScreen';
 import CreateNewActScreen from '../screens/CreateNewActScreen';
 import MyStoryScreen from '../screens/MyStoryScreen';
-import JoinChallengeScreen from '../screens/JoinChallengeScreen';
-import MyChallengesScreen from '../screens/MyChallengesScreen';
+import JoinSponsorScreen from '../screens/JoinSponsorScreen';
+import MySponsorsScreen from '../screens/MySponsorsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import FeedbackScreen    from '../screens/FeedbackScreen';
 import { DayDetailScreen } from '../screens/HistoryScreen';
@@ -22,7 +22,6 @@ import ReviewerScreen    from '../screens/ReviewerScreen';
 import OnboardingScreen  from '../screens/OnboardingScreen';
 import DonationScreen    from '../screens/DonationScreen';
 import LegalScreen       from '../screens/LegalScreen';
-import SponsorDashboardScreen from '../screens/SponsorDashboardScreen';
 import CreateChallengeScreen  from '../screens/CreateChallengeScreen';
 import SuggestActScreen       from '../screens/SuggestActScreen';
 import SuggestedActsScreen    from '../screens/SuggestedActsScreen';
@@ -177,9 +176,9 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
                 />
               )}
             </Stack.Screen>
-            <Stack.Screen name="CreateChallengeAdmin" component={CreateChallengeAdminScreen} />
-            <Stack.Screen name="MyChallenges" component={MyChallengesScreen} />
-            <Stack.Screen name="JoinChallenge" component={JoinChallengeScreen} />
+            <Stack.Screen name="CreateSponsor" component={CreateSponsorScreen} />
+            <Stack.Screen name="MySponsors" component={MySponsorsScreen} />
+            <Stack.Screen name="JoinSponsor" component={JoinSponsorScreen} />
             <Stack.Screen name="CreateNewAct">
               {(props) => (
                 <CreateNewActScreen {...props}
@@ -227,10 +226,9 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             </Stack.Screen>
             <Stack.Screen name="Donation"  component={DonationScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen} />
-            <Stack.Screen name="SponsorDashboard" component={SponsorDashboardScreen} />
             <Stack.Screen
-              name="ChallengeDetail"
-              component={ChallengeDetailScreen}
+              name="SponsorDetail"
+              component={SponsorDetailScreen}
               options={({ navigation }) => ({
                 headerShown: true,
                 headerBackTitle: 'Back',
@@ -279,4 +277,4 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+}

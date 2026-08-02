@@ -36,7 +36,7 @@ function csvCell(v) {
   return s;
 }
 
-export default function ChallengeDetailScreen({ route, navigation }) {
+export default function SponsorDetailScreen({ route, navigation }) {
   const challengeId = route?.params?.challengeId;
 
   const [authUserId, setAuthUserId] = useState(null);
@@ -58,7 +58,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
       setAuthUserId(user.id);
 
       if (!challengeId) {
-        setError('Missing challenge ID.');
+        setError('Missing group ID.');
         setLoading(false);
         return;
       }
@@ -69,8 +69,8 @@ export default function ChallengeDetailScreen({ route, navigation }) {
       // Hide anyone this user has blocked (Apple Guideline 1.2).
       setBlockedIds(await getBlockedIds());
     } catch (e) {
-      console.warn('ChallengeDetailScreen load failed:', e.message);
-      setError(e.message || 'Could not load challenge.');
+      console.warn('SponsorDetailScreen load failed:', e.message);
+      setError(e.message || 'Could not load group.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -85,13 +85,13 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   };
 
   const handleShareInvite = async () => {
-    if (!detail?.challenge?.invite_code) return;
-    const code = detail.challenge.invite_code;
+    if (!detail?.challenge?.join_code) return;
+    const code = detail.challenge.join_code;
     const name = detail.challenge.name;
     try {
       await Share.share({
         message:
-          `Join me in the "${name}" kindness challenge on 30 Acts of Kindness™!\n\n` +
+          `Join me in the "${name}" kindness group on 30 Acts of Kindness™!\n\n` +
           `Use invite code: ${code}\n\n` +
           `https://apps.apple.com/app/id6762151038`,
       });
@@ -145,7 +145,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   };
 
   const handleReportChallenge = () => {
-    askReason('Report this challenge',
+    askReason('Report this group',
       (reason) => submitReport({ challengeId: detail.challenge.id }, reason));
   };
 
@@ -176,10 +176,10 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScreenHeader title="Challenge"  />
+        <ScreenHeader title="Group"  />
         <View style={s.centerWrap}>
           <ActivityIndicator color={C.primary} />
-          <Text style={s.loadingText}>Loading challenge…</Text>
+          <Text style={s.loadingText}>Loading group…</Text>
         </View>
       </View>
     );
@@ -188,9 +188,9 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   if (error || !detail) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScreenHeader title="Challenge" onBack={() => navigation.goBack()} />
+        <ScreenHeader title="Group" onBack={() => navigation.goBack()} />
         <View style={s.centerWrap}>
-          <Text style={s.errorText}>{error || 'Challenge unavailable.'}</Text>
+          <Text style={s.errorText}>{error || 'Group unavailable.'}</Text>
           <Btn label="Try again" onPress={load} style={{ marginTop: 14 }} />
         </View>
       </View>
@@ -221,9 +221,9 @@ export default function ChallengeDetailScreen({ route, navigation }) {
           </View>
           <Text style={s.challengeName}>{challenge.name}</Text>
           {sponsor && (
-            <Text style={s.sponsorLine}>Created by {sponsor.displayName}</Text>
+            <Text style={s.sponsorLine}>Sponsored by {sponsor.displayName}</Text>
           )}
-{/* Two big totals: Your contribution + Challenge total */}
+{/* Two big totals: Your contribution + Group total */}
 <View style={s.totalsRow}>
   <View style={[s.totalCard, isParticipant && s.totalCardMine]}>
     <Text style={s.totalLabel}>Your contribution</Text>
@@ -231,14 +231,14 @@ export default function ChallengeDetailScreen({ route, navigation }) {
     <Text style={s.totalSub}>acts of kindness</Text>
   </View>
   <View style={s.totalCard}>
-    <Text style={s.totalLabel}>Challenge total</Text>
+    <Text style={s.totalLabel}>Group total</Text>
     <Text style={s.totalNum}>{totalActs}</Text>
     <Text style={s.totalSub}>acts of kindness</Text>
   </View>
 </View>
 
 {/* Secondary stats */}
-{/* Two big totals: Your contribution + Challenge total */}
+{/* Two big totals: Your contribution + Group total */}
 <View style={s.totalsRow}>
   <View style={[s.totalCard, isParticipant && s.totalCardMine]}>
     <Text style={s.totalLabel}>Your contribution</Text>
@@ -246,7 +246,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
     <Text style={s.totalSub}>acts of kindness</Text>
   </View>
   <View style={s.totalCard}>
-    <Text style={s.totalLabel}>Challenge total</Text>
+    <Text style={s.totalLabel}>Group total</Text>
     <Text style={s.totalNum}>{totalActs}</Text>
     <Text style={s.totalSub}>acts of kindness</Text>
   </View>
@@ -267,7 +267,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 </View>
           <TouchableOpacity onPress={handleShareInvite} style={s.inviteRow}>
             <Text style={s.inviteLabel}>INVITE CODE</Text>
-            <Text style={s.inviteCode}>{challenge.invite_code}</Text>
+            <Text style={s.inviteCode}>{challenge.join_code}</Text>
             <Text style={s.inviteShare}>Share →</Text>
           </TouchableOpacity>
         </Card>
@@ -367,7 +367,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
         {/* SAFETY - required by Apple Guideline 1.2 */}
         <TouchableOpacity onPress={handleReportChallenge} style={s.reportWrap}>
-          <Text style={s.reportLink}>Report this challenge</Text>
+          <Text style={s.reportLink}>Report this group</Text>
         </TouchableOpacity>
 
       </ScrollView>

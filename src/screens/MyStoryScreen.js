@@ -30,7 +30,7 @@ import { ScreenHeader } from '../components';
 import StoryCard from '../components/StoryCard';
 import { C, todayStr, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
-import { getActiveChallengeIds } from '../lib/streak';
+import { getActiveSponsorIds } from '../lib/streak';
 
 const STORY_MIN = 10;
 // Hard cap matched to the StoryCard image. With the title line removed, the
@@ -292,7 +292,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const buildShareMessage = () => {
     const s = completedStory.trim();
     const storyPart = s ? `\n\nHere's what I did:\n"${s}"` : '';
-    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™ challenge!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${extractPhone(user?.email) ? `${APP_URL}?ref=${encodeURIComponent(extractPhone(user?.email))}` : APP_URL}`;
+    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${extractPhone(user?.email) ? `${APP_URL}?ref=${encodeURIComponent(extractPhone(user?.email))}` : APP_URL}`;
   };
 
   const handleShareText = () => {
@@ -580,18 +580,18 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
       try {
         // The `user` PROP has no `id` (it's {email, firstName, lastName, phone,
-        // role}), so getActiveChallengeIds(user?.id) always got undefined and
+        // role}), so getActiveSponsorIds(user?.id) always got undefined and
         // no act ever tagged to a challenge from this flow. Read the auth id
         // from the live session instead.
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        const challengeIds = await getActiveChallengeIds(authUser?.id);
-        if (challengeIds.length > 0 && completionData?.id) {
-          const joinRows = challengeIds.map(cid => ({
+        const sponsorIds = await getActiveSponsorIds(authUser?.id);
+        if (sponsorIds.length > 0 && completionData?.id) {
+          const joinRows = sponsorIds.map(cid => ({
             completion_id: completionData.id,
-            challenge_id:  cid,
+            sponsor_id:  cid,
           }));
           const { error: linkError } = await supabase
-            .from('completion_challenges')
+            .from('completion_sponsors')
             .insert(joinRows);
           if (linkError) console.warn('completion_challenges link error:', linkError.message);
         }

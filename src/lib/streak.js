@@ -240,21 +240,21 @@ export function deletionBreaksStreak(days, deletedDayNumber) {
  * Returns [] if the user is not in any challenges, or if anything fails.
  * Never throws — callers can safely spread the result.
  */
-export async function getActiveChallengeIds(authUserId) {
+export async function getActiveSponsorIds(authUserId) {
   if (!authUserId) return [];
   try {
     const { data, error } = await supabase
-      .from('challenge_participants')
-      .select('challenge_id')
+      .from('sponsor_members')
+      .select('sponsor_id')
       .eq('user_id', authUserId);
 
     if (error) {
-      console.warn('getActiveChallengeIds error:', error.message);
+      console.warn('getActiveSponsorIds error:', error.message);
       return [];
     }
-    return (data || []).map(r => r.challenge_id).filter(Boolean);
+    return (data || []).map(r => r.sponsor_id).filter(Boolean);
   } catch (e) {
-    console.warn('getActiveChallengeIds failed:', e.message);
+    console.warn('getActiveSponsorIds failed:', e.message);
     return [];
   }
 }
@@ -264,34 +264,34 @@ export async function getActiveChallengeIds(authUserId) {
  *
  * Returns [] on any failure — UI just hides the indicator.
  */
-export async function getActiveChallenges(authUserId) {
+export async function getActiveSponsors(authUserId) {
   if (!authUserId) return [];
   try {
     const { data, error } = await supabase
-      .from('challenge_participants')
-      .select('challenge_id, challenges (id, name)')
+      .from('sponsor_members')
+      .select('sponsor_id, sponsors (id, name)')
       .eq('user_id', authUserId);
 
     if (error) {
-      console.warn('getActiveChallenges error:', error.message);
+      console.warn('getActiveSponsors error:', error.message);
       return [];
     }
     return (data || [])
-      .map(r => r.challenges)
+      .map(r => r.sponsors)
       .filter(Boolean);
   } catch (e) {
-    console.warn('getActiveChallenges failed:', e.message);
+    console.warn('getActiveSponsors failed:', e.message);
     return [];
   }
 }
 
 /**
- * Returns everything ChallengeDetailScreen needs in one shot.
+ * Returns everything SponsorDetailScreen needs in one shot.
  *
  * @param {string} challengeId   - the challenge to load
  * @param {string} authUserId    - the current user's auth.users.id (for "is sponsor?" + "is participant?" checks)
  * @returns {Promise<{
- *   challenge: { id, name, type, length_days, invite_code, start_date, created_at, created_by },
+ *   challenge: { id, name, type, length_days, join_code, start_date, created_at, created_by },
  *   isSponsor: boolean,
  *   isParticipant: boolean,
  *   me: { count, firstActAt, lastActAt, showName, joinedAt } | null,
@@ -305,13 +305,13 @@ export async function getActiveChallenges(authUserId) {
 export async function getChallengeDetail(challengeId, authUserId) {
   // 1. Challenge metadata
   const { data: challenge, error: chErr } = await supabase
-    .from('challenges')
-    .select('id, name, type, length_days, invite_code, start_date, created_at, created_by')
+    .from('sponsors')
+    .select('id, name, type, length_days, join_code, start_date, created_at, created_by')
     .eq('id', challengeId)
     .maybeSingle();
 
   if (chErr || !challenge) {
-    throw new Error(chErr?.message || 'Challenge not found');
+    throw new Error(chErr?.message || 'Group not found');
   }
 
   const isSponsor = challenge.created_by === authUserId;
@@ -336,9 +336,9 @@ export async function getChallengeDetail(challengeId, authUserId) {
 
   // 2. All participants for this challenge
   const { data: participants, error: pErr } = await supabase
-    .from('challenge_participants')
+    .from('sponsor_members')
     .select('user_id, joined_at, show_name')
-    .eq('challenge_id', challengeId);
+    .eq('sponsor_id', challengeId);
 
   if (pErr) throw new Error(pErr.message);
 
@@ -365,9 +365,9 @@ export async function getChallengeDetail(challengeId, authUserId) {
   let totalActs = 0;
   if (participantIds.length > 0) {
     const { data: links, error: lErr } = await supabase
-      .from('completion_challenges')
+      .from('completion_sponsors')
       .select('completion_id, completions ( user_phone, completed_at )')
-      .eq('challenge_id', challengeId);
+      .eq('sponsor_id', challengeId);
 
     if (lErr) throw new Error(lErr.message);
 

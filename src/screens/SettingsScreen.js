@@ -10,6 +10,7 @@ import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../compone
 import { C } from '../constants';
 import { lookupZip } from '../lib/zip';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
+import QRCode from 'react-native-qrcode-svg';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -109,11 +110,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // once set (only cleared server-side on a STOP opt-out).
   const [reminderConsentAt, setReminderConsentAt] = useState(null);
 
-  // Sponsor admin status: null = not checked yet, object = this user is a
-  // sponsor admin, false = checked and not a sponsor admin.
-  const [sponsorAdmin, setSponsorAdmin] = useState(null);
-  const [sponsorName,  setSponsorName]  = useState('');
-
   const scrollRef     = useRef(null);
   const addressY      = useRef(0);
   const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -147,36 +143,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
     });
   }, [user?.firstName, user?.lastName]);
-
-  // Check sponsor_admins table for this user's phone. If found, stash the
-  // row (with sponsor_id) so the dashboard button can pass sponsor_id along.
-  useEffect(() => {
-    const phone = extractPhone(user?.email);
-    if (!phone) { setSponsorAdmin(false); return; }
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sponsor_admins')
-          .select('id, phone, sponsor_id, name')
-          .eq('phone', phone)
-          .maybeSingle();
-        if (error || !data) {
-          setSponsorAdmin(false);
-          return;
-        }
-        setSponsorAdmin(data);
-        const { data: sp } = await supabase
-          .from('sponsors')
-          .select('name')
-          .eq('id', data.sponsor_id)
-          .maybeSingle();
-        if (sp?.name) setSponsorName(sp.name);
-      } catch (e) {
-        console.warn('Sponsor admin check failed:', e.message);
-        setSponsorAdmin(false);
-      }
-    })();
-  }, [user?.email]);
 
   useEffect(() => {
     if (!/^\d{5}$/.test(zip)) {
@@ -274,7 +240,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
   const handleRestart = () => {
     Alert.alert(
-      'Restart Challenge?',
+      'Restart?',
       "We'll keep your most recent unbroken streak of completed days and drop the rest. If you have no completed days, you'll start fresh from Day 1.",
       [
         { text: 'Keep everything', style: 'cancel' },
@@ -366,26 +332,19 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     if (navigation) navigation.navigate('Challenge');
   };
 
-  const handleOpenSponsorDashboard = () => {
-    if (!sponsorAdmin) return;
-    navigation.navigate('SponsorDashboard', {
-      sponsorId: sponsorAdmin.sponsor_id,
-      sponsorName: sponsorName || 'Sponsor',
-    });
-  };
-
   // Invite-a-friend share. Uses the native iOS share sheet so the user can
   // pick SMS, email, etc. and edit the message before sending.
-  // TODO: Replace with the live App Store URL once the app is published.
-  const APP_STORE_LIVE = false;  // flip to true when app is live in the App Store
-  const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
+  // Personal invite: the referral link carries ?ref=<phone> so anyone who
+  // joins through it is attributed to this user (added to their tree).
+  const invitePhone = extractPhone(user?.email);
+  const inviteLink = invitePhone
+    ? `https://30ActsofKindness.org?ref=${encodeURIComponent(invitePhone)}`
+    : 'https://30ActsofKindness.org';
   const handleInviteShare = async () => {
     const message =
-      "I am working on making the world a kinder place by participating in a 30-day challenge to do 30 Acts of Kindness™ in 30 Days. " +
-      "I am sharing this with you in the hope you will join me and add to Acts of Kindness with yours. " +
-      "The link included will connect you to the Apple store to download the 30 Acts of Kindness™ App.\n\n" +
-      "Join me at 30ActsofKindness.org\n\n" +
-      APP_STORE_URL;
+      "I'm doing 30 Acts of Kindness — 30 days, one kind act a day. " +
+      "Join me and you'll be added to my kindness tree!\n\n" +
+      `Get started: ${inviteLink}`;
     try {
       await Share.share({ message });
     } catch (e) {
@@ -410,46 +369,33 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
 
        <Card style={s.mb}>
-          <Text style={s.cardTitle}>Challenge</Text>
+          <Text style={s.cardTitle}>My 30 Acts</Text>
           <Text style={s.cardSub}>
-            {challenge ? `Day ${completedCount}/30 complete` : 'No active challenge'}
+            {challenge ? `Day ${completedCount}/30 complete` : 'Not started yet'}
           </Text>
           {!challenge ? (
-            <Btn label="Start Challenge 🚀" onPress={onStartChallenge} />
+            <Btn label="Start 🚀" onPress={onStartChallenge} />
           ) : (
             <View style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Btn label="Go to Today's Act →" onPress={handleGoToChallenge} style={{ flex: 1 }} />
                 <Btn label="Log Out" variant="secondary" onPress={() => navigate('logout')} style={{ flex: 1, borderColor: C.error + '66' }} />
               </View>
-              <Btn label="Restart Challenge" variant="danger" onPress={handleRestart} />
+              <Btn label="Restart" variant="danger" onPress={handleRestart} />
             </View>
           )}
         </Card>
 
-        {sponsorAdmin && (
-          <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
-            <Text style={s.cardTitle}>🏢 Challenge Dashboard</Text>
-            <Text style={s.cardSub}>
-              You're a sponsor admin for Challenge. View your
-              employees' progress and manage custom acts.
-            </Text>
-            <Btn label="Open Challenge Dashboard →" onPress={handleOpenSponsorDashboard} />
-          </Card>
-        )}
-
-        {sponsorAdmin && (
-          <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
-            <Text style={s.cardTitle}>🎯 Create a Challenge</Text>
-            <Text style={s.cardSub}>
-              Spin up a multi-day challenge for your group and share the invite code.
-            </Text>
-            <Btn
-              label="My Challenges →"
-              onPress={() => navigation.navigate('MyChallenges')}
-            />
-          </Card>
-        )}
+        <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
+          <Text style={s.cardTitle}>🎯 Groups</Text>
+          <Text style={s.cardSub}>
+            Create a group and share the code to invite people, or join one.
+          </Text>
+          <Btn
+            label="My Groups →"
+            onPress={() => navigation.navigate('MySponsors')}
+          />
+        </Card>
 
         <Card style={s.mb}>
           <Text style={s.cardTitle}>Profile</Text>
@@ -710,18 +656,28 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           )}
         </Card>
 
-        {APP_STORE_LIVE && (
+        <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5, alignItems: 'center' }]}>
+          <Text style={s.cardTitle}>🌳 Grow Your Tree</Text>
+          <Text style={[s.cardSub, { textAlign: 'center' }]}>
+            Invite people to 30 Acts of Kindness. Anyone who joins with your link
+            is added to your tree.
+          </Text>
+          <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, marginVertical: 14 }}>
+            <QRCode value={inviteLink} size={172} backgroundColor="#fff" color="#111" />
+          </View>
+          <Text selectable style={{ color: C.sub, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
+            {inviteLink}
+          </Text>
           <Btn
-             label="📲 Invite a Friend"
-             onPress={handleInviteShare}
-             variant="secondary"
-             style={[s.mb, { borderColor: C.primary + '66' }]}
-        />
-)}
+            label="📲 Share Your Invite"
+            onPress={handleInviteShare}
+            style={{ alignSelf: 'stretch' }}
+          />
+        </Card>
 
         <Btn
-          label="🎟️ Join a Challenge"
-          onPress={() => navigation.navigate('JoinChallenge')}
+          label="🎟️ Join a Group"
+          onPress={() => navigation.navigate('JoinSponsor')}
           variant="secondary"
           style={[s.mb, { borderColor: C.primary + '66' }]}
         />

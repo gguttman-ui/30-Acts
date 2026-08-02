@@ -19,14 +19,14 @@ function normalizeInviteCode(raw) {
   return `KIND-${code}`;
 }
 
-export default function JoinChallengeScreen({ navigation }) {
+export default function JoinSponsorScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [code,       setCode]       = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [joined,     setJoined]     = useState(null);
 
   // Two-step flow: after a successful lookup we set `pendingChallenge` and
-  // show a confirmation card. For Local challenges that card includes a
+  // show a confirmation card. For Local groups that card includes a
   // "show my name to other participants" toggle. The actual insert
   // happens when the user taps Confirm.
   const [pendingChallenge, setPendingChallenge] = useState(null);
@@ -43,9 +43,9 @@ export default function JoinChallengeScreen({ navigation }) {
     setSubmitting(true);
     try {
       const { data: challenge, error: lookupErr } = await supabase
-        .from('challenges')
-        .select('id, name, type, length_days, start_date, invite_code')
-        .eq('invite_code', normalized)
+        .from('sponsors')
+        .select('id, name, type, length_days, start_date, join_code')
+        .eq('join_code', normalized)
         .maybeSingle();
 
       if (lookupErr) {
@@ -53,7 +53,7 @@ export default function JoinChallengeScreen({ navigation }) {
         return;
       }
       if (!challenge) {
-        Alert.alert('Not found', `No challenge found with code ${normalized}. Check the code and try again.`);
+        Alert.alert('Not found', `No group found with code ${normalized}. Check the code and try again.`);
         return;
       }
 
@@ -65,9 +65,9 @@ export default function JoinChallengeScreen({ navigation }) {
 
       // Already a member? Skip the confirmation step.
       const { data: existing } = await supabase
-        .from('challenge_participants')
-        .select('challenge_id')
-        .eq('challenge_id', challenge.id)
+        .from('sponsor_members')
+        .select('sponsor_id')
+        .eq('sponsor_id', challenge.id)
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -80,13 +80,13 @@ export default function JoinChallengeScreen({ navigation }) {
       // If so, joining this one MOVES them — past acts stay credited to the old
       // challenge, all future acts credit here. Surface it as a switch choice.
       const { data: others } = await supabase
-        .from('challenge_participants')
-        .select('challenge_id, challenges ( name )')
+        .from('sponsor_members')
+        .select('sponsor_id, sponsors ( name )')
         .eq('user_id', user.id)
-        .neq('challenge_id', challenge.id);
+        .neq('sponsor_id', challenge.id);
       const switchFrom = (others || []).map(o => ({
-        id:   o.challenge_id,
-        name: o.challenges?.name || 'your current challenge',
+        id:   o.sponsor_id,
+        name: o.sponsors?.name || 'your current group',
       }));
 
       // Local: default opt-in to TRUE but make the user see the toggle.
@@ -113,10 +113,10 @@ export default function JoinChallengeScreen({ navigation }) {
       // completion_challenges rows are never touched).
       if (switchFrom && switchFrom.length) {
         const { error: leaveErr } = await supabase
-          .from('challenge_participants')
+          .from('sponsor_members')
           .delete()
           .eq('user_id', user.id)
-          .in('challenge_id', switchFrom.map(sf => sf.id));
+          .in('sponsor_id', switchFrom.map(sf => sf.id));
         if (leaveErr) {
           Alert.alert('Could not switch', leaveErr.message);
           return;
@@ -124,9 +124,9 @@ export default function JoinChallengeScreen({ navigation }) {
       }
 
       const { error: joinErr } = await supabase
-        .from('challenge_participants')
+        .from('sponsor_members')
         .insert({
-          challenge_id: challenge.id,
+          sponsor_id: challenge.id,
           user_id:      user.id,
           show_name:    isLocal ? showName : true,
         });
@@ -151,13 +151,13 @@ export default function JoinChallengeScreen({ navigation }) {
     const isLocal = c.type === 'Local';
     const switchFrom = pendingChallenge.switchFrom || [];
     const isSwitch = switchFrom.length > 0;
-    const fromName = switchFrom[0]?.name || 'your current challenge';
+    const fromName = switchFrom[0]?.name || 'your current group';
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScreenHeader title="Confirm Join" onBack={() => setPendingChallenge(null)} />
         <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 60 }]}>
           <View style={s.confirmCard}>
-            <Text style={s.confirmTitle}>Joining this challenge:</Text>
+            <Text style={s.confirmTitle}>Joining this group:</Text>
             <Text style={s.joinedName}>{c.name}</Text>
 
             <View style={s.detailRow}>
@@ -175,7 +175,7 @@ export default function JoinChallengeScreen({ navigation }) {
 
             {isSwitch && (
               <Text style={s.switchNotice}>
-                You're currently in "{fromName}". You can be in only one challenge at a
+                You're currently in "{fromName}". You can be in only one group at a
                 time. Moving here keeps your past acts credited to "{fromName}" — all
                 future acts will count toward "{c.name}".
               </Text>
@@ -187,7 +187,7 @@ export default function JoinChallengeScreen({ navigation }) {
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={s.privacyTitle}>Show my name to other participants</Text>
                     <Text style={s.privacySub}>
-                      This is a Local challenge — other community members may not know you.
+                      This is a Local group — other community members may not know you.
                       Turn this off to appear as "Anonymous" on the leaderboard.
                     </Text>
                   </View>
@@ -203,7 +203,7 @@ export default function JoinChallengeScreen({ navigation }) {
           </View>
 
           <Btn
-            label={isSwitch ? 'Move to this challenge' : 'Confirm & Join'}
+            label={isSwitch ? 'Move to this group' : 'Confirm & Join'}
             onPress={handleConfirmJoin}
             loading={submitting}
             style={{ marginTop: 18 }}
@@ -222,7 +222,7 @@ export default function JoinChallengeScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader
-        title="Join a Challenge"
+        title="Join a Group"
         onBack={() => navigation.goBack()}
       />
 
@@ -249,13 +249,13 @@ export default function JoinChallengeScreen({ navigation }) {
 
             {joined.alreadyMember && (
               <Text style={s.alreadyHint}>
-                You were already part of this challenge. Your existing daily acts still count.
+                You were already part of this group. Your existing daily acts still count.
               </Text>
             )}
 
            <Btn
               label="See Details →"
-              onPress={() => navigation.replace('ChallengeDetail', { challengeId: joined.challenge.id })}
+              onPress={() => navigation.replace('SponsorDetail', { challengeId: joined.challenge.id })}
               style={{ marginTop: 18 }}
             />
             <Btn
@@ -275,7 +275,7 @@ export default function JoinChallengeScreen({ navigation }) {
           <>
             <Text style={s.helper}>
               Got an invite code from a friend, employer, or community? Enter it
-              below to join their challenge. You can be in one challenge at a time —
+              below to join their group. You can be in one group at a time —
               if you're already in one, you'll choose whether to stay or move here.
             </Text>
 
@@ -294,7 +294,7 @@ export default function JoinChallengeScreen({ navigation }) {
             </Text>
 
             <Btn
-              label="Find Challenge"
+              label="Find Group"
               onPress={handleLookup}
               loading={submitting}
               disabled={!code.trim() || submitting}

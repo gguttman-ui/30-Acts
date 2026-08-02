@@ -140,172 +140,6 @@ function RateBar({ label, pct, color }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SponsorList
-// IMPORTANT: `phone` here is RAW DIGITS. Display formatting happens via
-// `formatDigitsForDisplay(phone)` only — keeping the TextInput's `value`
-// drift to a single character per keystroke (otherwise iOS drops focus
-// after the first digit when value jumps from "" to "(9").
-// ─────────────────────────────────────────────────────────────────────────
-function SponsorList({
-  items, loading, sponsors, loadingSponsors,
-  onAdd, onRemove,
-  phone, setPhone, name, setName, email, setEmail,
-  selectedSponsorId, setSelectedSponsorId,
-  adding,
-}) {
-  const [showSponsorPicker, setShowSponsorPicker] = useState(false);
-
-  const validPhone = phone.length === 10;
-  const canAdd = validPhone && !!selectedSponsorId;
-
-  const selectedSponsor = sponsors.find(sp => sp.id === selectedSponsorId);
-  const sponsorById = sponsors.reduce((acc, sp) => { acc[sp.id] = sp.name; return acc; }, {});
-
-  return (
-    <Card>
-      <Text style={s.section}>🏢 Organizer</Text>
-      <Text style={{ color: C.muted, fontSize: 12, marginTop: 6, marginBottom: 10 }}>
-        Grant sponsor access by phone number. Sponsors log in the same way as
-        employees (phone OTP) — this table just tells the app they belong to a
-        sponsor company. Email and name are optional.
-      </Text>
-
-      <TextInput
-        value={formatDigitsForDisplay(phone)}
-        onChangeText={t => setPhone(digitsOnly(t))}
-        placeholder="Phone — (917) 721-8269"
-        placeholderTextColor={C.muted}
-        keyboardType="phone-pad"
-        maxLength={14}
-        inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
-        style={s.searchInput}
-      />
-
-      <TouchableOpacity
-        onPress={() => setShowSponsorPicker(true)}
-        disabled={loadingSponsors || sponsors.length === 0}
-        style={[s.searchInput, { flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }]}
-      >
-        <Text style={{
-          color: selectedSponsor ? C.text : C.muted,
-          fontSize: 13,
-          flex: 1,
-        }}>
-          {loadingSponsors
-            ? 'Loading sponsors…'
-            : selectedSponsor
-              ? selectedSponsor.name
-              : sponsors.length === 0
-                ? 'No sponsors found — create one in DB first'
-                : 'Select sponsor…'}
-        </Text>
-        <Text style={{ color: C.sub }}>▾</Text>
-      </TouchableOpacity>
-
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Name (optional)"
-        placeholderTextColor={C.muted}
-        style={s.searchInput}
-      />
-
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email (optional)"
-        placeholderTextColor={C.muted}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        style={s.searchInput}
-      />
-
-      <TouchableOpacity
-        onPress={onAdd}
-        disabled={adding || !canAdd}
-        style={{
-          backgroundColor: C.primary, borderRadius: 10,
-          paddingVertical: 11, alignItems: 'center',
-          opacity: !canAdd ? 0.4 : 1, marginBottom: 16,
-        }}
-      >
-        {adding
-          ? <ActivityIndicator size="small" color={C.bg} />
-          : <Text style={{ color: C.bg, fontWeight: '700' }}>+ Add Organizer Admin</Text>}
-      </TouchableOpacity>
-
-      {loading ? (
-        <ActivityIndicator color={C.primary} />
-      ) : items.length === 0 ? (
-        <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
-          No sponsor admins yet
-        </Text>
-      ) : items.map(item => {
-        const sponsorName = sponsorById[item.sponsor_id] || '(unknown sponsor)';
-        const primaryLabel = item.name || e164ToDisplay(item.phone);
-        const secondaryBits = [];
-        if (item.name) secondaryBits.push(e164ToDisplay(item.phone));
-        if (item.email) secondaryBits.push(item.email);
-
-        return (
-          <View key={item.id} style={s.userRow}>
-            <View style={s.userAvatar}>
-              <Text style={{ fontSize: 16 }}>🏢</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.userEmail} numberOfLines={1}>{primaryLabel}</Text>
-              <Text style={[s.userMeta, { color: C.primary }]} numberOfLines={1}>
-                {sponsorName}
-              </Text>
-              {secondaryBits.length > 0 && (
-                <Text style={s.userMeta} numberOfLines={1}>
-                  {secondaryBits.join(' · ')}
-                </Text>
-              )}
-              <Text style={s.userMeta}>
-                Added {item.added_at ? new Date(item.added_at).toLocaleDateString() : '—'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => onRemove(item)} style={s.deleteBtn}>
-              <Text style={{ fontSize: 16 }}>🗑️</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      })}
-
-      <Modal visible={showSponsorPicker} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: C.bg }}>
-          <View style={s.modalHeader}>
-            <Text style={s.modalTitleInline}>Select Sponsor</Text>
-            <TouchableOpacity onPress={() => setShowSponsorPicker(false)}>
-              <Text style={{ color: C.primary, fontSize: 16, fontWeight: '700' }}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView>
-            {sponsors.map(sp => {
-              const isSelected = sp.id === selectedSponsorId;
-              return (
-                <TouchableOpacity
-                  key={sp.id}
-                  onPress={() => { setSelectedSponsorId(sp.id); setShowSponsorPicker(false); }}
-                  style={[s.actRow, isSelected && { backgroundColor: C.primary + '22' }]}
-                >
-                  <Text style={{ fontSize: 20, marginRight: 10 }}>🏢</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.userEmail, isSelected && { color: C.primary }]}>{sp.name}</Text>
-                    <Text style={s.userMeta}>{sp.slug}</Text>
-                  </View>
-                  {isSelected && <Text style={{ color: C.primary }}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
-    </Card>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 // ManageList: Admins / Reviewers
 // `phone` is RAW DIGITS in state. Format only on display.
@@ -386,16 +220,6 @@ export default function AdminScreen({ navigation }) {
   const [newReviewerPhone, setNewReviewerPhone] = useState('');
   const [addingReviewer,   setAddingReviewer]   = useState(false);
 
-  const [sponsorAdmins,        setSponsorAdmins]        = useState([]);
-  const [loadingSponsorAdmins, setLoadingSponsorAdmins] = useState(false);
-  const [sponsors,             setSponsors]             = useState([]);
-  const [loadingSponsors,      setLoadingSponsors]      = useState(false);
-  const [newSponsorPhone,      setNewSponsorPhone]      = useState('');
-  const [newSponsorName,       setNewSponsorName]       = useState('');
-  const [newSponsorEmail,      setNewSponsorEmail]      = useState('');
-  const [newSponsorSponsorId,  setNewSponsorSponsorId]  = useState(null);
-  const [addingSponsor,        setAddingSponsor]        = useState(false);
-
   const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
   const showConfirm = (title, message, onConfirm) =>
     setConfirmModal({ visible: true, title, message, onConfirm });
@@ -450,32 +274,6 @@ export default function AdminScreen({ navigation }) {
       setReviewers(Array.isArray(data) ? data : []);
     } catch (e) { console.warn('Error loading reviewers:', e.message); }
     finally { setLoadingReviewers(false); }
-  }, []);
-
-  const fetchSponsors = useCallback(async () => {
-    setLoadingSponsors(true);
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/sponsors?select=*&active=eq.true&order=name.asc`,
-        { headers: REST_HEADERS }
-      );
-      const data = await res.json();
-      setSponsors(Array.isArray(data) ? data : []);
-    } catch (e) { console.warn('Error loading sponsors:', e.message); }
-    finally { setLoadingSponsors(false); }
-  }, []);
-
-  const fetchSponsorAdmins = useCallback(async () => {
-    setLoadingSponsorAdmins(true);
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/sponsor_admins?select=*&order=added_at.desc`,
-        { headers: REST_HEADERS }
-      );
-      const data = await res.json();
-      setSponsorAdmins(Array.isArray(data) ? data : []);
-    } catch (e) { console.warn('Error loading sponsor admins:', e.message); }
-    finally { setLoadingSponsorAdmins(false); }
   }, []);
 
   const handleAddAdmin = useCallback(async () => {
@@ -538,67 +336,11 @@ export default function AdminScreen({ navigation }) {
     });
   }, []);
 
-  const handleAddSponsor = useCallback(async () => {
-    const e164 = digitsToE164(newSponsorPhone);
-    if (!e164) {
-      Alert.alert('Invalid phone', 'Enter a 10-digit US phone number like (917) 721-8269.');
-      return;
-    }
-    if (!newSponsorSponsorId) {
-      Alert.alert('Missing sponsor', 'Please select which sponsor company this admin belongs to.');
-      return;
-    }
-    setAddingSponsor(true);
-    try {
-      const body = {
-        phone:      e164,
-        sponsor_id: newSponsorSponsorId,
-        name:       newSponsorName.trim()  || null,
-        email:      newSponsorEmail.trim() || null,
-      };
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/sponsor_admins`, {
-        method: 'POST',
-        headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body),
-      });
-      if (res.ok || res.status === 201) {
-        setNewSponsorPhone('');
-        setNewSponsorName('');
-        setNewSponsorEmail('');
-        setNewSponsorSponsorId(null);
-        fetchSponsorAdmins();
-      } else {
-        const t = await res.text();
-        Alert.alert('Failed', t);
-      }
-    } catch (e) { Alert.alert('Error', e.message); }
-    finally { setAddingSponsor(false); }
-  }, [newSponsorPhone, newSponsorSponsorId, newSponsorName, newSponsorEmail, fetchSponsorAdmins]);
-
-  const handleRemoveSponsor = useCallback((sa) => {
-    const display = e164ToDisplay(sa.phone);
-    showConfirm('Remove Sponsor Admin', `Remove ${sa.name || display} as sponsor admin?`, () => {
-      hideConfirm();
-      fetch(`${SUPABASE_URL}/rest/v1/sponsor_admins?id=eq.${sa.id}`, {
-        method: 'DELETE', headers: REST_HEADERS,
-      })
-        .then(res => {
-          if (res.ok || res.status === 204) {
-            setSponsorAdmins(prev => prev.filter(x => x.id !== sa.id));
-          } else {
-            res.text().then(t => Alert.alert('Failed', t));
-          }
-        });
-    });
-  }, []);
-
   useEffect(() => {
     fetchUsers();
     fetchCompletions();
     fetchAdmins();
     fetchReviewers();
-    fetchSponsors();
-    fetchSponsorAdmins();
   }, []);
 
   useEffect(() => {
@@ -751,7 +493,7 @@ export default function AdminScreen({ navigation }) {
         </Card>
 
         <Card>
-          <Text style={s.section}>🏆 Challenges</Text>
+          <Text style={s.section}>🏆 Groups</Text>
           <View style={[s.row, { flexWrap: 'wrap' }]}>
             <StatTile icon="🚀" label="Started"   value={STATS.challengesStarted} />
             <StatTile icon="🔥" label="Active"    value={STATS.challengesActive}    color={C.warning} />
@@ -802,7 +544,6 @@ export default function AdminScreen({ navigation }) {
               { key: 'users',       label: `👥 Users${users.length > 0 ? ` (${users.length})` : ''}` },
               { key: 'admins',      label: '🔐 Admins' },
               { key: 'reviewers',   label: '🔍 Reviewers' },
-              { key: 'sponsors',    label: `🏢 Sponsors${sponsorAdmins.length > 0 ? ` (${sponsorAdmins.length})` : ''}` },
             ].map(tab => (
               <TouchableOpacity key={tab.key} onPress={() => setActiveTab(tab.key)}
                 style={[s.tabBtn, activeTab === tab.key && s.tabBtnActive]}>
@@ -926,22 +667,6 @@ export default function AdminScreen({ navigation }) {
             onAdd={handleAddReviewer} onRemove={handleRemoveReviewer}
             phone={newReviewerPhone} setPhone={setNewReviewerPhone}
             adding={addingReviewer} emoji="🔍" label="Reviewers"
-          />
-        )}
-
-        {activeTab === 'sponsors' && (
-          <SponsorList
-            items={sponsorAdmins}
-            loading={loadingSponsorAdmins}
-            sponsors={sponsors}
-            loadingSponsors={loadingSponsors}
-            onAdd={handleAddSponsor}
-            onRemove={handleRemoveSponsor}
-            phone={newSponsorPhone}                 setPhone={setNewSponsorPhone}
-            name={newSponsorName}                   setName={setNewSponsorName}
-            email={newSponsorEmail}                 setEmail={setNewSponsorEmail}
-            selectedSponsorId={newSponsorSponsorId} setSelectedSponsorId={setNewSponsorSponsorId}
-            adding={addingSponsor}
           />
         )}
 
