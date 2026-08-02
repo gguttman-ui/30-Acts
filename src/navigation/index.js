@@ -101,23 +101,6 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         {(props) => <TreeScreen {...props} user={user} />}
       </Tab.Screen>
 
-      {/* Everyone -- including admins/reviewers -- can suggest a new act.
-          Tapping 💡 opens the "Suggest a New Act" create form (no completion). */}
-      <Tab.Screen name="Suggest"
-        options={{
-          tabBarLabel: 'Suggest',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💡" />,
-        }}
-        listeners={({ navigation: nav }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            nav.navigate('SuggestAct');
-          },
-        })}
-      >
-        {() => null}
-      </Tab.Screen>
-
       {/* Reviewers/admins additionally get a Review tab: moderate act
           completions, and from the "Review Suggested Acts" button atop it,
           review the suggestions users submit. */}
