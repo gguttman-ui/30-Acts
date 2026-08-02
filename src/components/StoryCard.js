@@ -59,6 +59,11 @@ const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber, invit
                 </View>
               ) : null}
             </View>
+            {inviteUrl ? (
+              <Text style={styles.howTo}>
+                Scan the code → get the free app → sign up → do one kind act a day 🌳
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -134,6 +139,7 @@ const styles = StyleSheet.create({
   qrWrap: { alignItems: 'center', marginLeft: 8 },
   qrBox: { backgroundColor: '#ffffff', padding: 14, borderRadius: 18 },
   scanLabel: { color: C.text, fontSize: 26, fontWeight: '700', marginTop: 10 },
+  howTo: { color: C.accent, fontSize: 28, fontWeight: '700', textAlign: 'center', marginTop: 24, lineHeight: 38 },
   logo: { width: 64, height: 64, marginRight: 4 },
   brand: { color: C.text, fontSize: 38, fontWeight: '800' },
   hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },

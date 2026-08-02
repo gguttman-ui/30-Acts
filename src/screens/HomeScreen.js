@@ -454,7 +454,7 @@ const handleConfirmWipe = async () => {
         <Text style={{ fontSize: sf(56) }}>🕊️</Text>
         <Text style={s.emptyTitle}>You haven't started yet</Text>
         <Text style={s.emptySub}>Start your 30-day journey from Settings.</Text>
-        <Btn label="Go to Settings" onPress={() => navigation.navigate('Settings')} style={{ width: 200 }} />
+        <Btn label="Go to Settings" onPress={() => navigation.navigate('Me')} style={{ width: 200 }} />
       </View>
     );
   }
@@ -480,7 +480,7 @@ const handleConfirmWipe = async () => {
         title="My 30 Acts"
         right={
           <TouchableOpacity
-            onPress={() => navigation.navigate('Settings')}
+            onPress={() => navigation.navigate('Me')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Text style={{ fontSize: 22 }}>⚙️</Text>

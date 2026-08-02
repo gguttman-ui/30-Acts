@@ -144,11 +144,6 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         />
       )}
 
-      <Tab.Screen name="Settings"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="⚙️" /> }}
-      >
-        {renderSettings}
-      </Tab.Screen>
     </Tab.Navigator>
   );
 }

@@ -307,7 +307,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         <Text style={s.emptySub}>Log your first act and your streak starts today.</Text>
         <TouchableOpacity
           style={[s.logCta, { marginTop: 20 }]}
-          onPress={() => navigation.navigate('CreateNewAct', {
+          onPress={() => navigation.navigate('MyStory', {
             day: {
               dayNumber: 1,
               scheduledDate: today,
@@ -355,7 +355,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // gave no way to log at all. Start a fresh act (which begins a new streak)
   // straight from the header. Mirrors the Calendar view's tap-to-log flow.
   const startNewAct = (dateToLog) => {
-    navigation.navigate('CreateNewAct', {
+    navigation.navigate('MyStory', {
       day: {
         dayNumber: 1,
         scheduledDate: dateToLog,
@@ -426,7 +426,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         // empty scheduledDate). The in-grid "+" only ever logs TODAY, so attach
         // today's date so the save can build a valid date instead of crashing
         // on an empty string.
-        navigation.navigate('CreateNewAct', { day: { ...day, scheduledDate: today }, returnTo: 'MyStory' });
+        navigation.navigate('MyStory', { day: { ...day, scheduledDate: today }, returnTo: 'MyStory' });
       }
     };
 

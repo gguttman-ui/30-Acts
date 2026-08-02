@@ -266,15 +266,6 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
               Describe a kind act you did or would like to add to the catalog.
             </Text>
 
-            {day && (
-              <Btn
-                label="💡 Want suggestions for today's act?"
-                variant="secondary"
-                onPress={() => navigation.navigate('ChooseAct', { day, returnTo: 'MyStory' })}
-                style={{ marginBottom: 14 }}
-              />
-            )}
-
             <AppInput
               label="Act Description *"
               value={title}

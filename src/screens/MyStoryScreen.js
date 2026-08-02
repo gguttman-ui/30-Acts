@@ -825,6 +825,8 @@ const s = StyleSheet.create({
   micHint: { color: C.muted, fontSize: 12, marginTop: 8 },
 
   label: { color: C.sub, fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  suggestBtn: { borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 16 },
+  suggestBtnText: { color: C.primary, fontSize: 15, fontWeight: '700' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },  storyBox: {
     minHeight: 160,
     backgroundColor: C.card,
