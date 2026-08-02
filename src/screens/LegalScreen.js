@@ -8,11 +8,11 @@ import { C } from '../constants';
 const TERMS_OF_SERVICE = [
   {
     heading: '1.1 Agreement to These Terms',
-    body: 'Welcome to 30 Acts of Kindness™, operated by 30ActsofKindness NFP ("30 Acts of Kindness™," "we," "us," or "our"). These Terms of Service ("Terms") govern your access to and use of our mobile application, website, features, challenges, content, donation tools, contests, and related services (collectively, the "Service").\n\nBy creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.',
+    body: 'Welcome to 30 Acts of Kindness™, operated by 30ActsofKindness NFP ("30 Acts of Kindness™," "we," "us," or "our"). These Terms of Service ("Terms") govern your access to and use of our mobile application, website, features, groups, content, donation tools, contests, and related services (collectively, the "Service").\n\nBy creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.',
   },
   {
     heading: '1.2 Purpose of the Service',
-    body: '30 Acts of Kindness™ is designed to encourage acts of kindness, community participation, positive engagement, safe sharing of uplifting content, and optional participation in challenges, reminders, family groups, city competitions, and recognition programs.',
+    body: '30 Acts of Kindness™ is designed to encourage acts of kindness, community participation, positive engagement, safe sharing of uplifting content, and optional participation in group activities, reminders, family groups, city competitions, and recognition programs.',
   },
   {
     heading: '1.3 Eligibility',
@@ -24,7 +24,7 @@ const TERMS_OF_SERVICE = [
   },
   {
     heading: '1.5 User Content',
-    body: 'You may submit text, stories, titles, comments, profile details, photos, videos, feedback, challenge entries, and other materials ("User Content"). You retain ownership of your User Content, but you grant us a non-exclusive, worldwide, royalty-free license to host, store, review, moderate, display, reproduce, and use it as necessary to operate, improve, secure, administer, and promote the Service.',
+    body: 'You may submit text, stories, titles, comments, profile details, photos, videos, feedback, act entries, and other materials ("User Content"). You retain ownership of your User Content, but you grant us a non-exclusive, worldwide, royalty-free license to host, store, review, moderate, display, reproduce, and use it as necessary to operate, improve, secure, administer, and promote the Service.',
   },
   {
     heading: '1.6 Prohibited Conduct',
@@ -35,8 +35,8 @@ const TERMS_OF_SERVICE = [
     body: 'We may review, remove, restrict, or disable content or accounts that violate these Terms or create risk to users or the Service. We may use automated tools and human review to detect prohibited content.\n\nWe may remove content, issue warnings, suspend accounts, terminate accounts, or disqualify users from contests, rankings, or rewards.',
   },
   {
-    heading: '1.8 Challenges, Rewards, and Recognition',
-    body: 'We may offer badges, rankings, city challenges, family challenges, completion tracking, and physical recognition items such as bracelets. These features may be changed, paused, or discontinued at any time.',
+    heading: '1.8 Groups, Rewards, and Recognition',
+    body: 'We may offer badges, rankings, city groups, family groups, completion tracking, and physical recognition items such as bracelets. These features may be changed, paused, or discontinued at any time.',
   },
   {
     heading: '1.9 Donations',
@@ -88,11 +88,11 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.2 Information We Collect',
-    body: 'Information you provide:\n• Name or display name\n• Email address\n• Password or login credentials\n• State, city, timezone, and profile details\n• Challenge entries, titles, stories, comments, and feedback\n• Uploaded photos, videos, and other content\n• Mailing information for bracelets or recognition items, if applicable\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
+    body: 'Information you provide:\n• Name or display name\n• Email address\n• Password or login credentials\n• State, city, timezone, and profile details\n• Act entries, titles, stories, comments, and feedback\n• Uploaded photos, videos, and other content\n• Mailing information for bracelets or recognition items, if applicable\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
   },
   {
     heading: '2.3 How We Use Information',
-    body: 'We use personal information to:\n• Create and manage accounts\n• Operate the 30-day challenge\n• Calculate daily activity based on timezone\n• Send reminders and service notifications\n• Moderate content and enforce safety rules\n• Support rewards such as bracelets\n• Improve performance, reliability, and user support\n• Prevent fraud, abuse, and misuse\n• Comply with legal obligations',
+    body: 'We use personal information to:\n• Create and manage accounts\n• Operate the 30-day program\n• Calculate daily activity based on timezone\n• Send reminders and service notifications\n• Moderate content and enforce safety rules\n• Support rewards such as bracelets\n• Improve performance, reliability, and user support\n• Prevent fraud, abuse, and misuse\n• Comply with legal obligations',
   },
   {
     heading: '2.3.1 Text Messaging (SMS)',
@@ -112,7 +112,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.7 Data Retention',
-    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain challenge history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.',
+    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain activity history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.',
   },
   {
     heading: '2.8 Security',
@@ -158,7 +158,7 @@ const COMMUNITY_GUIDELINES = [
   },
   {
     heading: '3.3 What Is Not Allowed',
-    body: 'Language and behavior:\n• Profanity, obscene or vulgar language\n• Insults, threats, or harassment\n• Hateful or discriminatory language\n• Bullying or intimidation\n\nSexual content:\n• Pornography or sexually explicit content\n• Sexual nudity or sexually suggestive content\n• Sexual exploitation or solicitation\n\nViolence and danger:\n• Graphic violence or cruelty\n• Violent threats or self-harm encouragement\n• Dangerous or illegal acts framed as challenges\n\nFraud and dishonesty:\n• Fake submissions or impersonation\n• Spam or scams\n• Leaderboard manipulation or false donation claims\n\nPrivacy violations:\n• Posting someone else\'s private information without permission\n• Uploading content you do not have the right to share',
+    body: 'Language and behavior:\n• Profanity, obscene or vulgar language\n• Insults, threats, or harassment\n• Hateful or discriminatory language\n• Bullying or intimidation\n\nSexual content:\n• Pornography or sexually explicit content\n• Sexual nudity or sexually suggestive content\n• Sexual exploitation or solicitation\n\nViolence and danger:\n• Graphic violence or cruelty\n• Violent threats or self-harm encouragement\n• Dangerous or illegal acts framed as dares or stunts\n\nFraud and dishonesty:\n• Fake submissions or impersonation\n• Spam or scams\n• Leaderboard manipulation or false donation claims\n\nPrivacy violations:\n• Posting someone else\'s private information without permission\n• Uploading content you do not have the right to share',
   },
   {
     heading: '3.4 Compete with Kindness',
