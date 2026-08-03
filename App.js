@@ -19,6 +19,7 @@ import AppNavigator from './src/navigation';
 import { C, buildFreshDays, STATE_TZ, STATE_IANA_TZ } from './src/constants';
 import { supabase } from './src/lib/supabase';
 import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
+import { initBranch } from './src/lib/branch';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -70,6 +71,14 @@ useEffect(() => {
       if (userVal) setUser(JSON.parse(userVal));
       setShowOnboard(onboardVal !== 'true');
     });
+  }, []);
+
+  // Start listening for Branch deep links (deferred referral attribution).
+  // No-ops in Expo Go / web where the native module is absent. The captured
+  // referral tag is applied at sign-up (see src/lib/branch.js).
+  useEffect(() => {
+    const teardown = initBranch();
+    return teardown;
   }, []);
 
   useEffect(() => {
@@ -440,4 +449,4 @@ onUnlock={async () => {
       />
     </SafeAreaProvider>
   );
-});
+});

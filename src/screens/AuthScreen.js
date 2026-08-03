@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppInput, Btn } from '../components';
 import { C, US_STATES, STATE_TZ } from '../constants';
 import { supabase } from '../lib/supabase';
+import { applyPendingReferral } from '../lib/branch';
 
 // Apple demo account bypass — documented in App Store Connect's
 // "App Review Information" field. Reviewers enter this phone + OTP
@@ -249,6 +250,11 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   };
 
   const finishLogin = (loginData) => {
+    // On a brand-new sign-up, apply any pending Branch referral (tree + group).
+    // Fire-and-forget and fully guarded inside — never blocks or breaks login.
+    if (loginData?.isFirstLogin) {
+      applyPendingReferral(loginData.phone).catch(() => {});
+    }
     if (showMission && onShowMission) {
       onShowMission(loginData);
     } else {
@@ -622,4 +628,4 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

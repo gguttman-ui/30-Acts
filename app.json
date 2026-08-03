@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "thirtyacts",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/logo.png",
@@ -14,8 +15,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "org.30actsofkindness.app",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "icon": "./assets/icon.png",
+      "associatedDomains": [
+        "applinks:alrpa.app.link",
+        "applinks:alrpa-alternate.app.link"
+      ],
       "infoPlist": {
         "CFBundleDisplayName": "30 Acts",
         "NSCameraUsageDescription": "Used to take photos/videos as proof of your kind acts.",
@@ -93,6 +98,13 @@
           "microphonePermission": "Allow 30 Acts to use the microphone to dictate your story.",
           "speechRecognitionPermission": "Allow 30 Acts to use speech recognition to turn your spoken story into text."
         }
+      ],
+      [
+        "@config-plugins/react-native-branch",
+        {
+          "apiKey": "key_live_hxAVySfBnexcBbICp4gznckeFqjrD981",
+          "iosAppDomain": "alrpa.app.link"
+        }
       ]
     ],
     "extra": {
@@ -107,4 +119,4 @@
       "url": "https://u.expo.dev/4d47d9a1-dc2b-43d5-9fd2-e45167d9ba8e"
     }
   }
-}
+}

@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator, Modal, FlatList, Share,
+  ScrollView, Alert, ActivityIndicator, Modal, FlatList, Share, Platform, Image,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { captureRef } from 'react-native-view-shot';
+import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase';
 import { extractPhone } from '../lib/streak';
+import { generateInviteLink } from '../lib/branch';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 const GROUP_TYPES = ['Local', 'Place of Worship', 'Business'];
@@ -70,15 +74,26 @@ export default function CreateSponsorScreen({ navigation }) {
   const [lengthDays, setLengthDays] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
+  // The creator's phone (from the synthetic @phone.30acts.app email). Used to
+  // stamp the invite link with ?ref=<phone> so everyone who joins through it is
+  // attributed to this person's kindness tree — same as the personal invite.
+  const [myPhone, setMyPhone] = useState(null);
+
   // After a successful create, hold onto the new row so we can show
-  // the post-creation success screen (invite code + share button).
+  // the post-creation success screen (QR code + share button).
   const [created, setCreated] = useState(null);
   const [isExisting, setIsExisting] = useState(false);
+
+  // Off-screen branded card (QR + instructions) captured to an image so the
+  // invite the user sends carries the QR code, not just a link.
+  const qrCardRef = useRef(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
+
+      setMyPhone(extractPhone(user.email));
 
       // One group per creator: if this person already created a group, jump
       // straight to its invite screen so "Create a Group" becomes "add more
@@ -105,9 +120,9 @@ export default function CreateSponsorScreen({ navigation }) {
     }
     setSubmitting(true);
 
-    // The challenge name is shown to EVERY user who joins via the invite
-    // code, so it is the one field of free text this app publishes to other
-    // people. It must be moderated (Apple Guideline 1.2).
+    // The group name is shown to EVERY user who joins via the invite code, so
+    // it is the one field of free text this app publishes to other people. It
+    // must be moderated (Apple Guideline 1.2).
     if (await isContentBlocked(name)) {
       setSubmitting(false);
       Alert.alert('Name Not Allowed', BLOCKED_MESSAGE);
@@ -136,44 +151,106 @@ export default function CreateSponsorScreen({ navigation }) {
       return;
     }
 
-setCreated(data);
+    setCreated(data);
   };
 
-  // Live App Store listing (works once the app is public).
-  const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
+  // The invite/referral link — a Branch link (airpa.app.link) carrying ref
+  // (tree) + the group code, so a scan bounces to the App Store and, after
+  // install, attributes the joiner to this user's tree and their group. Starts
+  // as the website fallback, then upgrades to the Branch short link.
+  const [groupInviteUrl, setGroupInviteUrl] = useState('https://30ActsofKindness.org');
+  useEffect(() => {
+    const code = created?.join_code;
+    const fallback = myPhone
+      ? `https://30ActsofKindness.org?ref=${encodeURIComponent(myPhone)}${code ? `&group=${encodeURIComponent(code)}` : ''}`
+      : 'https://30ActsofKindness.org';
+    setGroupInviteUrl(fallback);
+    if (!myPhone) return;
+    let alive = true;
+    generateInviteLink({ phone: myPhone, group: code }).then((url) => {
+      if (alive && url) setGroupInviteUrl(url);
+    });
+    return () => { alive = false; };
+  }, [myPhone, created?.join_code]);
+
+  const buildInviteMessage = () =>
+    'Join my 30 Acts of Kindness™ group!\n\n' +
+    "Here's how:\n" +
+    '1. Scan the QR code, or tap the link below\n' +
+    '2. Download the free 30 Acts of Kindness app\n' +
+    '3. Sign up with your phone number\n' +
+    `4. Tap "Join a Group" and enter code ${created?.join_code}\n\n` +
+    "You'll be added to my kindness tree too 🌳\n\n" +
+    groupInviteUrl;
 
   const handleInvite = async () => {
     if (!created) return;
-    const message =
-      `Hey, I'm running a 30 Acts of Kindness™ group called "${created.name}". ` +
-      `Join me using code ${created.join_code}. ` +
-      `Download: ${APP_STORE_URL}`;
+    const message = buildInviteMessage();
     try {
-      await Share.share({ message });
+      // Capture the off-screen branded card (QR + instructions) to a JPEG so
+      // the shared invite includes the QR image. Two passes: the first capture
+      // can race the off-screen layout on cold renders.
+      let uri = null;
+      if (qrCardRef.current) {
+        try {
+          await captureRef(qrCardRef, { format: 'jpg', quality: 0.92 });
+          uri = await captureRef(qrCardRef, { format: 'jpg', quality: 0.92 });
+        } catch (err) {
+          console.warn('QR card capture failed:', err);
+        }
+      }
+
+      if (uri) {
+        const fileUri = uri.startsWith('file://') || uri.startsWith('ph://') ? uri : `file://${uri}`;
+        // Keep the written instructions on the clipboard so the user can paste
+        // them alongside the image on apps that don't accept both at once.
+        try { await Clipboard.setStringAsync(message); } catch {}
+        let Sharing = null;
+        try { Sharing = require('expo-sharing'); } catch {}
+        if (Sharing && (await Sharing.isAvailableAsync())) {
+          await Sharing.shareAsync(fileUri, {
+            UTI: 'public.jpeg',
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Invite to your group',
+          });
+        } else {
+          await Share.share(
+            Platform.OS === 'ios' ? { url: fileUri } : { url: fileUri, message }
+          );
+        }
+      } else {
+        await Share.share({ message });
+      }
     } catch (e) {
-      console.warn('Invite share error:', e.message);
+      if (e?.message !== 'User did not share') console.warn('Invite share error:', e.message);
     }
   };
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator /></View>;
   }
-// Post-creation success screen — shows the invite code and lets the
-  // user open the iOS share sheet to invite contacts via Messages/Mail/etc.
+
+  // Post-creation success screen — shows a QR code + step-by-step instructions
+  // and lets the user open the iOS share sheet to invite contacts. No group
+  // name or raw invite code on screen: the QR is the hero, like a social post.
   if (created) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
         <Text style={styles.title}>{isExisting ? 'Your Group' : '🎉 Group created!'}</Text>
-        <Text style={styles.successName}>{created.name}</Text>
 
-        <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>INVITE CODE</Text>
-          <Text style={styles.codeValue}>{created.join_code}</Text>
-          <Text style={styles.codeHint}>
-            {isExisting
-              ? 'You can run one group at a time. Share this code to add more people to yours.'
-              : 'Share this code with friends so they can join your group.'}
-          </Text>
+        <View style={styles.qrCard}>
+          <View style={styles.qrBox}>
+            <QRCode value={groupInviteUrl} size={200} backgroundColor="#ffffff" color="#111111" />
+          </View>
+          <Text style={styles.scanLabel}>Scan to join my group</Text>
+        </View>
+
+        <View style={styles.stepsCard}>
+          <Text style={styles.stepsTitle}>How to invite people</Text>
+          <Text style={styles.step}>1. Share this QR code (or the link)</Text>
+          <Text style={styles.step}>2. They scan it and download the free app</Text>
+          <Text style={styles.step}>3. They sign up with their phone number</Text>
+          <Text style={styles.step}>4. They tap “Join a Group” to join yours 🌳</Text>
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleInvite}>
@@ -186,34 +263,28 @@ setCreated(data);
         >
           <Text style={[styles.buttonText, styles.buttonTextSecondary]}>Done</Text>
         </TouchableOpacity>
-      </ScrollView>
-    );
-  }// Post-creation success screen — shows the invite code and lets the
-  // user open the iOS share sheet to invite contacts via Messages/Mail/etc.
-  if (created) {
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.title}>🎉 Group created!</Text>
-        <Text style={styles.successName}>{created.name}</Text>
 
-        <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>INVITE CODE</Text>
-          <Text style={styles.codeValue}>{created.join_code}</Text>
-          <Text style={styles.codeHint}>
-            Share this code with friends so they can join your group.
-          </Text>
+        {/* Off-screen branded card captured to an image for sharing. Kept inside
+            the window (1px, clipped) so iOS composites and captures it; a fully
+            off-screen view snapshots blank. */}
+        <View style={styles.captureHost} pointerEvents="none">
+          <View ref={qrCardRef} collapsable={false} style={styles.captureCard}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.captureLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.captureBrand}>30 Acts of Kindness™</Text>
+            <Text style={styles.captureHeadline}>Join my group!</Text>
+            <View style={styles.captureQrBox}>
+              <QRCode value={groupInviteUrl} size={320} backgroundColor="#ffffff" color="#111111" />
+            </View>
+            <Text style={styles.captureSteps}>
+              Scan the code → get the free app → sign up → do one kind act a day 🌳
+            </Text>
+            <Text style={styles.captureHashtag}>#30ActsOfKindness</Text>
+          </View>
         </View>
-
-        <TouchableOpacity style={styles.button} onPress={handleInvite}>
-          <Text style={styles.buttonText}>📲 Invite Friends</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.buttonSecondary]}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={[styles.buttonText, styles.buttonTextSecondary]}>Done</Text>
-        </TouchableOpacity>
       </ScrollView>
     );
   }
@@ -223,7 +294,7 @@ setCreated(data);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.title}>Create a Group</Text>
+      <Text style={styles.title}>Create a New Group</Text>
 
       <Text style={styles.label}>Group Name</Text>
       <TextInput
@@ -298,50 +369,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7d32', padding: 16, borderRadius: 8,
     marginTop: 24, alignItems: 'center',
   },
- buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#2e7d32',
-    marginTop: 10,
-  },
-  buttonTextSecondary: { color: '#2e7d32' },
-
-  successName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 20,
-  },
-  codeCard: {
-    backgroundColor: '#f5f9f5',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#2e7d32',
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  codeLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: '#666',
-  },
-  codeValue: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#2e7d32',
-    letterSpacing: 2,
-    marginVertical: 12,
-  },
-  codeHint: {
-    fontSize: 13,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   buttonSecondary: {
     backgroundColor: 'transparent',
@@ -351,38 +378,77 @@ const styles = StyleSheet.create({
   },
   buttonTextSecondary: { color: '#2e7d32' },
 
-  successName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+  // On-screen QR (the hero of the success screen)
+  qrCard: {
+    alignItems: 'center',
     marginBottom: 20,
   },
-  codeCard: {
-    backgroundColor: '#f5f9f5',
-    borderRadius: 12,
+  qrBox: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#2e7d32',
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
   },
-  codeLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: '#666',
-  },
-  codeValue: {
-    fontSize: 32,
-    fontWeight: '900',
+  scanLabel: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#2e7d32',
-    letterSpacing: 2,
-    marginVertical: 12,
+    marginTop: 12,
   },
-  codeHint: {
-    fontSize: 13,
-    color: '#666',
+
+  // Step-by-step instructions card
+  stepsCard: {
+    backgroundColor: '#f5f9f5',
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 8,
+  },
+  stepsTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#333',
+    marginBottom: 10,
+  },
+  step: {
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 24,
+  },
+
+  // Off-screen capture card (rendered to an image for sharing)
+  captureHost: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+  },
+  captureCard: {
+    width: 900,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 60,
+  },
+  captureLogo: { width: 120, height: 120, marginBottom: 12 },
+  captureBrand: { fontSize: 40, fontWeight: '800', color: '#111', marginBottom: 6 },
+  captureHeadline: { fontSize: 34, fontWeight: '700', color: '#2e7d32', marginBottom: 28 },
+  captureQrBox: {
+    backgroundColor: '#ffffff',
+    padding: 24,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#2e7d32',
+  },
+  captureSteps: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#2e7d32',
     textAlign: 'center',
-    lineHeight: 18,
+    marginTop: 34,
+    lineHeight: 42,
   },
+  captureHashtag: { fontSize: 28, fontWeight: '700', color: '#111', marginTop: 18 },
 });

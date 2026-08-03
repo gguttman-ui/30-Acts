@@ -31,6 +31,7 @@ import StoryCard from '../components/StoryCard';
 import { C, todayStr, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
+import { generateInviteLink } from '../lib/branch';
 
 const STORY_MIN = 10;
 // Hard cap matched to the StoryCard image. With the title line removed, the
@@ -290,7 +291,20 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   // ── Share message + media ────────────────────────────────────────────────
 
   const invitePhone = extractPhone(user?.email);
-  const inviteUrl = invitePhone ? `${APP_URL}?ref=${encodeURIComponent(invitePhone)}` : APP_URL;
+  // Branch invite link (airpa.app.link) — bounces to the App Store and
+  // attributes the joiner to this user's tree after install, no website hop.
+  // Website fallback until the Branch short link resolves.
+  const [inviteUrl, setInviteUrl] = useState(
+    invitePhone ? `${APP_URL}?ref=${encodeURIComponent(invitePhone)}` : APP_URL
+  );
+  React.useEffect(() => {
+    if (!invitePhone) return;
+    let alive = true;
+    generateInviteLink({ phone: invitePhone }).then((url) => {
+      if (alive && url) setInviteUrl(url);
+    });
+    return () => { alive = false; };
+  }, [invitePhone]);
 
   const buildShareMessage = () => {
     const s = completedStory.trim();
@@ -898,4 +912,4 @@ const s = StyleSheet.create({
     alignItems: 'flex-end',
   },
   kbDone: { color: C.primary, fontSize: 16, fontWeight: '700' },
-});
+});

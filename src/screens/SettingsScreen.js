@@ -10,6 +10,7 @@ import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../compone
 import { C } from '../constants';
 import { lookupZip } from '../lib/zip';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
+import { generateInviteLink } from '../lib/branch';
 import QRCode from 'react-native-qrcode-svg';
 
 // iOS-only: nativeID for the keyboard Done bar.
@@ -337,9 +338,23 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // Personal invite: the referral link carries ?ref=<phone> so anyone who
   // joins through it is attributed to this user (added to their tree).
   const invitePhone = extractPhone(user?.email);
-  const inviteLink = invitePhone
-    ? `https://30ActsofKindness.org?ref=${encodeURIComponent(invitePhone)}`
-    : 'https://30ActsofKindness.org';
+  // Invite link now points at a Branch link (airpa.app.link) that bounces new
+  // users to the App Store and attributes them to this user's tree after they
+  // install — no website hop. Starts as the website fallback, then upgrades to
+  // the Branch short link once generated.
+  const [inviteLink, setInviteLink] = useState(
+    invitePhone
+      ? `https://30ActsofKindness.org?ref=${encodeURIComponent(invitePhone)}`
+      : 'https://30ActsofKindness.org'
+  );
+  useEffect(() => {
+    if (!invitePhone) return;
+    let alive = true;
+    generateInviteLink({ phone: invitePhone }).then((url) => {
+      if (alive && url) setInviteLink(url);
+    });
+    return () => { alive = false; };
+  }, [invitePhone]);
   const handleInviteShare = async () => {
     const message =
       "I'm doing 30 Acts of Kindness — 30 days, one kind act a day. " +
@@ -387,14 +402,21 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
         </Card>
 
         <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
-          <Text style={s.cardTitle}>🎯 Groups</Text>
+          <Text style={s.cardTitle}>🎯 Sponsor a Group</Text>
           <Text style={s.cardSub}>
-            Create a group and share the code to invite people, or join one.
+            Start a group others can join, then share your QR code to invite them.
           </Text>
-          <Btn
-            label="My Groups →"
-            onPress={() => navigation.navigate('MySponsors')}
-          />
+          <View style={{ gap: 8 }}>
+            <Btn
+              label="Sponsor a New Group →"
+              onPress={() => navigation.navigate('CreateSponsor')}
+            />
+            <Btn
+              label="My Groups →"
+              variant="secondary"
+              onPress={() => navigation.navigate('MySponsors')}
+            />
+          </View>
         </Card>
 
         <Card style={s.mb}>
@@ -659,8 +681,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
         <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5, alignItems: 'center' }]}>
           <Text style={s.cardTitle}>🌳 Grow Your Tree</Text>
           <Text style={[s.cardSub, { textAlign: 'center' }]}>
-            Invite people to 30 Acts of Kindness. Anyone who joins with your link
-            is added to your tree.
+            Invite people to 30 Acts of Kindness. Anyone who scans your QR code
+            or taps your link is added to your tree.
           </Text>
           <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, marginVertical: 14 }}>
             <QRCode value={inviteLink} size={172} backgroundColor="#fff" color="#111" />
