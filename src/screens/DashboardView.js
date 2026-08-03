@@ -152,7 +152,10 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
       i = j;
     } else {
       let j = i + 1;
-      while (j < dates.length && !challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) <= 2) j++;
+      // A streak is now ONLY truly-consecutive days: ANY gap (a single missed,
+      // un-backfilled day) ends the streak, so the next completion starts a
+      // fresh streak numbered from Day 1.
+      while (j < dates.length && !challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1) j++;
       pieces.push({ kind: 'fragment', dates: dates.slice(i, j) });
       i = j;
     }
@@ -225,19 +228,18 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     if (isCurrent) {
       const lastDate   = pc.dates[pc.dates.length - 1];
       const gapToToday = dayDiffDays(lastDate, today);
-      if (gapToToday <= 2) {
-        // Streak still alive (today, or within the 1-missed-day grace window):
-        // today extends THIS streak, so it owns the current 30-slot board.
+      if (gapToToday <= 1) {
+        // Streak still alive — the last logged day is today (0) or yesterday (1),
+        // so today continues THIS streak with no gap. It owns the 30-slot board.
         const cells = fragmentCells(pc.dates, true);
         if (hasLoggableDay) {
-          if (gapToToday === 2) cells.push({ type: 'gap' }); // the one missed day
           cells.push({ type: 'next', interactive: true });
         }
         flush();
         pages.push({ type: 'current', cells: padBoard(cells, pc.dates[0]), hasCurrent: true });
       } else {
-        // The last streak ENDED (2+ missed days). Show it as a past streak, and
-        // start today on a brand-new board as day 1 — first tile, own page.
+        // The last streak ENDED (yesterday was missed) — show it as a past
+        // streak, and start today on a brand-new board as Day 1 (own page).
         packInto(fragmentCells(pc.dates, false));
         flush();
         if (hasLoggableDay) {

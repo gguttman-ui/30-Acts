@@ -40,7 +40,6 @@ const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber, invit
             </View>
 
             <View style={styles.quoteCard}>
-              <Text style={styles.quoteMark}>“</Text>
               <Text style={styles.quote} numberOfLines={11}>{quote}</Text>
             </View>
 
@@ -61,7 +60,7 @@ const StoryCard = forwardRef(function StoryCard({ title, story, dayNumber, invit
             </View>
             {inviteUrl ? (
               <Text style={styles.howTo}>
-                Scan the code → get the free app → sign up → do one kind act a day 🌳
+                Scan the QR code above to get the free app and join the movement to make the world a kinder place 🌳
               </Text>
             ) : null}
           </View>
@@ -145,4 +144,4 @@ const styles = StyleSheet.create({
   hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },
 });
 
-export default StoryCard;
+export default StoryCard;
