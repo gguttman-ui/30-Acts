@@ -11,6 +11,7 @@ import { C } from '../constants';
 import { lookupZip } from '../lib/zip';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
+import { loadRuns, lapCount, actsInLap } from '../lib/runs';
 import QRCode from 'react-native-qrcode-svg';
 
 // iOS-only: nativeID for the keyboard Done bar.
@@ -237,7 +238,30 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     }
   };
 
-  const completedCount = challenge?.filter(d => d.status === 'COMPLETED').length ?? 0;
+  // "My 30 Acts" progress must match the Dashboard headline exactly: the CURRENT
+  // STREAK's acts (any missed day restarts it) — NOT every act inside the 30-day
+  // back-fill window. We derive it from the SAME runs model the Dashboard uses
+  // (loadRuns), so the two screens can never disagree. Until the runs load (or if
+  // the query fails) we fall back to the window-completed count so a number always
+  // shows.
+  const windowCompleted = challenge?.filter(d => d.status === 'COMPLETED').length ?? 0;
+  const [streakActs, setStreakActs] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    const phone = extractPhone(user?.email);
+    if (!phone) return;
+    (async () => {
+      try {
+        const runs = await loadRuns(phone);
+        if (cancelled || !runs.length) return;
+        const currentRun = runs[runs.length - 1];
+        const lap = lapCount(currentRun) - 1;
+        setStreakActs(actsInLap(currentRun, lap));
+      } catch (_) { /* keep the fallback count */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.email, challenge]);
+  const completedCount = streakActs != null ? streakActs : windowCompleted;
 
   const handleRestart = () => {
     Alert.alert(
