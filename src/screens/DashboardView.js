@@ -580,7 +580,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             </Text>
           </View>
           <View style={s.statsRight}>
-            <Text style={s.statLine}>This streak {'\u00b7'} <Text style={s.statVal}>{currentRun.length}</Text></Text>
+            <Text style={s.statLine}>{isLive ? 'This streak' : 'Last streak'} {'\u00b7'} <Text style={s.statVal}>{currentRun.length}</Text></Text>
             <Text style={s.statLine}>Best streak {'\u00b7'} <Text style={s.statVal}>{best}</Text></Text>
             <Text style={s.statLine}>Lifetime {'\u00b7'} <Text style={s.statVal}>{lifetime}</Text></Text>
           </View>
