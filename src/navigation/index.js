@@ -236,7 +236,7 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
                     onLogin={(data) => onLogin(data)}
                     onShowMission={(data) => {
                       setPendingLoginData(data);
-                      props.navigation.navigate('Mission');
+                      props.navigation.navigate('Mission', { loginData: data });
                     }}
                   />
                 );
@@ -247,8 +247,9 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
               {(props) => (
                 <OnboardingScreen
                   onDone={() => {
-                    if (pendingLoginData) {
-                      onLogin(pendingLoginData);
+                    const data = props.route?.params?.loginData || pendingLoginData;
+                    if (data) {
+                      onLogin(data);
                       setPendingLoginData(null);
                     }
                   }}
