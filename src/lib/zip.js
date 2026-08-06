@@ -1,4 +1,4 @@
-import { STATE_TZ } from '../constants';
+import { STATE_IANA_TZ } from '../constants';
 
 /**
  * Look up state (2-letter code) and city for a given US ZIP code using
@@ -21,10 +21,10 @@ export async function lookupZip(zip) {
     if (!place) return null;
     const stateCode = place['state abbreviation'];
     const city      = place['place name'];
-    const timezone  = STATE_TZ[stateCode] || null;
+    const timezone  = STATE_IANA_TZ[stateCode] || null;
     return { zip: clean, state: stateCode, city, timezone };
   } catch (e) {
     console.warn('ZIP lookup failed:', e.message);
     return null;
   }
-}
+}

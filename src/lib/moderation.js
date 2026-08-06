@@ -36,7 +36,7 @@ export function containsProfanity(text) {
   if (!text) return false;
   const lower = String(text).toLowerCase();
   const partialMatch = PARTIAL_BANNED.some(w => lower.includes(w));
-  const exactMatch   = EXACT_BANNED.some(w => new RegExp(`\b${w}\b`, 'i').test(lower));
+  const exactMatch   = EXACT_BANNED.some(w => new RegExp(`\\b${w}\\b`, 'i').test(lower));
   return partialMatch || exactMatch;
 }
 
@@ -78,4 +78,4 @@ export async function isContentBlocked(text) {
 
 /** Standard rejection copy, so every screen says the same thing. */
 export const BLOCKED_MESSAGE =
-  'That contains language which is not allowed under our Community Guidelines. Please revise and try again.';
+  'That contains language which is not allowed under our Community Guidelines. Please revise and try again.';

@@ -138,7 +138,12 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
               .eq('id', authUser.id)
               .maybeSingle();
             const tz = profile?.iana_timezone || null;
-            if (tz) localDateValue = localDateInTZ(tz, new Date());
+            // Only snap to "now" when logging TODAY. A back-filled day must keep
+            // its own scheduled date (matches DailyActScreen / MyStoryScreen);
+            // otherwise a custom act meant for yesterday lands on today and can
+            // collide with today's existing act.
+            const isToday = day.scheduledDate === todayStr();
+            if (isToday && tz) localDateValue = localDateInTZ(tz, new Date());
           }
         } catch (e) {
           console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
@@ -518,4 +523,4 @@ dropdownBtn: {
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

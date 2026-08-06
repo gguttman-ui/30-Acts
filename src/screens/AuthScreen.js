@@ -7,7 +7,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppInput, Btn } from '../components';
-import { C, US_STATES, STATE_TZ } from '../constants';
+import { C, US_STATES, STATE_IANA_TZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { applyPendingReferral } from '../lib/branch';
 
@@ -136,8 +136,16 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
         const autoLoggedIn = await checkExistingPhoneUser(remembered);
         if (autoLoggedIn) return;
 
-        // Otherwise jump straight to the code screen (Twilio bypassed).
-        setOtpPending(true);
+        // Silent login didn't work. For bypass numbers (Apple reviewer / test)
+        // just show the code screen — DEMO_OTP is accepted with no real SMS. For a
+        // real number we must actually SEND a code first, otherwise the OTP screen
+        // would claim a code was sent with nothing on the way.
+        const formatted = formatPhoneForAuth(display);
+        if (BYPASS_PHONES.includes(formatted)) {
+          setOtpPending(true);
+        } else {
+          await sendOtpFor(formatted);
+        }
       } catch (e) {
         console.warn('Remembered phone auto-flow failed:', e.message);
       }
@@ -145,7 +153,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const timezone = state ? STATE_TZ[state] : null;
+  const timezone = state ? STATE_IANA_TZ[state] : null;
   const selectedStateName = US_STATES.find(([c]) => c === state)?.[1] || '';
 
   const handlePhoneChange = (raw) => {

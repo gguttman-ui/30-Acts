@@ -35,27 +35,11 @@ export const STATE_IANA_TZ = {
   WI:'America/Chicago', WY:'America/Denver',
 };
 
-// Friendly label map — used only for Settings UI display, NOT for date math.
-
-// ── Timezones ─────────────────────────────────────────────────────────────────
-// Maps a US state to a valid IANA timezone identifier (e.g. "America/Chicago").
-// These MUST be real IANA IDs, not friendly labels — the send-reminders backend
-// feeds this value straight into Intl.DateTimeFormat({ timeZone }) to compute the
-// user's local time. A friendly label like "Central (CT)" throws there and the
-// user gets silently skipped, so no reminder is ever sent. (Fixed 2026-08-06.)
-export const STATE_TZ = {
-  AL:'America/Chicago',AK:'America/Anchorage',AZ:'America/Phoenix',AR:'America/Chicago',
-  CA:'America/Los_Angeles',CO:'America/Denver',CT:'America/New_York',DC:'America/New_York',DE:'America/New_York',
-  FL:'America/New_York',GA:'America/New_York',HI:'Pacific/Honolulu',ID:'America/Denver',IL:'America/Chicago',
-  IN:'America/New_York',IA:'America/Chicago',KS:'America/Chicago',KY:'America/New_York',LA:'America/Chicago',
-  ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',MI:'America/New_York',MN:'America/Chicago',
-  MS:'America/Chicago',MO:'America/Chicago',MT:'America/Denver',NE:'America/Chicago',NV:'America/Los_Angeles',
-  NH:'America/New_York',NJ:'America/New_York',NM:'America/Denver',NY:'America/New_York',NC:'America/New_York',
-  ND:'America/Chicago',OH:'America/New_York',OK:'America/Chicago',OR:'America/Los_Angeles',PA:'America/New_York',
-  RI:'America/New_York',SC:'America/New_York',SD:'America/Chicago',TN:'America/Chicago',TX:'America/Chicago',
-  UT:'America/Denver',VT:'America/New_York',VA:'America/New_York',WA:'America/Los_Angeles',WV:'America/New_York',
-  WI:'America/Chicago',WY:'America/Denver',
-};
+// NOTE: There used to be a second `STATE_TZ` map of friendly labels ("Central
+// (CT)") here. It was being stored as the user's timezone and fed to
+// Intl.DateTimeFormat, which threw and silently blocked all SMS reminders. It has
+// been removed — every place that needs a state's timezone now uses the single
+// STATE_IANA_TZ map above. (Unified 2026-08-06.)
 
 // ── US States ─────────────────────────────────────────────────────────────────
 export const US_STATES = [
