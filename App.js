@@ -16,7 +16,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import LockScreen from './src/screens/LockScreen';
 import GoodbyeScreen from './src/screens/GoodbyeScreen';
 import AppNavigator from './src/navigation';
-import { C, buildFreshDays, STATE_TZ, STATE_IANA_TZ } from './src/constants';
+import { C, buildFreshDays, STATE_IANA_TZ } from './src/constants';
 import { supabase } from './src/lib/supabase';
 import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
 import { initBranch } from './src/lib/branch';
@@ -236,7 +236,7 @@ const reloadDays = async (email) => {
       if (authUser?.user_metadata?.state)     finalState     = authUser.user_metadata.state;
     } catch {}
 
-    const finalTimezone = finalState ? (STATE_TZ[finalState] || null) : null;
+    const finalTimezone = finalState ? (STATE_IANA_TZ[finalState] || null) : null;
     const u = { email, firstName: finalFirstName, lastName: finalLastName, phone, role };
     setUser(u);
 
