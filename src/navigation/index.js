@@ -15,6 +15,7 @@ import JoinSponsorScreen from '../screens/JoinSponsorScreen';
 import MySponsorsScreen from '../screens/MySponsorsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import FeedbackScreen    from '../screens/FeedbackScreen';
+import HelpScreen        from '../screens/HelpScreen';
 import { DayDetailScreen } from '../screens/HistoryScreen';
 import DailyActScreen    from '../screens/DailyActScreen';
 import AdminScreen       from '../screens/AdminScreen';
@@ -94,6 +95,12 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💬" /> }}
         component={FeedbackScreen}
       />
+
+      <Tab.Screen name="Help"
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="❓" /> }}
+      >
+        {(props) => <HelpScreen {...props} user={user} />}
+      </Tab.Screen>
 
       <Tab.Screen name="Tree"
         options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🌳" /> }}

@@ -107,6 +107,11 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   const [reminder2Hour,   setReminder2Hour]   = useState(6);
   const [reminder2Minute, setReminder2Minute] = useState(0);
   const [reminder2Period, setReminder2Period] = useState('PM');
+  // The SECOND reminder is OPT-IN — off by default, so a person only gets a
+  // second daily text if they deliberately turn it on. When it's off we save the
+  // reminder2_* fields as null on Save, which makes the send-reminders function
+  // skip slot 2 entirely (it only fires a slot whose hour is a number).
+  const [reminder2Enabled, setReminder2Enabled] = useState(false);
   // ISO timestamp of the first time the user opted in to SMS reminders. Kept as
   // proof of express consent for toll-free / A2P compliance; never overwritten
   // once set (only cleared server-side on a STOP opt-out).
@@ -142,6 +147,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       if (meta.reminder2_period === 'AM' || meta.reminder2_period === 'PM') {
         setReminder2Period(meta.reminder2_period);
       }
+      // Second reminder is opt-in: default OFF unless the user explicitly enabled it.
+      setReminder2Enabled(meta.reminder2_enabled === true);
       if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
     });
   }, [user?.firstName, user?.lastName]);
@@ -316,9 +323,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           reminder_hour:    reminderHour,
           reminder_minute:  reminderMinute,
           reminder_period:  reminderPeriod,
-          reminder2_hour:   reminder2Hour,
-          reminder2_minute: reminder2Minute,
-          reminder2_period: reminder2Period,
+          // Second reminder only persists real times when opted in; otherwise
+          // null so the sender skips it (and turning it off future-proofs: an
+          // existing 2nd reminder is cleared on the next Save).
+          reminder2_enabled: reminder2Enabled,
+          reminder2_hour:    reminder2Enabled ? reminder2Hour   : null,
+          reminder2_minute:  reminder2Enabled ? reminder2Minute : null,
+          reminder2_period:  reminder2Enabled ? reminder2Period : null,
           reminder_consent_at:      nextConsentAt || null,
           reminder_consent_version: reminderEnabled ? SMS_CONSENT_VERSION : null,
         },
@@ -655,7 +666,20 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 </View>
               </View>
 
-              <Text style={[s.reminderTimeLabel, { marginTop: 18 }]}>SECOND REMINDER</Text>
+              <View style={[s.toggleRow, { marginTop: 18 }]}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.reminderTimeLabel}>SECOND REMINDER</Text>
+                  <Text style={s.toggleSub}>Optional — off unless you turn it on.</Text>
+                </View>
+                <Switch
+                  value={reminder2Enabled}
+                  onValueChange={setReminder2Enabled}
+                  trackColor={{ false: C.border, true: C.primary + '88' }}
+                  thumbColor={reminder2Enabled ? C.primary : '#f4f3f4'}
+                />
+              </View>
+
+              {reminder2Enabled && (
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 12 ? 1 : h + 1)}>
@@ -694,6 +718,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                   </TouchableOpacity>
                 </View>
               </View>
+              )}
 
               <Text style={s.reminderHint}>
                 Tap Save Profile below to save your reminder times.

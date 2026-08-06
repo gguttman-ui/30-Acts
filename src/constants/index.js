@@ -38,18 +38,23 @@ export const STATE_IANA_TZ = {
 // Friendly label map — used only for Settings UI display, NOT for date math.
 
 // ── Timezones ─────────────────────────────────────────────────────────────────
+// Maps a US state to a valid IANA timezone identifier (e.g. "America/Chicago").
+// These MUST be real IANA IDs, not friendly labels — the send-reminders backend
+// feeds this value straight into Intl.DateTimeFormat({ timeZone }) to compute the
+// user's local time. A friendly label like "Central (CT)" throws there and the
+// user gets silently skipped, so no reminder is ever sent. (Fixed 2026-08-06.)
 export const STATE_TZ = {
-  AL:'Central (CT)',AK:'Alaska (AKT)',AZ:'Mountain Standard (no DST)',AR:'Central (CT)',
-  CA:'Pacific (PT)',CO:'Mountain (MT)',CT:'Eastern (ET)',DC:'Eastern (ET)',DE:'Eastern (ET)',
-  FL:'Eastern (ET)',GA:'Eastern (ET)',HI:'Hawaii (HT)',ID:'Mountain (MT)',IL:'Central (CT)',
-  IN:'Eastern (ET)',IA:'Central (CT)',KS:'Central (CT)',KY:'Eastern (ET)',LA:'Central (CT)',
-  ME:'Eastern (ET)',MD:'Eastern (ET)',MA:'Eastern (ET)',MI:'Eastern (ET)',MN:'Central (CT)',
-  MS:'Central (CT)',MO:'Central (CT)',MT:'Mountain (MT)',NE:'Central (CT)',NV:'Pacific (PT)',
-  NH:'Eastern (ET)',NJ:'Eastern (ET)',NM:'Mountain (MT)',NY:'Eastern (ET)',NC:'Eastern (ET)',
-  ND:'Central (CT)',OH:'Eastern (ET)',OK:'Central (CT)',OR:'Pacific (PT)',PA:'Eastern (ET)',
-  RI:'Eastern (ET)',SC:'Eastern (ET)',SD:'Central (CT)',TN:'Central (CT)',TX:'Central (CT)',
-  UT:'Mountain (MT)',VT:'Eastern (ET)',VA:'Eastern (ET)',WA:'Pacific (PT)',WV:'Eastern (ET)',
-  WI:'Central (CT)',WY:'Mountain (MT)',
+  AL:'America/Chicago',AK:'America/Anchorage',AZ:'America/Phoenix',AR:'America/Chicago',
+  CA:'America/Los_Angeles',CO:'America/Denver',CT:'America/New_York',DC:'America/New_York',DE:'America/New_York',
+  FL:'America/New_York',GA:'America/New_York',HI:'Pacific/Honolulu',ID:'America/Denver',IL:'America/Chicago',
+  IN:'America/New_York',IA:'America/Chicago',KS:'America/Chicago',KY:'America/New_York',LA:'America/Chicago',
+  ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',MI:'America/New_York',MN:'America/Chicago',
+  MS:'America/Chicago',MO:'America/Chicago',MT:'America/Denver',NE:'America/Chicago',NV:'America/Los_Angeles',
+  NH:'America/New_York',NJ:'America/New_York',NM:'America/Denver',NY:'America/New_York',NC:'America/New_York',
+  ND:'America/Chicago',OH:'America/New_York',OK:'America/Chicago',OR:'America/Los_Angeles',PA:'America/New_York',
+  RI:'America/New_York',SC:'America/New_York',SD:'America/Chicago',TN:'America/Chicago',TX:'America/Chicago',
+  UT:'America/Denver',VT:'America/New_York',VA:'America/New_York',WA:'America/Los_Angeles',WV:'America/New_York',
+  WI:'America/Chicago',WY:'America/Denver',
 };
 
 // ── US States ─────────────────────────────────────────────────────────────────
@@ -505,4 +510,4 @@ export function localDateInTZ(tz, date = new Date()) {
   } catch {
     return _localDateStr(date);
   }
-}
+}
