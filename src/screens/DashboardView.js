@@ -275,19 +275,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const [runs, setRuns]       = useState([]);
   const [lifetimeCount, setLifetimeCount] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [focusTick, setFocusTick] = useState(0);
   const listRef = useRef(null);
-
-  // Reload whenever the dashboard regains focus -- e.g. returning from logging
-  // an act (today, or a back-filled yesterday) on the MyStory screen. A plain
-  // tab switch already remounts and reloads this view; returning from a pushed
-  // screen does not, which left a just-logged day stale and the "+" tile
-  // unresponsive until the user manually switched tabs.
-  useEffect(() => {
-    if (!navigation?.addListener) return;
-    const unsub = navigation.addListener('focus', () => setFocusTick((t) => t + 1));
-    return unsub;
-  }, [navigation]);
 
   const today     = todayStr();
   const yesterday = yesterdayStr();
@@ -300,7 +288,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
       if (!cancelled) { setRuns(r); setLifetimeCount(cnt); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [phone, reloadKey, focusTick]);
+  }, [phone, reloadKey]);
 
   if (loading) {
     return (

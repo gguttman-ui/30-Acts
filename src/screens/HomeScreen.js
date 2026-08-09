@@ -70,6 +70,11 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // Dashboard is the chosen view. (Calendar render kept below but unreachable.)
   const [viewMode,  setViewMode]  = useState('dashboard'); // 'calendar' | 'dashboard'
   const [dashPhone, setDashPhone] = useState(null);
+  // True once the missed-yesterday prompt has shown this mount. When it has, we
+  // suppress the "document your act?" prompt so dismissing the missed prompt (to
+  // add yesterday) never opens a second modal mid-navigation -- that left a
+  // transparent-modal ghost overlay that froze the dashboard until a tab switch.
+  const missedEverRef = useRef(false);
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
   // Newest tier is the live `days` prop; older tiers are fetched lazily.
@@ -190,6 +195,7 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
     const todayDay     = days.find(d => d.scheduledDate === today);
     const shouldPrompt = yesterdayDay && yesterdayDay.status !== 'COMPLETED' && todayDay;
     if (!shouldPrompt) return;
+    missedEverRef.current = true;
     setMissedPrompt(true);
   }, [days]);
 
@@ -203,6 +209,11 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // missed-yesterday prompt so two modals never stack.
   useEffect(() => {
     if (!days || missedPrompt) return;
+    // If the missed-yesterday prompt was shown, the user is already mid-flow
+    // (adding yesterday, restarting, or dismissing). Do not stack a second modal
+    // on top -- presenting one during the navigation transition freezes the
+    // dashboard until a tab switch remounts it.
+    if (missedEverRef.current) return;
     if (documentPromptShownThisSession) return;
     documentPromptShownThisSession = true;
     setDocumentPrompt(true);
@@ -240,7 +251,12 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
       // After it's saved, handleSave routes to the dashboard so the user can
       // log today's act next. The "Browse acts" button is available in there
       // if they'd rather pick from the list.
-      navigation.navigate('MyStory', { day: yesterdayDay, returnTo: 'MyStory' });
+      // Defer navigation one frame so the missed-yesterday modal has fully
+      // dismissed first -- navigating while a transparent modal is still closing
+      // can leave a ghost overlay that blocks taps on the dashboard.
+      requestAnimationFrame(() => {
+        navigation.navigate('MyStory', { day: yesterdayDay, returnTo: 'MyStory' });
+      });
     }
   };
   const handleMissedRestart = () => { setMissedPrompt(false); setConfirmRestart(true); };
