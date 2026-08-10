@@ -32,6 +32,7 @@ import { C, todayStr, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
 import { generateInviteLink } from '../lib/branch';
+import { notifyDay30 } from '../lib/day30';
 
 const STORY_MIN = 10;
 // Hard cap matched to the StoryCard image. With the title line removed, the
@@ -650,6 +651,17 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       }
 
       // Logging today → flip to SHARE mode in place (celebrate + share).
+      // First completed 30-day run -> route into the recognition flow (the
+      // celebration + bracelet/certificate/both choice). dayNumber === 30 is the
+      // 30th act of the first lap; later laps (31+) fall through to share mode.
+      if (targetDay?.dayNumber === 30) {
+        Keyboard.dismiss();
+        setSaving(false);
+        notifyDay30().catch(() => {});
+        requestAnimationFrame(() => navigation.navigate('Recognition'));
+        return;
+      }
+
       setCompletedTitle(actTitle);
       setCompletedStory(story.trim());
       setDayNumber(targetDay.dayNumber);
