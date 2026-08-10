@@ -33,6 +33,7 @@ import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
 import { generateInviteLink } from '../lib/branch';
 import { notifyDay30 } from '../lib/day30';
+import { loadRuns } from '../lib/runs';
 
 const STORY_MIN = 10;
 // Hard cap matched to the StoryCard image. With the title line removed, the
@@ -650,17 +651,26 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         return;
       }
 
-      // Logging today → flip to SHARE mode in place (celebrate + share).
-      // First completed 30-day run -> route into the recognition flow (the
-      // celebration + bracelet/certificate/both choice). dayNumber === 30 is the
-      // 30th act of the first lap; later laps (31+) fall through to share mode.
-      if (targetDay?.dayNumber === 30) {
+      // First completed 30-act run -> recognition flow. Uses the actual run
+      // length (not the tile dayNumber, which the folded "+" can pass as 1) so
+      // it fires reliably. length === 30 = just certified; later laps (60, 90)
+      // have length 60/90 and fall through to the normal share card below.
+      let justCertified = false;
+      try {
+        const runsNow = await loadRuns(phone);
+        const curRun = runsNow[runsNow.length - 1];
+        justCertified = !!(curRun && curRun.length === 30);
+      } catch (e) { console.warn('Day-30 run check failed:', e.message); }
+
+      if (justCertified) {
         Keyboard.dismiss();
         setSaving(false);
         notifyDay30().catch(() => {});
         requestAnimationFrame(() => navigation.navigate('Recognition'));
         return;
       }
+
+      // Logging today -> flip to SHARE mode in place (celebrate + share).
 
       setCompletedTitle(actTitle);
       setCompletedStory(story.trim());
