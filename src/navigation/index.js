@@ -28,6 +28,8 @@ import SuggestActScreen       from '../screens/SuggestActScreen';
 import SuggestedActsScreen    from '../screens/SuggestedActsScreen';
 import RecognitionScreen     from '../screens/RecognitionScreen';
 import BraceletFormScreen    from '../screens/BraceletFormScreen';
+import BraceletPaymentScreen from '../screens/BraceletPaymentScreen';
+import RecognitionAdminScreen from '../screens/RecognitionAdminScreen';
 import CelebrationScreen     from '../screens/CelebrationScreen';
 import CertificateScreen     from '../screens/CertificateScreen';
 
@@ -217,6 +219,8 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             <Stack.Screen name="Certificate"  component={CertificateScreen} />
             <Stack.Screen name="Recognition"  component={RecognitionScreen} />
             <Stack.Screen name="BraceletForm" component={BraceletFormScreen} />
+            <Stack.Screen name="BraceletPayment" component={BraceletPaymentScreen} />
+            <Stack.Screen name="RecognitionAdmin" component={RecognitionAdminScreen} />
             <Stack.Screen name="Donation"  component={DonationScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen} />
             <Stack.Screen
