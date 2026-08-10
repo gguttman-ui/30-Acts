@@ -3,14 +3,14 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, Alert, Modal, FlatList, TextInput,
   Linking, Share, Animated, Dimensions, Easing,
-  InputAccessoryView, Keyboard, Image,
+  InputAccessoryView, Keyboard, Image, Vibration,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, Audio } from 'expo-av';
 import { decode as base64Decode } from 'base64-arraybuffer';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
@@ -175,6 +175,9 @@ const openDirections = async (address) => {
 };
 
 function BalloonBurst({ visible, onDismiss }) {
+  // TEMP diagnostic: if this text shows "v2", the over-the-air update reached
+  // the phone. The audio status then tells us how far the chime got.
+  const [sfx, setSfx] = useState('v2 · audio: start');
   const balloons = useRef(
     Array.from({ length: 30 }, (_, i) => ({
       id:        i,
@@ -212,6 +215,39 @@ function BalloonBurst({ visible, onDismiss }) {
       )
     );
     Animated.parallel([...riseAnimations, ...swayAnimations]).start();
+
+    // Celebratory buzz (core module, always present).
+    try { Vibration.vibrate([0, 120, 90, 120, 90, 220]); } catch (e) {}
+
+    // Celebratory chime — best-effort; plays through the iPhone silent switch.
+    let sound;
+    (async () => {
+      try {
+        const { Asset } = require('expo-asset');
+        if (!Audio || typeof Audio.setAudioModeAsync !== 'function') {
+          setSfx('v2 · audio module MISSING'); return;
+        }
+        setSfx('v2 · audio: mode…');
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          staysActiveInBackground: false,
+        });
+        setSfx('v2 · audio: downloading…');
+        const asset = Asset.fromModule(require('../../assets/celebration.mp3'));
+        await asset.downloadAsync();
+        const src = asset.localUri || asset.uri;
+        setSfx('v2 · audio: creating…');
+        const loaded = await Audio.Sound.createAsync({ uri: src }, { shouldPlay: true, volume: 1.0 });
+        sound = loaded.sound;
+        try { await sound.playAsync(); } catch (e) {}
+        setSfx('v2 · audio: PLAYING ✓');
+      } catch (e) {
+        setSfx('v2 · audio ERR: ' + (e && e.message ? e.message : String(e)));
+      }
+    })();
+
+    return () => { if (sound) sound.unloadAsync().catch(() => {}); };
   }, [visible]);
 
   if (!visible) return null;
@@ -244,6 +280,7 @@ function BalloonBurst({ visible, onDismiss }) {
           <Text style={s.balloonTitle}>🕊️ 30 DAYS COMPLETE 🕊️</Text>
           <Text style={s.balloonSub}>You are a Certified Kind Person</Text>
           <Text style={s.balloonTap}>tap anywhere to continue</Text>
+          <Text style={[s.balloonTap, { marginTop: 10, color: '#ffd54a', fontWeight: '800' }]}>{sfx}</Text>
         </View>
       </TouchableOpacity>
     </Modal>
