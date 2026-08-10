@@ -252,8 +252,8 @@ function BalloonBurst({ visible, onDismiss }) {
 
 const DAY_30_MESSAGE =
   "Congratulations, you have completed the 30 Days and are now a certifiably Kind Person. " +
-  "You will be directed to the Me screen to fill in your address where we should send your bracelet. " +
-  "Once it is mailed, your address is deleted from our database.";
+  "Tap Continue to choose your recognition — a kindness bracelet, a shareable certificate " +
+  "with your own invite QR code, or both.";
 
 // Reject if a promise doesn't settle within `ms`. Keeps a stalled network call
 // (e.g. a media upload on a flaky connection) from leaving the completion
@@ -1684,7 +1684,7 @@ const today = todayStr();
 
               <TouchableOpacity
                 style={s.directionsBtn}
-                onPress={handleChooseShip}
+                onPress={() => { setShowDay30Message(false); navigation.navigate('Recognition'); }}
                 activeOpacity={0.85}
               >
                 <Text style={s.directionsBtnText}>Continue →</Text>
