@@ -666,7 +666,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         Keyboard.dismiss();
         setSaving(false);
         notifyDay30().catch(() => {});
-        requestAnimationFrame(() => navigation.navigate('Recognition'));
+        requestAnimationFrame(() => navigation.navigate('Celebration'));
         return;
       }
 

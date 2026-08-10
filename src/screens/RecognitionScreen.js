@@ -50,11 +50,7 @@ export default function RecognitionScreen({ navigation }) {
         Alert.alert('Could not save', error.message);
         return;
       }
-      Alert.alert(
-        "You're all set! 🎉",
-        "We've recorded your certificate. You'll be able to view, save, and share it — with your own invite QR — very soon.",
-        [{ text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Home' }) }]
-      );
+      navigation.navigate('Certificate');
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {

@@ -28,6 +28,8 @@ import SuggestActScreen       from '../screens/SuggestActScreen';
 import SuggestedActsScreen    from '../screens/SuggestedActsScreen';
 import RecognitionScreen     from '../screens/RecognitionScreen';
 import BraceletFormScreen    from '../screens/BraceletFormScreen';
+import CelebrationScreen     from '../screens/CelebrationScreen';
+import CertificateScreen     from '../screens/CertificateScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -211,6 +213,8 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
                 />
               )}
             </Stack.Screen>
+            <Stack.Screen name="Celebration"  component={CelebrationScreen} />
+            <Stack.Screen name="Certificate"  component={CertificateScreen} />
             <Stack.Screen name="Recognition"  component={RecognitionScreen} />
             <Stack.Screen name="BraceletForm" component={BraceletFormScreen} />
             <Stack.Screen name="Donation"  component={DonationScreen} />

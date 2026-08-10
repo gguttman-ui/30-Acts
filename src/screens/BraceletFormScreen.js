@@ -16,6 +16,10 @@ const extractPhone = (email) => {
 // (bracelet_requested = true, plus certificate_requested when the user picked
 // "Both"). Payment for the $4.95 comes in the next phase; this phase captures
 // the address and records the request.
+//
+// NOTE: the input fields are inlined (not a sub-component defined in render) —
+// defining a component inside the render function remounts each TextInput on
+// every keystroke, which drops focus after one character.
 export default function BraceletFormScreen({ navigation, route }) {
   const withCertificate = !!route?.params?.withCertificate;
 
@@ -27,7 +31,7 @@ export default function BraceletFormScreen({ navigation, route }) {
   const [zip, setZip]         = useState('');
   const [saving, setSaving]   = useState(false);
 
-  // Prefill the name from the profile as a convenience.
+  // Prefill the name (and state) from the profile as a convenience.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -76,7 +80,6 @@ export default function BraceletFormScreen({ navigation, route }) {
         ship_zip:     zip.trim(),
         ship_country: 'US',
       };
-      // When the user chose "Both", also flag the certificate on the same row.
       if (withCertificate) {
         payload.certificate_requested = true;
         payload.certificate_delivery  = 'in_app';
@@ -94,9 +97,15 @@ export default function BraceletFormScreen({ navigation, route }) {
       Alert.alert(
         'Address saved ✓',
         withCertificate
-          ? "Got it — we have your shipping details and your certificate is noted. Next you'll cover the $4.95 shipping; we'll add that step shortly."
-          : "Got it — we have your shipping details. Next you'll cover the $4.95 shipping; we'll add that step shortly.",
-        [{ text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Home' }) }]
+          ? "Got it — we have your shipping details. Next you'll cover the $4.95 shipping (coming soon). Here's your certificate too."
+          : "Got it — we have your shipping details. Next you'll cover the $4.95 shipping (coming soon).",
+        [{
+          text: 'OK',
+          onPress: () => {
+            if (withCertificate) navigation.replace('Certificate');
+            else navigation.navigate('Main', { screen: 'Home' });
+          },
+        }]
       );
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -104,20 +113,6 @@ export default function BraceletFormScreen({ navigation, route }) {
       setSaving(false);
     }
   };
-
-  const Field = ({ label, value, onChangeText, placeholder, ...rest }) => (
-    <View style={s.field}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      <TextInput
-        style={s.input}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={C.muted}
-        {...rest}
-      />
-    </View>
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -131,19 +126,37 @@ export default function BraceletFormScreen({ navigation, route }) {
             Your kindness bracelet ships for just $4.95. Enter your mailing address below.
           </Text>
 
-          <Field label="Full name"        value={name}    onChangeText={setName}    placeholder="Jane Doe" autoCapitalize="words" />
-          <Field label="Street address"   value={street1} onChangeText={setStreet1} placeholder="123 Main St" />
-          <Field label="Apt / Suite (optional)" value={street2} onChangeText={setStreet2} placeholder="Apt 4B" />
-          <Field label="City"             value={city}    onChangeText={setCity}    placeholder="Springfield" autoCapitalize="words" />
-          <Field label="State"            value={state}   onChangeText={setState}   placeholder="IL" autoCapitalize="characters" maxLength={20} />
-          <Field label="ZIP / Postal code" value={zip}    onChangeText={setZip}     placeholder="62704" keyboardType="numbers-and-punctuation" maxLength={12} />
+          <Text style={s.label}>Full name</Text>
+          <TextInput style={s.input} value={name} onChangeText={setName}
+            placeholder="Jane Doe" placeholderTextColor={C.muted} autoCapitalize="words" />
+
+          <Text style={s.label}>Street address</Text>
+          <TextInput style={s.input} value={street1} onChangeText={setStreet1}
+            placeholder="123 Main St" placeholderTextColor={C.muted} />
+
+          <Text style={s.label}>Apt / Suite (optional)</Text>
+          <TextInput style={s.input} value={street2} onChangeText={setStreet2}
+            placeholder="Apt 4B" placeholderTextColor={C.muted} />
+
+          <Text style={s.label}>City</Text>
+          <TextInput style={s.input} value={city} onChangeText={setCity}
+            placeholder="Springfield" placeholderTextColor={C.muted} autoCapitalize="words" />
+
+          <Text style={s.label}>State</Text>
+          <TextInput style={s.input} value={state} onChangeText={setState}
+            placeholder="IL" placeholderTextColor={C.muted} autoCapitalize="characters" maxLength={20} />
+
+          <Text style={s.label}>ZIP / Postal code</Text>
+          <TextInput style={s.input} value={zip} onChangeText={setZip}
+            placeholder="62704" placeholderTextColor={C.muted}
+            keyboardType="numbers-and-punctuation" maxLength={12} />
 
           <Btn
             label={saving ? 'Saving…' : 'Save address'}
             onPress={handleSave}
             loading={saving}
             disabled={!canSave || saving}
-            style={{ marginTop: 8 }}
+            style={{ marginTop: 12 }}
           />
 
           <Text style={s.privacy}>
@@ -158,8 +171,7 @@ export default function BraceletFormScreen({ navigation, route }) {
 const s = StyleSheet.create({
   scroll: { padding: 20, paddingBottom: 48 },
   intro: { color: C.sub, fontSize: 15, lineHeight: 22, marginBottom: 18 },
-  field: { marginBottom: 14 },
-  fieldLabel: { color: C.text, fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  label: { color: C.text, fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 4 },
   input: {
     backgroundColor: C.card2 || C.surface,
     borderWidth: 1,
@@ -169,6 +181,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     color: C.text,
     fontSize: 16,
+    marginBottom: 10,
   },
   privacy: {
     color: C.muted, fontSize: 12.5, textAlign: 'center',
