@@ -1,0 +1,14 @@
+# Cache policy for 30actsofkindness.org
+# HTML pages: never cache, always fetch fresh so content edits show immediately.
+# JS/CSS: may be cached, but we version them (e.g. site.js?v=2) so a bump forces
+# browsers to fetch the new file right away.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>

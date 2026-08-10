@@ -94,19 +94,8 @@ export default function BraceletFormScreen({ navigation, route }) {
         return;
       }
 
-      Alert.alert(
-        'Address saved ✓',
-        withCertificate
-          ? "Got it — we have your shipping details. Next you'll cover the $4.95 shipping (coming soon). Here's your certificate too."
-          : "Got it — we have your shipping details. Next you'll cover the $4.95 shipping (coming soon).",
-        [{
-          text: 'OK',
-          onPress: () => {
-            if (withCertificate) navigation.replace('Certificate');
-            else navigation.navigate('Main', { screen: 'Home' });
-          },
-        }]
-      );
+      // Address saved — on to the $4.95 shipping payment.
+      navigation.navigate('BraceletPayment', { withCertificate });
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {

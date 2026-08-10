@@ -6,7 +6,7 @@
 <title>30 Acts of Kindness™ — Make kindness a daily habit</title>
 <meta name="description" content="A 30-day journey to build a daily habit of kindness, one small act at a time. A project of 30ActsofKindness NFP, a registered 501(c)(3) nonprofit.">
 <link rel="icon" type="image/png" href="assets/logo.png">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 
@@ -117,7 +117,7 @@
         <div class="card"><span class="num">▦</span><h3>Streak calendar</h3><p>Completed days turn green so you can see your month at a glance.</p></div>
         <div class="card"><span class="num">↗</span><h3>Share the good</h3><p>Turn a favorite act into a shareable card for Instagram, TikTok, or Facebook.</p></div>
         <div class="card"><span class="num">🔔</span><h3>Gentle reminders</h3><p>Optional nudges help you keep the habit without nagging.</p></div>
-        <div class="card"><span class="num">★</span><h3>Challenges</h3><p>Join a group or sponsor challenge and do the 30 days together.</p></div>
+        <div class="card"><span class="num">★</span><h3>Groups</h3><p>Create or join a Group and do the 30 days together — sponsor your family, team, or community.</p></div>
       </div>
     </div>
   </section>
@@ -194,6 +194,13 @@
           <option value="GB" data-ph="07123 456789">United Kingdom (+44)</option>
           <option value="AU" data-ph="0412 345 678">Australia (+61)</option>
         </select>
+        <select id="wl-device" name="device" class="waitlist-select" required aria-label="What phone do you have?">
+          <option value="" disabled selected>What phone do you have?</option>
+          <option value="iPhone">iPhone (iOS)</option>
+          <option value="Android">Android</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="text" id="wl-device-other" name="device_other" class="waitlist-select" placeholder="Which phone? (e.g. BlackBerry, Nokia)" maxlength="40" aria-label="Which phone do you have?" style="display:none">
         <div class="waitlist-row">
           <span class="req"><input type="tel" id="wl-phone" name="phone" placeholder="(555) 123-4567" required autocomplete="tel" aria-label="Phone number"><span class="req-star">*</span></span>
           <span class="req"><input type="text" id="wl-zip" name="zip" placeholder="ZIP / Postal code" required autocomplete="postal-code" aria-label="ZIP or postal code"><span class="req-star">*</span></span>
@@ -203,7 +210,7 @@
         <button type="submit" class="btn btn--primary">Join the Waitlist</button>
       </form>
       <p class="waitlist-msg" id="waitlist-msg" role="status" aria-live="polite"></p>
-      <p class="muted" style="font-size:.82rem;margin-top:10px;line-height:1.5">iPhone only for now. We use your phone number and postal code only to send your launch invite and to see where interest is coming from. We'll never sell or share your information.</p>
+      <p class="muted" style="font-size:.82rem;margin-top:10px;line-height:1.5">iPhone only for now. We use the details you share only to send your launch invite and to see where interest is coming from. We'll never sell or share your information.</p>
     </div>
   </section>
 
@@ -309,7 +316,7 @@
 
 <script src="vendor/supabase.js"></script>
 <script src="vendor/libphonenumber-min.js"></script>
-<script src="site.js"></script>
+<script src="site.js?v=2"></script>
   <div id="storyModal" role="dialog" aria-modal="true" aria-label="Our story video" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,20,15,.82);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeStory()">
     <div style="position:relative;width:100%;max-width:340px">
       <button type="button" aria-label="Close" onclick="closeStory()" style="position:absolute;top:-44px;right:0;width:36px;height:36px;border-radius:50%;border:0;background:#fff;color:#15231B;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)">&times;</button>

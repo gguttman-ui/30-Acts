@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import QRCode from 'react-native-qrcode-svg';
 import { Btn, ScreenHeader } from '../components';
 import { C } from '../constants';
@@ -55,11 +56,32 @@ export default function CertificateScreen({ navigation }) {
 
   const goHome = () => navigation.navigate('Main', { screen: 'Home' });
 
+  const certRef = useRef(null);
+  const [sharing, setSharing] = useState(false);
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(certRef, { format: 'png', quality: 1 });
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+      } else {
+        Alert.alert('Take a screenshot', 'Screenshot this certificate to save or share it.');
+      }
+    } catch (e) {
+      Alert.alert('Could not share', 'Please take a screenshot of your certificate instead.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Your Certificate" onBack={goHome} />
       <ScrollView contentContainerStyle={s.scroll}>
-        <View style={s.cert}>
+        <View style={s.cert} ref={certRef} collapsable={false}>
           {/* confetti */}
           <View style={[s.dot, { top: 14,  left: 16,  backgroundColor: '#2ecc71' }]} />
           <View style={[s.dot, { top: 26,  right: 20, backgroundColor: '#e0a152' }]} />
@@ -107,12 +129,16 @@ export default function CertificateScreen({ navigation }) {
           </View>
         </View>
 
+        <Btn
+          label={sharing ? 'Preparing…' : '📤 Share certificate'}
+          onPress={handleShare}
+          loading={sharing}
+          style={{ marginTop: 16 }}
+        />
         <Text style={s.note}>
-          Take a screenshot to save or share your certificate. Anyone who scans your QR and
-          signs up is added to your tree.
+          Share or save your certificate. Anyone who scans your QR and signs up is added to your tree.
         </Text>
-
-        <Btn label="Done" onPress={goHome} style={{ marginTop: 8 }} />
+        <Btn label="Done" onPress={goHome} variant="secondary" style={{ marginTop: 4 }} />
       </ScrollView>
     </View>
   );

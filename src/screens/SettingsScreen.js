@@ -71,6 +71,27 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   const [zipError,   setZipError]   = useState('');
 
   const [saved, setSaved] = useState(false);
+  const [hasRecognition, setHasRecognition] = useState(false);
+
+  // Show the "My Recognition" entry once the user has been through the 30-day
+  // recognition flow (they have a recognition_orders row). This is the way back
+  // in to add a bracelet after choosing a certificate, or vice versa.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser?.id) return;
+        const { data } = await supabase
+          .from('recognition_orders')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+        if (!cancelled && data) setHasRecognition(true);
+      } catch (e) { /* non-fatal */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingAccount, setDeletingAccount]     = useState(false);
@@ -789,6 +810,24 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           variant="secondary"
           style={[s.mb, { borderColor: C.primary + '66' }]}
         />
+
+        {hasRecognition && (
+          <Btn
+            label="🏆 My Recognition"
+            onPress={() => navigation.navigate('Recognition')}
+            variant="secondary"
+            style={[s.mb, { borderColor: C.primary + '66' }]}
+          />
+        )}
+
+        {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
+          <Btn
+            label="🎁 Recognition Orders (Admin)"
+            onPress={() => navigation.navigate('RecognitionAdmin')}
+            variant="secondary"
+            style={[s.mb, { borderColor: C.primary + '66' }]}
+          />
+        )}
 
 <Card style={s.mb}>
   <Text style={s.cardTitle}>Legal & Policies</Text>

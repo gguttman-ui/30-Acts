@@ -1,8 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 import {
-  View, Text, Animated, Easing, Dimensions, TouchableOpacity, StyleSheet,
+  View, Text, Animated, Easing, Dimensions, TouchableOpacity, StyleSheet, Vibration,
 } from 'react-native';
 import { C } from '../constants';
+// NOTE: expo-av / expo-asset are loaded lazily inside the effect (not imported
+// at the top) so that older installed builds — which were compiled before the
+// audio library existed — can still run this screen's JavaScript without any
+// risk of a load-time failure. On a build that includes expo-av, the chime
+// plays; on one that doesn't, we simply skip the sound. No crash either way.
 
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
@@ -49,9 +54,40 @@ export default function CelebrationScreen({ navigation }) {
     );
     Animated.parallel([...rise, ...sway]).start();
 
+    // Guaranteed tactile celebration (core module, present in every build).
+    try { Vibration.vibrate([0, 120, 90, 120, 90, 220]); } catch (e) {}
+
+    // Celebratory chime — best-effort. Lazily require the audio modules so a
+    // build that lacks them just skips this quietly instead of failing to load.
+    let sound;
+    (async () => {
+      try {
+        const { Audio } = require('expo-av');
+        const { Asset } = require('expo-asset');
+        if (!Audio || typeof Audio.setAudioModeAsync !== 'function') return;
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          staysActiveInBackground: false,
+        });
+        const asset = Asset.fromModule(require('../../assets/celebration.mp3'));
+        await asset.downloadAsync();
+        const src = asset.localUri || asset.uri;
+        const loaded = await Audio.Sound.createAsync(
+          { uri: src },
+          { shouldPlay: true, volume: 1.0 },
+        );
+        sound = loaded.sound;
+        try { await sound.playAsync(); } catch (e) {}
+      } catch (e) { /* audio is a nice-to-have; ignore on builds without it */ }
+    })();
+
     // Auto-advance after a few seconds in case the user doesn't tap.
     const t = setTimeout(goNext, 7000);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      if (sound) sound.unloadAsync().catch(() => {});
+    };
   }, []);
 
   return (

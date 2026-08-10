@@ -44,7 +44,18 @@
   var phone   = document.getElementById('wl-phone');
   var zip     = document.getElementById('wl-zip');
   var email   = document.getElementById('wl-email');
+  var device  = document.getElementById('wl-device');
+  var deviceOther = document.getElementById('wl-device-other');
   var msg     = document.getElementById('waitlist-msg');
+
+  // Show a "which phone?" text box only when they pick "Other".
+  if (device && deviceOther) {
+    device.addEventListener('change', function () {
+      var isOther = device.value === 'Other';
+      deviceOther.style.display = isOther ? '' : 'none';
+      if (!isOther) deviceOther.value = '';
+    });
+  }
 
   var lpn = window.libphonenumber || null;
   var validEmail = function (e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); };
@@ -77,9 +88,16 @@
     var ph = (phone.value || '').trim();
     var zp = (zip.value || '').trim();
     var em = (email.value || '').trim();
+    var dv = device ? device.value : '';
 
     if (!fn) { say('Please enter your first name.'); first.focus(); return; }
     if (!ln) { say('Please enter your last initial.'); last.focus(); return; }
+    if (!dv) { say('Please tell us what phone you have.'); device.focus(); return; }
+    if (dv === 'Other') {
+      var oth = deviceOther ? (deviceOther.value || '').trim() : '';
+      if (!oth) { say('Please tell us which phone you have.'); if (deviceOther) deviceOther.focus(); return; }
+      dv = 'Other: ' + oth;
+    }
     if (!ph) { say('Please enter your phone number.'); phone.focus(); return; }
     if (!zp) { say('Please enter your ZIP or postal code.'); zip.focus(); return; }
     if (em && !validEmail(em)) { say("That email doesn't look right - leave it blank or fix it."); email.focus(); return; }
@@ -106,6 +124,7 @@
       phone: e164,
       zip: zp,
       email: em || null,
+      device: dv,
       referred_by: new URLSearchParams(location.search).get('ref') || null
     }).then(function (res) {
       if (res.error) {
