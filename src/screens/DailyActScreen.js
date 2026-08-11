@@ -175,9 +175,6 @@ const openDirections = async (address) => {
 };
 
 function BalloonBurst({ visible, onDismiss }) {
-  // TEMP diagnostic: if this text shows "v2", the over-the-air update reached
-  // the phone. The audio status then tells us how far the chime got.
-  const [sfx, setSfx] = useState('v2 · audio: start');
   const balloons = useRef(
     Array.from({ length: 30 }, (_, i) => ({
       id:        i,
@@ -224,27 +221,19 @@ function BalloonBurst({ visible, onDismiss }) {
     (async () => {
       try {
         const { Asset } = require('expo-asset');
-        if (!Audio || typeof Audio.setAudioModeAsync !== 'function') {
-          setSfx('v2 · audio module MISSING'); return;
-        }
-        setSfx('v2 · audio: mode…');
+        if (!Audio || typeof Audio.setAudioModeAsync !== 'function') return;
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           shouldDuckAndroid: true,
           staysActiveInBackground: false,
         });
-        setSfx('v2 · audio: downloading…');
         const asset = Asset.fromModule(require('../../assets/celebration.mp3'));
         await asset.downloadAsync();
         const src = asset.localUri || asset.uri;
-        setSfx('v2 · audio: creating…');
         const loaded = await Audio.Sound.createAsync({ uri: src }, { shouldPlay: true, volume: 1.0 });
         sound = loaded.sound;
         try { await sound.playAsync(); } catch (e) {}
-        setSfx('v2 · audio: PLAYING ✓');
-      } catch (e) {
-        setSfx('v2 · audio ERR: ' + (e && e.message ? e.message : String(e)));
-      }
+      } catch (e) { /* audio is a nice-to-have; ignore */ }
     })();
 
     return () => { if (sound) sound.unloadAsync().catch(() => {}); };
@@ -280,7 +269,6 @@ function BalloonBurst({ visible, onDismiss }) {
           <Text style={s.balloonTitle}>🕊️ 30 DAYS COMPLETE 🕊️</Text>
           <Text style={s.balloonSub}>You are a Certified Kind Person</Text>
           <Text style={s.balloonTap}>tap anywhere to continue</Text>
-          <Text style={[s.balloonTap, { marginTop: 10, color: '#ffd54a', fontWeight: '800' }]}>{sfx}</Text>
         </View>
       </TouchableOpacity>
     </Modal>
