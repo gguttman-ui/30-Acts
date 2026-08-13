@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, Alert, TextInput,
-  InputAccessoryView, Keyboard, Image,
+  InputAccessoryView, Keyboard, Image, Switch,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppInput, Btn } from '../components';
-import { C, US_STATES, STATE_IANA_TZ } from '../constants';
+import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../constants';
+import { lookupZip } from '../lib/zip';
 import { supabase } from '../lib/supabase';
 import { applyPendingReferral } from '../lib/branch';
 
@@ -71,23 +72,90 @@ function KeyboardDoneBar() {
   );
 }
 
+// Small hour:minute AM/PM stepper, matching the Me screen's reminder picker.
+// Defined at module scope so the inputs never remount mid-edit.
+function RemTimePicker({ hour, minute, period, setHour, setMinute, setPeriod }) {
+  return (
+    <View style={s.remTimeRow}>
+      <View style={s.remCol}>
+        <TouchableOpacity style={s.remArrow} onPress={() => setHour(h => h === 12 ? 1 : h + 1)}><Text style={s.remArrowTxt}>▲</Text></TouchableOpacity>
+        <Text style={s.remValue} allowFontScaling={false} numberOfLines={1}>{String(hour).padStart(2, '0')}</Text>
+        <TouchableOpacity style={s.remArrow} onPress={() => setHour(h => h === 1 ? 12 : h - 1)}><Text style={s.remArrowTxt}>▼</Text></TouchableOpacity>
+      </View>
+      <Text style={s.remColon} allowFontScaling={false}>:</Text>
+      <View style={s.remCol}>
+        <TouchableOpacity style={s.remArrow} onPress={() => setMinute(m => (m + 5) % 60)}><Text style={s.remArrowTxt}>▲</Text></TouchableOpacity>
+        <Text style={s.remValue} allowFontScaling={false} numberOfLines={1}>{String(minute).padStart(2, '0')}</Text>
+        <TouchableOpacity style={s.remArrow} onPress={() => setMinute(m => (m - 5 + 60) % 60)}><Text style={s.remArrowTxt}>▼</Text></TouchableOpacity>
+      </View>
+      <View style={s.remPeriodWrap}>
+        {['AM', 'PM'].map(p => (
+          <TouchableOpacity
+            key={p}
+            style={[s.remPeriodBtn, period === p && s.remPeriodBtnActive]}
+            onPress={() => setPeriod(p)}
+          >
+            <Text style={[s.remPeriodTxt, period === p && s.remPeriodTxtActive]}>{p}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   const insets = useSafeAreaInsets();
+  // Default new arrivals to Sign Up. Returning users on the same device are
+  // auto-routed to their code by the remembered-phone flow below, so this only
+  // affects people without a remembered number (i.e. new sign-ups).
+  // Single phone-first entry. Start with the phone field only; once a number is
+  // entered we silently check the backend — existing users are logged straight
+  // in, new users get the sign-up fields (name + ZIP) revealed below. No tabs.
   const [mode, setMode] = useState('login');
+  const [signupFields, setSignupFields] = useState(false);
 
   const [fn,    setFn]    = useState('');
   const [ln,    setLn]    = useState('');
   const [phone, setPhone] = useState('');
 
-  const [state,       setState]       = useState('');
-  const [showStates,  setShowStates]  = useState(false);
+  // ZIP-based location (replaces the old State picker). We derive city/state and
+  // the timezone from the ZIP — the timezone is what reminders depend on.
+  const [zip,        setZip]        = useState('');
+  const [zipCity,    setZipCity]    = useState('');
+  const [zipState,   setZipState]   = useState('');
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipError,   setZipError]   = useState('');
   const [showMission, setShowMission] = useState(false);
   const [errors,      setErrors]      = useState({});
   const [loading,     setLoading]     = useState(false);
 
+  // Reminder opt-in step, shown at the very end of signup (after verification).
+  const [reminderStep,    setReminderStep]    = useState(false);
+  const [pendingFinish,   setPendingFinish]   = useState(null);
+  const [remEnabled,      setRemEnabled]      = useState(false);
+  const [remHour,         setRemHour]         = useState(9);
+  const [remMinute,       setRemMinute]       = useState(0);
+  const [remPeriod,       setRemPeriod]       = useState('AM');
+  const [rem2Enabled,     setRem2Enabled]     = useState(false);
+  const [rem2Hour,        setRem2Hour]        = useState(6);
+  const [rem2Minute,      setRem2Minute]      = useState(0);
+  const [rem2Period,      setRem2Period]      = useState('PM');
+  const [remSaving,       setRemSaving]       = useState(false);
+
   const [otpPending, setOtpPending] = useState(false);
   const [otpCode,    setOtpCode]    = useState(['', '', '', '', '', '']);
+  // After ~1 minute on the code screen without success, actively surface the
+  // "call me" option for people whose text is delayed or filtered.
+  const [voiceNudge, setVoiceNudge] = useState(false);
   const inputs = useRef([]);
+
+  // Start/reset the 60s "offer a call" timer whenever the code screen appears.
+  useEffect(() => {
+    if (!otpPending) { setVoiceNudge(false); return; }
+    setVoiceNudge(false);
+    const t = setTimeout(() => setVoiceNudge(true), 60000);
+    return () => clearTimeout(t);
+  }, [otpPending]);
 
   // Track whether we already attempted the auto-send-OTP for the
   // remembered phone, so that going "← Use a different number" or
@@ -153,12 +221,35 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const timezone = state ? STATE_IANA_TZ[state] : null;
-  const selectedStateName = US_STATES.find(([c]) => c === state)?.[1] || '';
+  const timezone = zipState ? STATE_IANA_TZ[zipState] : null;
+
+  // Look up city/state from the ZIP once it's 5 digits (debounced).
+  useEffect(() => {
+    if (!/^\d{5}$/.test(zip)) { setZipCity(''); setZipState(''); setZipError(''); return; }
+    let cancelled = false;
+    setZipLoading(true); setZipError('');
+    const t = setTimeout(async () => {
+      const result = await lookupZip(zip);
+      if (cancelled) return;
+      if (result && result.state) {
+        setZipState(result.state);
+        setZipCity(result.city || '');
+        setZipError('');
+      } else {
+        setZipState(''); setZipCity('');
+        setZipError('ZIP not found — check the number');
+      }
+      setZipLoading(false);
+    }, 450);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [zip]);
 
   const handlePhoneChange = (raw) => {
     setPhone(prettyFormatPhone(raw));
     setErrors(e => ({ ...e, phone: '' }));
+    // If they edit the number after we revealed the sign-up fields, collapse
+    // back to the phone-only step so the next "Continue" re-checks the backend.
+    if (signupFields) { setSignupFields(false); setMode('login'); }
   };
 
   const formatPhoneForAuth = (display) => {
@@ -248,10 +339,11 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
 
   const validate = () => {
     const e = {};
-    if (mode === 'signup') {
+    if (signupFields) {
       if (!fn.trim()) e.fn = 'Required';
       if (!ln.trim()) e.ln = 'Required';
-      if (!state)     e.state = 'Select a state';
+      if (!/^\d{5}$/.test(zip)) e.zip = 'Enter your 5-digit ZIP code';
+      else if (!zipState)       e.zip = 'Enter a valid US ZIP code';
     }
     if (!toTenDigits(phone)) e.phone = 'Enter a 10-digit US phone number';
     return e;
@@ -270,29 +362,111 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     }
   };
 
-  const handlePhoneSend = async () => {
+  // ── Reminder opt-in (end of sign-up) ──────────────────────────────────────
+  // Writes the EXACT same user_metadata fields the Me screen writes, so a person
+  // who opts in here is treated identically to one who opted in from settings.
+  const to24 = (h, p) => (p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12));
+
+  const finishAfterReminders = () => {
+    const data = pendingFinish;
+    setReminderStep(false);
+    setPendingFinish(null);
+    setOtpPending(false);
+    if (data) finishLogin(data);
+  };
+
+  const inWindow = (h, p) => { const hr = to24(h, p); return hr >= 6 && hr < 22; };
+
+  // "Done" on the reminder step. Saves the SAME user_metadata the Me screen
+  // writes (first + optional second reminder + consent), then heads to the
+  // dashboard. If the reminder toggle is off, just continues in.
+  const finishReminders = async () => {
+    if (!remEnabled) { finishAfterReminders(); return; }
+
+    if (!inWindow(remHour, remPeriod) || (rem2Enabled && !inWindow(rem2Hour, rem2Period))) {
+      Alert.alert(
+        'Pick a daytime reminder',
+        'Reminders can only be sent between 6:00 AM and 9:59 PM. Please choose a time in that range.'
+      );
+      return;
+    }
+
+    setRemSaving(true);
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          // Re-stamp the ZIP-derived location so reminders always have a
+          // timezone, even if the account was created without one.
+          ...(timezone ? { timezone } : {}),
+          ...(zipState ? { state: zipState } : {}),
+          ...(zip      ? { zip } : {}),
+          ...(zipCity  ? { city: zipCity } : {}),
+          reminder_enabled:  true,
+          reminder_hour:     remHour,
+          reminder_minute:   remMinute,
+          reminder_period:   remPeriod,
+          reminder2_enabled: rem2Enabled,
+          reminder2_hour:    rem2Enabled ? rem2Hour   : null,
+          reminder2_minute:  rem2Enabled ? rem2Minute : null,
+          reminder2_period:  rem2Enabled ? rem2Period : null,
+          reminder_consent_at:      new Date().toISOString(),
+          reminder_consent_version: SMS_CONSENT_VERSION,
+        },
+      });
+    } catch (e) {
+      // Non-fatal: still let them into the app; they can enable it from the Me
+      // screen if this save happened to fail.
+      console.warn('Reminder opt-in save failed:', e?.message);
+    } finally {
+      setRemSaving(false);
+      finishAfterReminders();
+    }
+  };
+
+  // Step 1 of the single phone-first flow: a number was entered and they tapped
+  // Continue. Silently decide returning-user vs new-user.
+  const handleContinue = async () => {
+    const e = {};
+    if (!toTenDigits(phone)) e.phone = 'Enter a 10-digit US phone number';
+    if (Object.keys(e).length) return setErrors(e);
+    setLoading(true);
+    const formatted = formatPhoneForAuth(phone);
+
+    // Apple reviewer demo number: straight to the OTP screen (frictionless
+    // review — BYPASS_META supplies the profile). Treated as a sign-up at verify.
+    if (formatted === DEMO_PHONE_RAW) {
+      setMode('signup');
+      setOtpPending(true);
+      setLoading(false);
+      return;
+    }
+
+    // Existing number → silent login. No OTP, no extra fields.
+    const autoLoggedIn = await checkExistingPhoneUser(formatted);
+    if (autoLoggedIn) { setLoading(false); return; }
+
+    // New number (including the reset test number) → reveal the sign-up fields.
+    // The OTP is sent once those are filled, in handleSignupSend.
+    setMode('signup');
+    setSignupFields(true);
+    setLoading(false);
+  };
+
+  // Step 2: a new user filled in their name + ZIP. Validate and send the code.
+  const handleSignupSend = async () => {
     const e = validate();
     if (Object.keys(e).length) return setErrors(e);
     setLoading(true);
     const formatted = formatPhoneForAuth(phone);
 
-    // Bypass accounts (Apple demo + fake-number test account) — skip Twilio
-    // "send OTP" and jump straight to the OTP entry screen. The verify step
-    // has its own bypass that accepts DEMO_OTP without contacting Twilio.
+    // Test bypass number: skip Twilio, jump to OTP (DEMO_OTP accepted at verify),
+    // but still carry the name/ZIP just entered so the full flow is exercised.
     if (BYPASS_PHONES.includes(formatted)) {
       setOtpPending(true);
       setLoading(false);
       return;
     }
 
-    const autoLoggedIn = await checkExistingPhoneUser(formatted);
-    if (autoLoggedIn) {
-      setLoading(false);
-      return;
-    }
-
-    // Real SMS via Twilio. sendOtpFor posts to send_phone_otp and flips to the
-    // OTP entry screen on success (or alerts on failure).
     await sendOtpFor(formatted);
     setLoading(false);
   };
@@ -310,7 +484,17 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
       if (otp === DEMO_OTP && BYPASS_PHONES.includes(formatted)) {
         const proxyEmail    = phoneProxyEmail(formatted);
         const proxyPassword = phoneProxyPassword(formatted);
-        const meta          = BYPASS_META[formatted] || { firstName: fn, lastName: ln, state };
+        // Merge the bypass name defaults with the ZIP the tester entered, so the
+        // test account carries a real timezone (reminders need it).
+        const bypass = BYPASS_META[formatted] || {};
+        const meta   = {
+          firstName: bypass.firstName || fn,
+          lastName:  bypass.lastName  || ln,
+          state:     zipState || bypass.state || null,
+          zip:       zip     || null,
+          city:      zipCity || null,
+          timezone:  timezone || null,
+        };
         let authResult = await supabase.auth.signInWithPassword({ email: proxyEmail, password: proxyPassword });
         if (authResult.error) {
           authResult = await supabase.auth.signUp({
@@ -319,13 +503,22 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           });
         }
         const authUser = authResult?.data?.user;
-        finishLogin({
+        const loginData = {
           email:        proxyEmail,
           phone:        formatted,
           firstName:    authUser?.user_metadata?.firstName || meta.firstName || '',
           lastName:     authUser?.user_metadata?.lastName  || meta.lastName  || '',
           isFirstLogin: mode === 'signup',
-        });
+        };
+        // Test/demo sign-ups walk the same end-of-signup reminder step as real
+        // ones, so the whole flow can be exercised with the bypass number.
+        if (mode === 'signup') {
+          setPendingFinish(loginData);
+          setReminderStep(true);
+          setLoading(false);
+          return;
+        }
+        finishLogin(loginData);
         setLoading(false);
         return;
       }
@@ -349,17 +542,25 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
         if (authResult.error) {
           authResult = await supabase.auth.signUp({
             email: proxyEmail, password: proxyPassword,
-            options: { data: { phone: formatted, firstName: fn, lastName: ln, state } },
+            options: { data: { phone: formatted, firstName: fn, lastName: ln, state: zipState, zip, city: zipCity, timezone } },
           });
         }
         const authUser = authResult?.data?.user;
-        finishLogin({
+        const loginData = {
           email:        proxyEmail,
           phone:        formatted,
           firstName:    authUser?.user_metadata?.firstName || fn,
           lastName:     authUser?.user_metadata?.lastName  || ln,
           isFirstLogin: mode === 'signup',
-        });
+        };
+        // At the very end of a real sign-up, offer daily reminders before
+        // entering the app. Returning logins go straight in.
+        if (mode === 'signup') {
+          setPendingFinish(loginData);
+          setReminderStep(true);
+          return;
+        }
+        finishLogin(loginData);
       } else {
         Alert.alert('Invalid Code', 'The code you entered is incorrect. Please try again.');
       }
@@ -394,6 +595,33 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     }
   };
 
+  // Voice fallback: Twilio calls the phone and reads the code aloud. Useful when
+  // an SMS is delayed or filtered by the carrier. Uses the same Verify service;
+  // verify_phone_otp checks the code regardless of how it was delivered.
+  const handleCallMe = async () => {
+    setLoading(true);
+    try {
+      const formatted = formatPhoneForAuth(phone);
+      const { data, error } = await supabase.rpc('send_phone_otp_voice', {
+        phone_number: formatted,
+      });
+      if (error) {
+        console.warn('send_phone_otp_voice error:', error.message);
+        Alert.alert('Could not call', 'We could not place the call. Please try Resend instead.');
+        return;
+      }
+      if (data?.status === 200 || data?.status === 201) {
+        Alert.alert('Calling you now', "Answer the call and we'll read your 6-digit code aloud, then enter it above.");
+      } else {
+        Alert.alert('Could not call', 'We could not place the call. Please try Resend instead.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Forget remembered phone and return to the entry form. Used by
   // "Use a different number" on the OTP screen.
   const handleUseDifferentNumber = async () => {
@@ -402,6 +630,76 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     setOtpCode(['','','','','','']);
     setPhone('');
   };
+
+  // Final sign-up step: offer daily reminders, mirroring the Me screen — turn it
+  // on, confirm the time, optionally add a second, then Done → dashboard.
+  if (reminderStep) {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: C.bg }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={s.remScroll} keyboardShouldPersistTaps="handled">
+          <Text style={{ fontSize: 56, marginBottom: 10, textAlign: 'center' }}>⏰</Text>
+          <Text style={s.otpTitle}>Daily reminder</Text>
+          <Text style={s.otpSub}>
+            A gentle text nudge to help you keep your kindness streak going. You can
+            change this anytime in the Me tab.
+          </Text>
+
+          <View style={s.remToggleRow}>
+            <Text style={s.remToggleLabel}>Daily reminder</Text>
+            <Switch
+              value={remEnabled}
+              onValueChange={setRemEnabled}
+              trackColor={{ false: C.border, true: C.primary + '88' }}
+              thumbColor={remEnabled ? C.primary : '#f4f3f4'}
+            />
+          </View>
+
+          {remEnabled && (
+            <>
+              <Text style={s.remConsent}>{SMS_CONSENT_TEXT}</Text>
+
+              <Text style={s.remSectionLabel}>FIRST REMINDER</Text>
+              <RemTimePicker
+                hour={remHour} minute={remMinute} period={remPeriod}
+                setHour={setRemHour} setMinute={setRemMinute} setPeriod={setRemPeriod}
+              />
+
+              <View style={[s.remToggleRow, { marginTop: 6 }]}>
+                <Text style={s.remToggleLabel}>Add a second reminder</Text>
+                <Switch
+                  value={rem2Enabled}
+                  onValueChange={setRem2Enabled}
+                  trackColor={{ false: C.border, true: C.primary + '88' }}
+                  thumbColor={rem2Enabled ? C.primary : '#f4f3f4'}
+                />
+              </View>
+
+              {rem2Enabled && (
+                <>
+                  <Text style={s.remSectionLabel}>SECOND REMINDER</Text>
+                  <RemTimePicker
+                    hour={rem2Hour} minute={rem2Minute} period={rem2Period}
+                    setHour={setRem2Hour} setMinute={setRem2Minute} setPeriod={setRem2Period}
+                  />
+                </>
+              )}
+            </>
+          )}
+
+          <Btn
+            label={remSaving ? 'Saving…' : 'Done'}
+            onPress={finishReminders}
+            loading={remSaving}
+            style={{ width: '100%', marginTop: 22 }}
+          />
+        </ScrollView>
+        <KeyboardDoneBar />
+      </KeyboardAvoidingView>
+    );
+  }
 
   if (otpPending) {
     return (
@@ -441,6 +739,24 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
               Didn't get it? Resend code
             </Text>
           </TouchableOpacity>
+
+          {voiceNudge && (
+            <Text style={s.voiceNudgeText}>
+              Still no text? Texts can be slow on some carriers — get your code by phone call instead:
+            </Text>
+          )}
+          <TouchableOpacity
+            onPress={handleCallMe}
+            disabled={loading}
+            style={[{ marginTop: 14 }, voiceNudge && s.callMeBtn]}
+          >
+            <Text style={[
+              { color: C.primary, fontWeight: voiceNudge ? '800' : '600', fontSize: 14 },
+              voiceNudge && { textAlign: 'center' },
+            ]}>
+              📞  Call me with the code instead
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleUseDifferentNumber} style={{ marginTop: 16 }}>
             <Text style={{ color: C.muted, fontSize: 13 }}>Use a different number</Text>
           </TouchableOpacity>
@@ -449,8 +765,6 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
       </KeyboardAvoidingView>
     );
   }
-
-  const isSignup = mode === 'signup';
 
   return (
     <KeyboardAvoidingView
@@ -465,28 +779,6 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           <Text style={s.appSub}>Transform the world, one Act at a time</Text>
         </View>
 
-        <View style={s.toggle}>
-          {['login', 'signup'].map(m => (
-            <TouchableOpacity key={m} onPress={() => { setMode(m); setErrors({}); }}
-              style={[s.toggleBtn, mode === m && s.toggleActive]}>
-              <Text style={[s.toggleText, mode === m && s.toggleTextActive]}>
-                {m === 'login' ? 'Log In' : 'Sign Up'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {isSignup && (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <AppInput label="First Name" value={fn} onChangeText={setFn} placeholder="Jane" error={errors.fn} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppInput label="Last Name" value={ln} onChangeText={setLn} placeholder="Doe" error={errors.ln} />
-            </View>
-          </View>
-        )}
-
         <AppInput
           label="Mobile Number"
           value={phone}
@@ -498,31 +790,44 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           inputAccessoryViewID={KB_DONE_ID}
         />
         <Text style={s.phoneHelper}>
-          Enter a 10-digit US phone number. Format is flexible.
+          Enter your mobile number to sign in or sign up — we'll text you a code.
         </Text>
 
-        {isSignup && (
+        {signupFields && (
           <>
-            <Text style={s.inputLabel}>State *</Text>
-            <TouchableOpacity
-              onPress={() => setShowStates(true)}
-              style={[s.pickerBtn, errors.state && { borderColor: C.error }]}
-            >
-              <Text style={{ color: state ? C.text : C.muted, fontSize: 15, flex: 1 }}>
-                {state ? `${state} — ${selectedStateName}` : 'Select your state'}
-              </Text>
-              <Text style={{ color: C.sub }}>▾</Text>
-            </TouchableOpacity>
-            {errors.state ? <Text style={s.errorText}>⚠ {errors.state}</Text> : null}
-            {timezone && (
+            <Text style={s.newHint}>Looks like you're new here — a couple details to set up your account.</Text>
+
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <AppInput label="First Name" value={fn} onChangeText={setFn} placeholder="Jane" error={errors.fn} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppInput label="Last Name" value={ln} onChangeText={setLn} placeholder="Doe" error={errors.ln} />
+              </View>
+            </View>
+
+            <AppInput
+              label="ZIP Code"
+              value={zip}
+              onChangeText={(t) => setZip(t.replace(/[^\d]/g, '').slice(0, 5))}
+              placeholder="62704"
+              keyboardType="number-pad"
+              maxLength={5}
+              error={errors.zip}
+              inputAccessoryViewID={KB_DONE_ID}
+            />
+            {zipLoading ? <Text style={s.phoneHelper}>Looking up your ZIP…</Text> : null}
+            {(zipCity && zipState) ? (
               <View style={s.tzPill}>
-                <Text style={{ fontSize: 16, marginRight: 8 }}>🕐</Text>
+                <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
                 <View>
-                  <Text style={s.tzLabel}>TIMEZONE (AUTO)</Text>
-                  <Text style={s.tzValue}>{timezone}</Text>
+                  <Text style={s.tzLabel}>LOCATION (AUTO)</Text>
+                  <Text style={s.tzValue}>
+                    {zipCity}, {zipState}{timezone ? `  ·  ${timezone}` : ''}
+                  </Text>
                 </View>
               </View>
-            )}
+            ) : null}
           </>
         )}
 
@@ -538,8 +843,8 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
         </TouchableOpacity>
 
         <Btn
-          label="Verify"
-          onPress={handlePhoneSend}
+          label={signupFields ? 'Create account' : 'Continue'}
+          onPress={signupFields ? handleSignupSend : handleContinue}
           loading={loading}
           style={{ marginTop: 8 }}
         />
@@ -560,32 +865,6 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
 
       </ScrollView>
 
-      <Modal visible={showStates} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: C.bg }}>
-          <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Select State</Text>
-            <TouchableOpacity onPress={() => setShowStates(false)}>
-              <Text style={{ color: C.primary, fontSize: 16, fontWeight: '700' }}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={US_STATES}
-            keyExtractor={([code]) => code}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item: [code, name] }) => (
-              <TouchableOpacity
-                onPress={() => { setState(code); setShowStates(false); }}
-                style={[s.stateRow, state === code && { backgroundColor: C.primary + '22' }]}
-              >
-                <Text style={[s.stateCode, state === code && { color: C.primary }]}>{code}</Text>
-                <Text style={[s.stateName, state === code && { color: C.primary, fontWeight: '700' }]}>{name}</Text>
-                {state === code && <Text style={{ color: C.primary }}>✓</Text>}
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </Modal>
-
       <KeyboardDoneBar />
     </KeyboardAvoidingView>
   );
@@ -604,6 +883,7 @@ const s = StyleSheet.create({
   toggleTextActive: { color: C.bg },
   inputLabel: { color: C.sub, fontSize: 12, fontWeight: '700', marginBottom: 7, letterSpacing: 0.5, textTransform: 'uppercase' },
   phoneHelper: { color: C.muted, fontSize: 11, marginTop: -6, marginBottom: 12, fontStyle: 'italic' },
+  newHint: { color: C.sub, fontSize: 13, lineHeight: 19, marginTop: 4, marginBottom: 14 },
   pickerBtn: { backgroundColor: C.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1.5, borderColor: C.border, flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   errorText: { color: C.error, fontSize: 11, marginTop: 3, marginBottom: 10 },
   tzPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.primary + '44', marginBottom: 16 },
@@ -623,6 +903,25 @@ const s = StyleSheet.create({
   otpTitle: { color: C.text, fontSize: 22, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
   otpSub:   { color: C.sub, fontSize: 15, textAlign: 'center', lineHeight: 24, marginBottom: 28 },
   otpInput: { width: 48, height: 58, borderRadius: 12, backgroundColor: C.card2, borderWidth: 2, color: C.text, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  voiceNudgeText: { color: C.sub, fontSize: 13, textAlign: 'center', marginTop: 18, lineHeight: 18, paddingHorizontal: 8 },
+  callMeBtn: { borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: 'stretch' },
+  // Reminder opt-in step (end of sign-up)
+  remScroll:    { flexGrow: 1, backgroundColor: C.bg, justifyContent: 'center', padding: 28, paddingTop: 60 },
+  remToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surface, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: C.border, marginTop: 14 },
+  remToggleLabel:{ color: C.text, fontSize: 16, fontWeight: '800' },
+  remSectionLabel:{ color: C.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 16, marginBottom: 6, textAlign: 'center' },
+  remTimeRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
+  remCol:       { alignItems: 'center' },
+  remArrow:     { padding: 6 },
+  remArrowTxt:  { color: C.primary, fontSize: 18, fontWeight: '900' },
+  remValue:     { color: C.text, fontSize: 34, fontWeight: '900', minWidth: 54, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  remColon:     { color: C.text, fontSize: 30, fontWeight: '900', marginHorizontal: 2 },
+  remPeriodWrap:{ marginLeft: 10, gap: 6 },
+  remPeriodBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: C.border },
+  remPeriodBtnActive: { backgroundColor: C.primary + '22', borderColor: C.primary },
+  remPeriodTxt: { color: C.sub, fontSize: 14, fontWeight: '800' },
+  remPeriodTxtActive: { color: C.primary },
+  remConsent:   { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 17, marginTop: 4 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   modalTitle: { color: C.text, fontSize: 18, fontWeight: '800' },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border + '44' },
