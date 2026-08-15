@@ -3,11 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch, Platform, Animated,
+  View, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch, Platform, Animated,
   InputAccessoryView, Keyboard, Share, Modal,
 } from 'react-native';
 import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../components';
-import { C, STATE_IANA_TZ } from '../constants';
+// Font-scaling-locked Text so large iOS Text Size can't overflow/clip layout
+// (notably the SMS consent disclosure, which must stay fully visible).
+import { Text } from '../components/scaledText';
+import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../constants';
 import { lookupZip } from '../lib/zip';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
@@ -17,11 +20,8 @@ import QRCode from 'react-native-qrcode-svg';
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
 
-// Version stamp for the SMS reminder consent language shown at opt-in. Bump
-// this whenever the disclosure wording below materially changes, so each stored
-// consent record points at the exact text the user agreed to (A2P / toll-free
-// audit trail).
-const SMS_CONSENT_VERSION = '2026-07-19';
+// SMS_CONSENT_VERSION / SMS_CONSENT_TEXT now live in ../constants so the Me
+// screen and the signup flow record the exact same consent language + version.
 const AGE_BRACKETS = [
   { label: '18–24',              value: '18-24' },
   { label: '25–34',              value: '25-34' },
@@ -653,13 +653,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
           {/* Express-consent disclosure for recurring SMS (CTIA/TCPA). Shown at
               the point of opt-in; the timestamp is captured on Save Profile. */}
-          <Text style={s.smsConsent}>
-            By turning this on you agree to receive recurring automated text
-            reminders from 30 Acts of Kindness at your sign-up number — up to 2
-            per day at the times you choose. Msg & data rates may apply. Reply
-            STOP to cancel or HELP for help. Consent is not a condition of using
-            the app.
-          </Text>
+          <Text style={s.smsConsent}>{SMS_CONSENT_TEXT}</Text>
           <View style={s.smsConsentLinks}>
             <TouchableOpacity onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })}>
               <Text style={s.smsConsentLink}>Privacy Policy</Text>

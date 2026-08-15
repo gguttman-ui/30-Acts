@@ -24,16 +24,6 @@ const REST_HEADERS = {
 
 const KEYBOARD_ACCESSORY_ID = 'adminKeyboardAccessory';
 
-const STATS = {
-  totalUsers: 1842, activeUsers: 634,
-  challengesStarted: 1203, challengesActive: 421,
-  challengesCompleted: 318, challengesAbandoned: 464,
-  completionRate: 0.64, recentRate: 0.71, missedDayRate: 0.23,
-  photo: 4821, video: 2103, story: 3940,
-  qrViews: 892, copies: 441, opens: 367,
-  feedbackCount: 128,
-};
-
 const PROOF_ICONS = { photo: '📷', video: '🎥', story: '✍️' };
 
 // ── Phone helpers ─────────────────────────────────────────────────────────
@@ -486,58 +476,14 @@ export default function AdminScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Admin Dashboard" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 14 }}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}>
 
         <Card>
           <Text style={s.section}>👥 Users</Text>
           <View style={s.row}>
-            <StatTile icon="🧑‍🤝‍🧑" label="Total"  value={STATS.totalUsers.toLocaleString()} />
-            <StatTile icon="⚡"       label="Active" value={STATS.activeUsers} color={C.success} />
+            <StatTile icon="🧑‍🤝‍🧑" label="Total Users" value={users.length} />
           </View>
-        </Card>
-
-        <Card>
-          <Text style={s.section}>🏆 Groups</Text>
-          <View style={[s.row, { flexWrap: 'wrap' }]}>
-            <StatTile icon="🚀" label="Started"   value={STATS.challengesStarted} />
-            <StatTile icon="🔥" label="Active"    value={STATS.challengesActive}    color={C.warning} />
-            <StatTile icon="✅" label="Completed" value={STATS.challengesCompleted} color={C.success} />
-            <StatTile icon="💤" label="Abandoned" value={STATS.challengesAbandoned} color={C.error} />
-          </View>
-        </Card>
-
-        <Card>
-          <Text style={s.section}>📊 Completion Rates</Text>
-          <View style={s.row}>
-            <RateBar label="Overall"     pct={STATS.completionRate} />
-            <RateBar label="Recent (7d)" pct={STATS.recentRate}     color={C.success} />
-          </View>
-          <View style={{ marginTop: 14 }}>
-            <RateBar label="Missed Day Rate" pct={STATS.missedDayRate} color={C.error} />
-          </View>
-        </Card>
-
-        <Card>
-          <Text style={s.section}>📎 Proof Types</Text>
-          <View style={s.row}>
-            <StatTile icon="📷" label="Photo" value={STATS.photo.toLocaleString()} color="#4ade80" />
-            <StatTile icon="🎥" label="Video" value={STATS.video.toLocaleString()} color="#86efac" />
-            <StatTile icon="✍️" label="Story" value={STATS.story.toLocaleString()} color="#a3e635" />
-          </View>
-        </Card>
-
-        <Card>
-          <Text style={s.section}>💛 Donations</Text>
-          <View style={s.row}>
-            <StatTile icon="👁️" label="QR Views" value={STATS.qrViews} />
-            <StatTile icon="📋" label="Copies"   value={STATS.copies} />
-            <StatTile icon="🔗" label="Opens"    value={STATS.opens}   color={C.success} />
-          </View>
-        </Card>
-
-        <Card>
-          <Text style={s.section}>💬 Feedback</Text>
-          <StatTile icon="📝" label="Total Submissions" value={STATS.feedbackCount} />
         </Card>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -2 }}
