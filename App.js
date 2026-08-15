@@ -11,7 +11,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LockScreen from './src/screens/LockScreen';
 import GoodbyeScreen from './src/screens/GoodbyeScreen';
@@ -50,7 +49,6 @@ const extractPhone = (email) => {
 };
 
 export default Sentry.wrap(function App() {
-  const [splashDone,      setSplashDone]      = useState(false);
   const [showOnboard,     setShowOnboard]     = useState(null);
   const [user,            setUser]            = useState(null);
   const [days,            setDays]            = useState(null);
@@ -376,13 +374,13 @@ const handleComplete = async (completedDay) => {
     }
   };
 
-  if (!splashDone || showOnboard === null || !sessionChecked) {
+  // No splash screen. Hold on a plain dark screen only until onboarding status
+  // and the session check have resolved, then render the real screen.
+  if (showOnboard === null || !sessionChecked) {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <View style={{ flex: 1, backgroundColor: C.bg }}>
-          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-        </View>
+        <View style={{ flex: 1, backgroundColor: C.bg }} />
       </SafeAreaProvider>
     );
   }
