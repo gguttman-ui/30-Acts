@@ -1,0 +1,23 @@
+# Maestro E2E — Returning-user login (phone-first, no code).
+#
+# PREREQ: the TEST account already exists (run 01-signup first, and do NOT reset
+# in between). A returning number logs straight in with no code and no fields.
+#
+# appId: iOS bundle id below. Android: org.actsofkindness.app
+
+appId: org.30actsofkindness.app
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Mobile Number"
+- tapOn: "Mobile Number"
+- inputText: "5550100142"
+- tapOn: "Continue"
+
+# No name/ZIP fields and no code screen should appear for an existing number.
+- assertNotVisible: "First Name"
+- assertNotVisible: "Check your texts"
+
+# Landed straight in (adjust to a stable home-screen label / tab).
+- assertVisible: "Me"

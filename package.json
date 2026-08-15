@@ -5,7 +5,9 @@
   "scripts": {
     "start": "expo start",
     "ios": "expo start --ios",
-    "android": "expo start --android"
+    "android": "expo start --android",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -34,6 +36,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.18",
     "expo-video-thumbnails": "~10.0.8",
+    "jest-expo": "~54.0.17",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

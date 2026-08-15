@@ -1,0 +1,44 @@
+# Maestro E2E — Phone-first signup with the built-in TEST number (no real SMS).
+#
+# appId: iOS bundle id below. For Android use: org.actsofkindness.app
+#
+# PREREQ: the test account must be reset to NEW first, or this flow will just log
+# in instead of showing the signup fields. Reset it by running
+# supabase/scripts/reset-tester.sql (phone +15550100142) in the Supabase SQL Editor.
+#
+# NOTE: selectors match on-screen text. If a tap misses, add a `testID` prop to
+# that input in the code and target it with `id:` here — that's far more reliable
+# than text matching.
+
+appId: org.30actsofkindness.app
+---
+- launchApp:
+    clearState: true
+
+# --- Phone entry (phone-only first screen) ---
+- assertVisible: "Mobile Number"
+- tapOn: "Mobile Number"
+- inputText: "5550100142"
+- tapOn: "Continue"
+
+# --- New-user fields reveal ---
+- assertVisible: "First Name"
+- tapOn: "First Name"
+- inputText: "Test"
+- tapOn: "Last Name"
+- inputText: "User"
+- tapOn: "ZIP Code"
+- inputText: "62704"
+- hideKeyboard
+- tapOn: "Create account"
+
+# --- OTP screen (test number pre-fills 123456, so just verify) ---
+- assertVisible: "Check your texts"
+- tapOn: "Verify"
+
+# --- End-of-signup reminder step ---
+- assertVisible: "Daily reminder"
+- tapOn: "Done"
+
+# --- Landed in the app (adjust to a stable home-screen label / tab) ---
+- assertVisible: "Me"
