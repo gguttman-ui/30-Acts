@@ -214,6 +214,10 @@ export default function AdminScreen({ navigation }) {
   const [newReviewerPhone, setNewReviewerPhone] = useState('');
   const [addingReviewer,   setAddingReviewer]   = useState(false);
 
+  // Real dashboard metrics (counts). null = still loading.
+  const [actsCount,   setActsCount]   = useState(null);
+  const [groupsCount, setGroupsCount] = useState(null);
+
   const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
   const showConfirm = (title, message, onConfirm) =>
     setConfirmModal({ visible: true, title, message, onConfirm });
@@ -225,7 +229,7 @@ export default function AdminScreen({ navigation }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, phone, created_at')
+        .select('id, first_name, last_name, phone, zip, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       const rows = Array.isArray(data) ? data : [];
@@ -233,6 +237,20 @@ export default function AdminScreen({ navigation }) {
       setFilteredUsers(rows);
     } catch (e) { console.warn('Error loading users:', e.message); }
     finally { setLoadingUsers(false); }
+  }, []);
+
+  // Real counts for the overview tiles (total acts logged + total groups).
+  const fetchCounts = useCallback(async () => {
+    try {
+      const { count } = await supabase
+        .from('completions').select('id', { count: 'exact', head: true });
+      setActsCount(count ?? 0);
+    } catch (e) { console.warn('Acts count failed:', e.message); }
+    try {
+      const { count } = await supabase
+        .from('sponsors').select('id', { count: 'exact', head: true });
+      setGroupsCount(count ?? 0);
+    } catch (e) { console.warn('Groups count failed:', e.message); }
   }, []);
 
   const fetchCompletions = useCallback(async () => {
@@ -335,6 +353,7 @@ export default function AdminScreen({ navigation }) {
     fetchCompletions();
     fetchAdmins();
     fetchReviewers();
+    fetchCounts();
   }, []);
 
   useEffect(() => {
@@ -471,6 +490,8 @@ export default function AdminScreen({ navigation }) {
 
   const confirmedCount   = users.filter(u => u.email_confirmed_at).length;
   const unconfirmedCount = users.length - confirmedCount;
+  // Distinct ZIP codes covered across all user profiles.
+  const zipsCovered = new Set(users.map(u => u.zip).filter(Boolean)).size;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -480,9 +501,12 @@ export default function AdminScreen({ navigation }) {
         automaticallyAdjustKeyboardInsets={true}>
 
         <Card>
-          <Text style={s.section}>👥 Users</Text>
-          <View style={s.row}>
-            <StatTile icon="🧑‍🤝‍🧑" label="Total Users" value={users.length} />
+          <Text style={s.section}>📊 Overview</Text>
+          <View style={[s.row, { flexWrap: 'wrap' }]}>
+            <StatTile icon="🧑‍🤝‍🧑" label="Users"  value={users.length} />
+            <StatTile icon="✅" label="Acts"   value={actsCount ?? '—'}   color={C.success} />
+            <StatTile icon="🏆" label="Groups" value={groupsCount ?? '—'} color={C.warning} />
+            <StatTile icon="📍" label="ZIPs"   value={zipsCovered} />
           </View>
         </Card>
 
