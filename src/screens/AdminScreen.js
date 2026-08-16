@@ -111,13 +111,14 @@ function ConfirmModal({ visible, title, message, onConfirm, onCancel, confirmLab
   );
 }
 
-function StatTile({ icon, label, value, color }) {
+function StatTile({ icon, label, value, color, onPress }) {
+  const Cmp = onPress ? TouchableOpacity : View;
   return (
-    <View style={[s.tile, { borderColor: (color || C.primary) + '44' }]}>
+    <Cmp onPress={onPress} activeOpacity={0.7} style={[s.tile, { borderColor: (color || C.primary) + '44' }]}>
       <Text style={{ fontSize: 22, marginBottom: 6 }}>{icon}</Text>
       <Text style={[s.tileVal, { color: color || C.primary }]}>{value}</Text>
       <Text style={s.tileLbl}>{label}</Text>
-    </View>
+    </Cmp>
   );
 }
 
@@ -217,6 +218,11 @@ export default function AdminScreen({ navigation }) {
   // App-wide dashboard stats from the admin-only RPC (bypasses RLS). null = loading.
   const [stats, setStats] = useState(null);
 
+  const [groups,        setGroups]        = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [zips,          setZips]          = useState([]);
+  const [loadingZips,   setLoadingZips]   = useState(true);
+
   const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
   const showConfirm = (title, message, onConfirm) =>
     setConfirmModal({ visible: true, title, message, onConfirm });
@@ -226,10 +232,9 @@ export default function AdminScreen({ navigation }) {
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, phone, zip, created_at')
-        .order('created_at', { ascending: false });
+      // Admin-only RPC so the list includes ALL users (a direct table query is
+      // limited by RLS to just the rows this session can see).
+      const { data, error } = await supabase.rpc('admin_list_users');
       if (error) throw error;
       const rows = Array.isArray(data) ? data : [];
       setUsers(rows);
@@ -246,6 +251,26 @@ export default function AdminScreen({ navigation }) {
       if (error) throw error;
       setStats(data);
     } catch (e) { console.warn('Stats load failed:', e.message); }
+  }, []);
+
+  const fetchGroups = useCallback(async () => {
+    setLoadingGroups(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_list_groups');
+      if (error) throw error;
+      setGroups(Array.isArray(data) ? data : []);
+    } catch (e) { console.warn('Error loading groups:', e.message); }
+    finally { setLoadingGroups(false); }
+  }, []);
+
+  const fetchZips = useCallback(async () => {
+    setLoadingZips(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_list_zips');
+      if (error) throw error;
+      setZips(Array.isArray(data) ? data : []);
+    } catch (e) { console.warn('Error loading zips:', e.message); }
+    finally { setLoadingZips(false); }
   }, []);
 
   const fetchCompletions = useCallback(async () => {
@@ -349,6 +374,8 @@ export default function AdminScreen({ navigation }) {
     fetchAdmins();
     fetchReviewers();
     fetchStats();
+    fetchGroups();
+    fetchZips();
   }, []);
 
   useEffect(() => {
@@ -496,10 +523,10 @@ export default function AdminScreen({ navigation }) {
         <Card>
           <Text style={s.section}>📊 Overview</Text>
           <View style={[s.row, { flexWrap: 'wrap' }]}>
-            <StatTile icon="🧑‍🤝‍🧑" label="Users"  value={stats?.users  ?? '—'} />
-            <StatTile icon="✅" label="Acts"   value={stats?.acts   ?? '—'} color={C.success} />
-            <StatTile icon="🏆" label="Groups" value={stats?.groups ?? '—'} color={C.warning} />
-            <StatTile icon="📍" label="ZIPs"   value={stats?.zips   ?? '—'} />
+            <StatTile icon="🧑‍🤝‍🧑" label="Users"  value={stats?.users  ?? '—'} onPress={() => setActiveTab('users')} />
+            <StatTile icon="✅" label="Acts"   value={stats?.acts   ?? '—'} color={C.success} onPress={() => setActiveTab('completions')} />
+            <StatTile icon="🏆" label="Groups" value={stats?.groups ?? '—'} color={C.warning} onPress={() => setActiveTab('groups')} />
+            <StatTile icon="📍" label="ZIPs"   value={stats?.zips   ?? '—'} onPress={() => setActiveTab('zips')} />
           </View>
         </Card>
 
@@ -509,6 +536,8 @@ export default function AdminScreen({ navigation }) {
             {[
               { key: 'completions', label: `🔍 Review${completions.length > 0 ? ` (${completions.length})` : ''}` },
               { key: 'users',       label: `👥 Users${users.length > 0 ? ` (${users.length})` : ''}` },
+              { key: 'groups',      label: `🏆 Groups${groups.length > 0 ? ` (${groups.length})` : ''}` },
+              { key: 'zips',        label: `📍 ZIPs${zips.length > 0 ? ` (${zips.length})` : ''}` },
               { key: 'admins',      label: '🔐 Admins' },
               { key: 'reviewers',   label: '🔍 Reviewers' },
             ].map(tab => (
@@ -601,7 +630,7 @@ export default function AdminScreen({ navigation }) {
               const nm = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
               const name = nm || 'Test';
               const phoneDisp = u.phone ? e164ToDisplay(u.phone) : '(no phone)';
-              const acts = completions.filter(c => c.user_phone === u.phone).length;
+              const acts = u.acts ?? completions.filter(c => c.user_phone === u.phone).length;
               return (
                 <View key={u.id} style={s.userRow}>
                   <View style={{ flex: 1 }}>
@@ -616,6 +645,40 @@ export default function AdminScreen({ navigation }) {
                 </View>
               );
             })}
+          </Card>
+        )}
+
+        {activeTab === 'groups' && (
+          <Card>
+            <Text style={s.section}>🏆 Groups</Text>
+            {loadingGroups ? <ActivityIndicator color={C.primary} style={{ marginTop: 12 }} /> : groups.length === 0 ? (
+              <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No groups found</Text>
+            ) : groups.map(g => (
+              <View key={g.id} style={s.userRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.userEmail} numberOfLines={1}>{g.name || '(unnamed)'}</Text>
+                  <Text style={s.userMeta} numberOfLines={1}>
+                    {(g.members ?? 0)} {Number(g.members) === 1 ? 'member' : 'members'}  •  Code {g.join_code || '—'}  •  by {g.created_by_name || '—'}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Card>
+        )}
+
+        {activeTab === 'zips' && (
+          <Card>
+            <Text style={s.section}>📍 ZIP Codes Covered</Text>
+            {loadingZips ? <ActivityIndicator color={C.primary} style={{ marginTop: 12 }} /> : zips.length === 0 ? (
+              <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No ZIP data found</Text>
+            ) : zips.map((z, i) => (
+              <View key={z.zip || i} style={s.userRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.userEmail} numberOfLines={1}>{z.zip}{z.state ? `  ·  ${z.state}` : ''}</Text>
+                  <Text style={s.userMeta} numberOfLines={1}>{z.users} {Number(z.users) === 1 ? 'user' : 'users'}</Text>
+                </View>
+              </View>
+            ))}
           </Card>
         )}
 
