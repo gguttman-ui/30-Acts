@@ -214,9 +214,8 @@ export default function AdminScreen({ navigation }) {
   const [newReviewerPhone, setNewReviewerPhone] = useState('');
   const [addingReviewer,   setAddingReviewer]   = useState(false);
 
-  // Real dashboard metrics (counts). null = still loading.
-  const [actsCount,   setActsCount]   = useState(null);
-  const [groupsCount, setGroupsCount] = useState(null);
+  // App-wide dashboard stats from the admin-only RPC (bypasses RLS). null = loading.
+  const [stats, setStats] = useState(null);
 
   const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
   const showConfirm = (title, message, onConfirm) =>
@@ -239,18 +238,14 @@ export default function AdminScreen({ navigation }) {
     finally { setLoadingUsers(false); }
   }, []);
 
-  // Real counts for the overview tiles (total acts logged + total groups).
-  const fetchCounts = useCallback(async () => {
+  // App-wide stats via the admin-only SECURITY DEFINER function. A normal
+  // RLS-limited client query can't see all rows, so counts must come from here.
+  const fetchStats = useCallback(async () => {
     try {
-      const { count } = await supabase
-        .from('completions').select('id', { count: 'exact', head: true });
-      setActsCount(count ?? 0);
-    } catch (e) { console.warn('Acts count failed:', e.message); }
-    try {
-      const { count } = await supabase
-        .from('sponsors').select('id', { count: 'exact', head: true });
-      setGroupsCount(count ?? 0);
-    } catch (e) { console.warn('Groups count failed:', e.message); }
+      const { data, error } = await supabase.rpc('admin_dashboard_stats');
+      if (error) throw error;
+      setStats(data);
+    } catch (e) { console.warn('Stats load failed:', e.message); }
   }, []);
 
   const fetchCompletions = useCallback(async () => {
@@ -353,7 +348,7 @@ export default function AdminScreen({ navigation }) {
     fetchCompletions();
     fetchAdmins();
     fetchReviewers();
-    fetchCounts();
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -490,8 +485,6 @@ export default function AdminScreen({ navigation }) {
 
   const confirmedCount   = users.filter(u => u.email_confirmed_at).length;
   const unconfirmedCount = users.length - confirmedCount;
-  // Distinct ZIP codes covered across all user profiles.
-  const zipsCovered = new Set(users.map(u => u.zip).filter(Boolean)).size;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -503,10 +496,10 @@ export default function AdminScreen({ navigation }) {
         <Card>
           <Text style={s.section}>📊 Overview</Text>
           <View style={[s.row, { flexWrap: 'wrap' }]}>
-            <StatTile icon="🧑‍🤝‍🧑" label="Users"  value={users.length} />
-            <StatTile icon="✅" label="Acts"   value={actsCount ?? '—'}   color={C.success} />
-            <StatTile icon="🏆" label="Groups" value={groupsCount ?? '—'} color={C.warning} />
-            <StatTile icon="📍" label="ZIPs"   value={zipsCovered} />
+            <StatTile icon="🧑‍🤝‍🧑" label="Users"  value={stats?.users  ?? '—'} />
+            <StatTile icon="✅" label="Acts"   value={stats?.acts   ?? '—'} color={C.success} />
+            <StatTile icon="🏆" label="Groups" value={stats?.groups ?? '—'} color={C.warning} />
+            <StatTile icon="📍" label="ZIPs"   value={stats?.zips   ?? '—'} />
           </View>
         </Card>
 
