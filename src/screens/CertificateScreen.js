@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert,
+  View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, Image,
+  TouchableOpacity, Platform, Linking, Share,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import QRCode from 'react-native-qrcode-svg';
@@ -8,6 +9,8 @@ import { Btn, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
+
+const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
 
 const extractPhone = (email) => {
   if (!email || typeof email !== 'string') return null;
@@ -56,9 +59,35 @@ export default function CertificateScreen({ navigation }) {
 
   const goHome = () => navigation.navigate('Main', { screen: 'Home' });
 
+  // Same share flow as sharing an Act: a Text / Email / More row that sends a
+  // message with the person's personal invite link (identical mechanics to
+  // MyStoryScreen). An extra "Share as image" button keeps the visual cert.
+  const buildShareMessage = () => {
+    const who = name && name !== 'A Kind Person' ? `${name} ` : '';
+    const linkPart = inviteUrl ? `\n\nMy invite link (grows my kindness tree 🌳):\n${inviteUrl}` : '';
+    return `🕊️ ${who}just completed all 30 Acts of Kindness™ and earned a Certificate of Kindness!\n\n#30ActsOfKindness\n\nWant to join me? Here's how:\n1. Download the free 30 Acts of Kindness app:\n${APP_STORE_URL}\n2. Sign up with your phone number\n3. Do one kind act a day${linkPart}`;
+  };
+
+  const handleShareText = () => {
+    const msg = encodeURIComponent(buildShareMessage());
+    const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
+    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
+  };
+
+  const handleShareEmail = () => {
+    const subject = encodeURIComponent('My 30 Acts of Kindness™ Certificate');
+    const body    = encodeURIComponent(buildShareMessage());
+    Linking.openURL(`mailto:?subject=${subject}&body=${body}`).catch(() => Alert.alert('Error', 'Could not open Mail.'));
+  };
+
+  const handleShareOther = async () => {
+    try { await Share.share({ message: buildShareMessage() }); }
+    catch (e) { /* user cancelled */ }
+  };
+
   const certRef = useRef(null);
   const [sharing, setSharing] = useState(false);
-  const handleShare = async () => {
+  const handleShareImage = async () => {
     if (sharing) return;
     setSharing(true);
     try {
@@ -92,10 +121,9 @@ export default function CertificateScreen({ navigation }) {
           <View style={s.inner}>
             <Text style={s.confettiRow}>🎉  ✨  🎉</Text>
 
-            {/* 30 / Acts medallion */}
+            {/* App logo medallion */}
             <View style={s.medal}>
-              <Text style={s.medal30}>30</Text>
-              <Text style={s.medalActs}>Acts</Text>
+              <Image source={require('../../assets/logo.png')} style={s.medalLogo} resizeMode="contain" />
             </View>
 
             <View style={s.titleRow}>
@@ -115,7 +143,7 @@ export default function CertificateScreen({ navigation }) {
 
             <View style={s.seal}>
               <Text style={s.sealStar}>★</Text>
-              <Text style={s.sealText}>CERTIFIED</Text>
+              <Text style={s.sealText} numberOfLines={1}>CERTIFIED</Text>
             </View>
 
             <View style={s.qrWrap}>
@@ -129,14 +157,29 @@ export default function CertificateScreen({ navigation }) {
           </View>
         </View>
 
+        <View style={s.shareRow}>
+          <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
+            <Text style={s.shareBtnIcon}>💬</Text>
+            <Text style={s.shareBtnLabel}>Text</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
+            <Text style={s.shareBtnIcon}>📧</Text>
+            <Text style={s.shareBtnLabel}>Email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
+            <Text style={s.shareBtnIcon}>↗️</Text>
+            <Text style={s.shareBtnLabel}>More</Text>
+          </TouchableOpacity>
+        </View>
         <Btn
-          label={sharing ? 'Preparing…' : '📤 Share certificate'}
-          onPress={handleShare}
+          label={sharing ? 'Preparing…' : '🖼️ Share as image'}
+          onPress={handleShareImage}
           loading={sharing}
-          style={{ marginTop: 16 }}
+          variant="secondary"
+          style={{ marginTop: 12 }}
         />
         <Text style={s.note}>
-          Share or save your certificate. Anyone who scans your QR and signs up is added to your tree.
+          Share your certificate. Anyone who scans your QR and signs up is added to your tree.
         </Text>
         <Btn label="Done" onPress={goHome} variant="secondary" style={{ marginTop: 4 }} />
       </ScrollView>
@@ -167,12 +210,12 @@ const s = StyleSheet.create({
   confettiRow: { fontSize: 16, letterSpacing: 2, marginBottom: 8 },
 
   medal: {
-    width: 78, height: 78, borderRadius: 39,
-    backgroundColor: '#1b7a44', borderWidth: 3, borderColor: '#d9c47e',
+    width: 104, height: 104, borderRadius: 52,
+    backgroundColor: '#ffffff', borderWidth: 3, borderColor: '#d9c47e',
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    overflow: 'hidden',
   },
-  medal30:   { color: '#ffffff', fontSize: 28, fontWeight: '900', lineHeight: 30 },
-  medalActs: { color: '#d9f5e3', fontSize: 13, fontWeight: '800', letterSpacing: 1.5, marginTop: -3 },
+  medalLogo: { width: 92, height: 92, borderRadius: 46 },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   spark:    { color: '#c9a53a', fontSize: 14 },
@@ -188,18 +231,26 @@ const s = StyleSheet.create({
   date:      { color: '#2e7d46', fontSize: 14, fontWeight: '700', marginBottom: 14 },
 
   seal: {
-    width: 60, height: 60, borderRadius: 30,
+    width: 78, height: 78, borderRadius: 39,
     backgroundColor: '#efdc93', borderWidth: 2, borderColor: '#c9a53a',
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  sealStar: { color: '#8a6d1f', fontSize: 20, lineHeight: 22 },
-  sealText: { color: '#8a6d1f', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  sealStar: { color: '#8a6d1f', fontSize: 24, lineHeight: 26 },
+  sealText: { color: '#8a6d1f', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
 
   qrWrap: {
     backgroundColor: '#ffffff', padding: 12, borderRadius: 12,
     minHeight: 162, minWidth: 162, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: '#e6e0cc',
   },
+  shareRow: { flexDirection: 'row', gap: 12, marginTop: 16, width: '100%' },
+  shareBtn: {
+    flex: 1, backgroundColor: '#ffffff', borderRadius: 12,
+    borderWidth: 1, borderColor: '#e6e0cc',
+    paddingVertical: 14, alignItems: 'center',
+  },
+  shareBtnIcon:  { fontSize: 24 },
+  shareBtnLabel: { color: '#14210f', fontSize: 12, fontWeight: '700', marginTop: 4 },
   qrMissing: { color: '#7a5a2a', fontSize: 12, textAlign: 'center', paddingHorizontal: 10 },
   qrLabel:   { color: '#5a6b5f', fontSize: 12, textAlign: 'center', marginTop: 10, paddingHorizontal: 8, lineHeight: 17 },
   note:      { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 16, lineHeight: 19 },

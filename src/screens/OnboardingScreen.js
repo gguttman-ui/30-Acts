@@ -35,11 +35,14 @@ export default function OnboardingScreen({ onDone }) {
           To spark a kinder world by making it easy for anyone to complete 30 meaningful acts
           of compassion — turning good intentions into consistent action and measurable impact.
         </Text>
+      </ScrollView>
 
+      {/* Pinned footer so "Get Started" is always visible without scrolling */}
+      <View style={s.footer}>
         <TouchableOpacity onPress={onDone} style={s.btn}>
           <Text style={s.btnText}>Let's Get Started 🕊️</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -74,11 +77,18 @@ const s = StyleSheet.create({
     width: 40, height: 2, backgroundColor: C.primary + '40',
     borderRadius: 99, marginVertical: 24,
   },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: C.primary + '20',
+    backgroundColor: C.bg,
+  },
   btn: {
     backgroundColor: C.primary, borderRadius: 16,
     paddingVertical: 16, paddingHorizontal: 40,
     width: '100%', alignItems: 'center',
-    marginTop: 32,
   },
   btnText: { color: C.bg, fontWeight: '800', fontSize: 16 },
 });

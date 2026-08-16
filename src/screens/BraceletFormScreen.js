@@ -31,22 +31,29 @@ export default function BraceletFormScreen({ navigation, route }) {
   const [zip, setZip]         = useState('');
   const [saving, setSaving]   = useState(false);
 
-  // Prefill the name (and state) from the profile as a convenience.
+  // Prefill everything we already know (name, city, state, ZIP) so the user
+  // doesn't re-enter data collected at signup. ZIP/city/state live in the
+  // account metadata; name lives on the profile.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.id) return;
+        const meta = user.user_metadata || {};
         const { data: profile } = await supabase
           .from('profiles')
           .select('first_name, last_name, state')
           .eq('id', user.id)
           .maybeSingle();
-        if (cancelled || !profile) return;
-        const full = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
+        if (cancelled) return;
+        const full = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
         if (full) setName(full);
-        if (profile.state) setState(profile.state);
+        // Prefer the profile's state, fall back to signup metadata.
+        const st = profile?.state || meta.state;
+        if (st) setState(st);
+        if (meta.city) setCity(meta.city);
+        if (meta.zip)  setZip(String(meta.zip));
       } catch (e) {
         // Non-fatal: user can type everything in.
       }
