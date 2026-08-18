@@ -367,19 +367,40 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     return `file://${media}`;
   };
 
+  // X accepts pre-filled text, so we pass the act directly (and copy it as a
+  // backup in case the draft is truncated).
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
-      const uri = await localShareUri();
-      if (!uri) {
-        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
-        return;
-      }
+      const encoded = encodeURIComponent(buildShareMessage());
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await shareImage(uri);
+      await openOrFallback(
+        `twitter://post?message=${encoded}`,
+        `https://twitter.com/intent/tweet?text=${encoded}`,
+        'X'
+      );
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+      console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
+
+  // Facebook and TikTok don't accept pre-filled text from another app. Copy the
+  // caption, tell the user to paste it, and open the app they picked so they can
+  // log in and post.
+  const shareViaClipboardThenOpen = async (name, appUrl, webUrl) => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      Alert.alert(
+        `Share to ${name}`,
+        `Your post is copied to the clipboard.\n\n${name} will open now — start a new post and paste (touch and hold, then tap Paste) to share your act.`,
+        [
+          { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } finally { setSharing(false); }
   };
 
@@ -431,21 +452,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const uri = await localShareUri();
-      if (!uri) {
-        Alert.alert('Couldn\'t prepare an image', 'Write a story for this act, then try sharing again.');
-        return;
-      }
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await shareImage(uri);
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  const shareToTikTok = () =>
+    shareViaClipboardThenOpen('TikTok', 'tiktok://', 'https://www.tiktok.com/');
 
   const tryFacebookShareDialog = async (localUri) => {
     if (!localUri || isExpoGo) return false;
@@ -488,21 +496,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  const shareToFacebook = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const uri = await localShareUri();
-      if (!uri) {
-        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
-        return;
-      }
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await shareImage(uri);
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  const shareToFacebook = () =>
+    shareViaClipboardThenOpen('Facebook', 'fb://', 'https://www.facebook.com/');
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },

@@ -705,20 +705,27 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  const shareToFacebook = async () => {
+  // Facebook and TikTok don't accept pre-filled text from another app. Copy the
+  // caption, tell the user to paste it, and open the app they picked so they can
+  // log in and post.
+  const shareViaClipboardThenOpen = async (name, appUrl, webUrl) => {
     if (sharing) return;
     setSharing(true);
     try {
-      const uri = await localShareUri();
-      if (uri) await saveToCameraRoll(uri);
       try { await Clipboard.setStringAsync(getShareMessage()); } catch {}
-
-      const usedDialog = await tryFacebookShareDialog(uri);
-      if (!usedDialog) await shareFacebookViaSheet(uri);
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e);
+      Alert.alert(
+        `Share to ${name}`,
+        `Your post is copied to the clipboard.\n\n${name} will open now — start a new post and paste (touch and hold, then tap Paste) to share your act.`,
+        [
+          { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } finally { setSharing(false); }
   };
+
+  const shareToFacebook = () =>
+    shareViaClipboardThenOpen('Facebook', 'fb://', 'https://www.facebook.com/');
 
   const shareToInstagram = async () => {
     if (sharing) return;
@@ -742,26 +749,8 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const uri = await localShareUri();
-      if (!uri) {
-        Alert.alert(
-          'Couldn\'t prepare an image',
-          'Add a photo or a written story for this act, then try sharing again.'
-        );
-        return;
-      }
-      try { await Clipboard.setStringAsync(getShareMessage()); } catch {}
-      // Native share sheet → TikTok receives the image directly (snssdk1233://
-      // just errors out).
-      await Share.share({ url: uri });
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  const shareToTikTok = () =>
+    shareViaClipboardThenOpen('TikTok', 'tiktok://', 'https://www.tiktok.com/');
 
   const pickMedia = async (useCamera) => {
     try {
