@@ -43,6 +43,7 @@ const fontScale = Math.min(Math.max(SCREEN_W / FONT_BASE_W, 0.85), 1.1);
 const sf = (n) => Math.round(n * fontScale);
 
 const APP_URL = 'https://30ActsofKindness.org';
+const FB_APP_ID = '1033236095805810';
 const APP_HASHTAG = '#30ActsOfKindness';
 
 // ── Day 30 fulfillment ────────────────────────────────────────────────────
@@ -648,10 +649,44 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     return `file://${media}`;
   };
 
-  const shareToX = () => {
-    const xText = `🕊️ Day ${day.dayNumber} of the 30 Acts of Kindness™ — done! One kind act a day. Join me 🌳 ${APP_HASHTAG}\n${APP_URL}`;
-    const enc = encodeURIComponent(xText);
-    return shareViaClipboardThenOpen('X', `twitter://post?message=${enc}`, `https://twitter.com/intent/tweet?text=${enc}`);
+  // Open a specific app directly with the picture via react-native-share's
+  // shareSingle (the same mechanism that makes Instagram open cleanly). Returns
+  // false in Expo Go, if the library/target is missing, or on cancel.
+  const shareSingleTo = async (socialKey, extra) => {
+    let RNShare = null;
+    try { RNShare = require('react-native-share').default; } catch {}
+    if (!RNShare || isExpoGo) return false;
+    const social = RNShare?.Social?.[socialKey];
+    if (!social) return false;
+    try {
+      await RNShare.shareSingle({ social, ...extra });
+      return true;
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn(`shareSingle(${socialKey}) failed:`, e && e.message);
+      return false;
+    }
+  };
+
+  // X: open the X app directly with the act picture + a short caption (X caps
+  // posts at 280 chars). Falls back to the share sheet, then to a pre-filled web
+  // post if there's no picture.
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const xText = `🕊️ Day ${day.dayNumber} of the 30 Acts of Kindness™ — done! One kind act a day. Join me 🌳 ${APP_HASHTAG}\n${APP_URL}`;
+      try { await Clipboard.setStringAsync(xText); } catch {}
+      const uri = await localShareUri();
+      if (uri) {
+        if (await shareSingleTo('TWITTER', { url: uri, message: xText })) return;
+        await Share.share({ url: uri });
+        return;
+      }
+      const enc = encodeURIComponent(xText);
+      await openOrFallback(`twitter://post?message=${enc}`, `https://twitter.com/intent/tweet?text=${enc}`, 'X');
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // True when running inside Expo Go, where native modules like the Facebook
@@ -707,34 +742,32 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  // Share the act's PICTURE where we can (iOS share sheet + caption on the
-  // clipboard); if no picture can be made, fall back to copying the caption and
-  // opening the chosen app so the user can paste it there.
-  const shareViaClipboardThenOpen = async (name, appUrl, webUrl) => {
+  // Facebook: open the FB app directly with the act picture. Facebook strips
+  // captions from other apps, so the caption is copied to paste. Falls back to
+  // the share sheet, then to opening Facebook if there's no picture.
+  const shareToFacebook = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       try { await Clipboard.setStringAsync(getShareMessage()); } catch {}
       const uri = await localShareUri();
       if (uri) {
+        if (await shareSingleTo('FACEBOOK', { url: uri, appId: FB_APP_ID })) return;
         await Share.share({ url: uri });
         return;
       }
       Alert.alert(
-        `Share to ${name}`,
-        `Your post is copied to the clipboard.\n\n${name} will open now — start a new post and paste to share your act.`,
+        'Share to Facebook',
+        'Your post is copied to the clipboard.\n\nFacebook will open now — start a new post and paste to share your act.',
         [
-          { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
+          { text: 'Open Facebook', onPress: () => openOrFallback('fb://', 'https://www.facebook.com/', 'Facebook') },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn(`${name} share failed:`, e && e.message);
+      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
     } finally { setSharing(false); }
   };
-
-  const shareToFacebook = () =>
-    shareViaClipboardThenOpen('Facebook', 'fb://', 'https://www.facebook.com/');
 
   const shareToInstagram = async () => {
     if (sharing) return;
@@ -758,8 +791,31 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = () =>
-    shareViaClipboardThenOpen('TikTok', 'tiktok://', 'https://www.tiktok.com/');
+  // TikTok has no third-party image API (react-native-share can't target it), so
+  // save the act picture to Photos and open TikTok — the user creates a post,
+  // adds the saved photo, and pastes the copied caption.
+  const shareToTikTok = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      try { await Clipboard.setStringAsync(getShareMessage()); } catch {}
+      const uri = await localShareUri();
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      Alert.alert(
+        'Share to TikTok',
+        saved
+          ? 'Your act picture is saved to Photos and the caption is copied.\n\nTikTok will open — create a post, add the saved photo, and paste the caption.'
+          : 'Your caption is copied.\n\nTikTok will open — create a post and paste the caption.',
+        [
+          { text: 'Open TikTok', onPress: () => openOrFallback('tiktok://', 'https://www.tiktok.com/', 'TikTok') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   const pickMedia = async (useCamera) => {
     try {
