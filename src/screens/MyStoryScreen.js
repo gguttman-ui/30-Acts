@@ -395,21 +395,15 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  // X: open the X app directly with the act picture + a short caption (X caps
-  // posts at 280 chars). Falls back to the share sheet with the picture, then to
-  // a pre-filled web post if there's no picture at all.
+  // X: open the X app with a short pre-filled post (X caps at 280 chars). X has
+  // no API to open it with a local image from another app, so this is text +
+  // link only — the reliable path. (We'll revisit adding the picture separately.)
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const xText = `🕊️ Day ${dayNumber} of the 30 Acts of Kindness™ — done! One kind act a day. Join me 🌳 ${APP_HASHTAG}\n${inviteUrl}`;
       try { await Clipboard.setStringAsync(xText); } catch {}
-      const uri = await localShareUri();
-      if (uri) {
-        if (await shareSingleTo('TWITTER', { url: uri, message: xText })) return;
-        await Share.share({ url: uri });
-        return;
-      }
       const enc = encodeURIComponent(xText);
       await openOrFallback(`twitter://post?message=${enc}`, `https://twitter.com/intent/tweet?text=${enc}`, 'X');
     } catch (e) {
@@ -532,9 +526,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  // Facebook: open the FB app directly with the act picture. Facebook strips
-  // captions from other apps, so the caption is copied to paste. Falls back to
-  // the share sheet, then to opening Facebook if there's no picture.
+  // Facebook: open the FB app's native share composer with the act picture
+  // attached, using the Facebook SDK's ShareDialog (the correct Facebook method
+  // — the generic share call the app can't accept and shows "Something went
+  // wrong"). FB strips captions from other apps, so the caption is copied to
+  // paste. Falls back to the iOS share sheet with the picture (e.g. in Expo Go),
+  // then to opening Facebook if there's no picture at all.
   const shareToFacebook = async () => {
     if (sharing) return;
     setSharing(true);
@@ -542,7 +539,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       const uri = await localShareUri();
       if (uri) {
-        if (await shareSingleTo('FACEBOOK', { url: uri, appId: FB_APP_ID })) return;
+        const usedDialog = await tryFacebookShareDialog(uri);
+        if (usedDialog) return;
         await Share.share({ url: uri });
         return;
       }
