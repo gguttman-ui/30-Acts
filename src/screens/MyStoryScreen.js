@@ -395,21 +395,28 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  // X: open the X app with a short pre-filled post (X caps at 280 chars). X has
-  // no API to open it with a local image from another app, so this is text +
-  // link only — the reliable path. (We'll revisit adding the picture separately.)
-  const shareToX = async () => {
+  // Facebook, X, and TikTok can't be opened directly with a picture by another
+  // app (only Instagram can). The reliable way to share the act PICTURE to them
+  // is the iOS share sheet: the picture is ready and the user taps the app they
+  // want. The caption is copied so it can be pasted (Facebook blocks pre-filled
+  // text). If there's no picture, share the text instead.
+  const shareToSheet = async () => {
     if (sharing) return;
     setSharing(true);
     try {
-      const xText = `🕊️ Day ${dayNumber} of the 30 Acts of Kindness™ — done! One kind act a day. Join me 🌳 ${APP_HASHTAG}\n${inviteUrl}`;
-      try { await Clipboard.setStringAsync(xText); } catch {}
-      const enc = encodeURIComponent(xText);
-      await openOrFallback(`twitter://post?message=${enc}`, `https://twitter.com/intent/tweet?text=${enc}`, 'X');
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      const uri = await localShareUri();
+      if (uri) {
+        await shareImage(uri);
+        return;
+      }
+      await Share.share({ message: buildShareMessage() });
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+      if (e?.message !== 'User did not share') console.warn('Share failed:', e && e.message);
     } finally { setSharing(false); }
   };
+
+  const shareToX = shareToSheet;
 
   const shareImage = async (uri) => {
     let Sharing = null;
@@ -459,31 +466,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  // TikTok has no third-party image API (react-native-share can't target it), so
-  // save the act picture to Photos and open TikTok — the user creates a post,
-  // adds the saved photo, and pastes the copied caption.
-  const shareToTikTok = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      const uri = await localShareUri();
-      let saved = null;
-      if (uri) saved = await saveToCameraRoll(uri);
-      Alert.alert(
-        'Share to TikTok',
-        saved
-          ? 'Your act picture is saved to Photos and the caption is copied.\n\nTikTok will open — create a post, add the saved photo, and paste the caption.'
-          : 'Your caption is copied.\n\nTikTok will open — create a post and paste the caption.',
-        [
-          { text: 'Open TikTok', onPress: () => openOrFallback('tiktok://', 'https://www.tiktok.com/', 'TikTok') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  const shareToTikTok = shareToSheet;
 
   const tryFacebookShareDialog = async (localUri) => {
     if (!localUri || isExpoGo) return false;
@@ -526,36 +509,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  // Facebook: open the FB app's native share composer with the act picture
-  // attached, using the Facebook SDK's ShareDialog (the correct Facebook method
-  // — the generic share call the app can't accept and shows "Something went
-  // wrong"). FB strips captions from other apps, so the caption is copied to
-  // paste. Falls back to the iOS share sheet with the picture (e.g. in Expo Go),
-  // then to opening Facebook if there's no picture at all.
-  const shareToFacebook = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      const uri = await localShareUri();
-      if (uri) {
-        const usedDialog = await tryFacebookShareDialog(uri);
-        if (usedDialog) return;
-        await Share.share({ url: uri });
-        return;
-      }
-      Alert.alert(
-        'Share to Facebook',
-        'Your post is copied to the clipboard.\n\nFacebook will open now — start a new post and paste to share your act.',
-        [
-          { text: 'Open Facebook', onPress: () => openOrFallback('fb://', 'https://www.facebook.com/', 'Facebook') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  const shareToFacebook = shareToSheet;
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
