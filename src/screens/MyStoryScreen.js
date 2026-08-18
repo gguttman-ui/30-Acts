@@ -111,19 +111,28 @@ const saveToCameraRoll = async (uri) => {
 };
 
 const openOrFallback = async (appUrl, webUrl, appName) => {
+  // Try the app's URL scheme first. If it isn't installed, the scheme is
+  // blocked, or a bare scheme (e.g. tiktok://) rejects, fall back to the web
+  // URL — which always opens in the browser. Only alert if even that fails.
+  let opened = false;
   try {
-    const supported = await Linking.canOpenURL(appUrl);
+    let supported = false;
+    try { supported = await Linking.canOpenURL(appUrl); } catch { supported = false; }
     if (supported) {
-      await Linking.openURL(appUrl);
-    } else if (webUrl) {
-      await Linking.openURL(webUrl);
-    } else {
-      Alert.alert(`${appName} not installed`, `Please install ${appName} to share there.`);
+      try { await Linking.openURL(appUrl); opened = true; } catch (e) {
+        console.warn(`${appName} app link failed, falling back to web:`, e && e.message);
+      }
     }
   } catch (err) {
-    console.warn(`Share to ${appName} failed:`, err);
-    Alert.alert('Share failed', `Couldn't open ${appName}. Try again or pick a different option.`);
+    console.warn(`Share to ${appName} (app) failed:`, err);
   }
+  if (opened) return;
+  if (webUrl) {
+    try { await Linking.openURL(webUrl); return; } catch (e) {
+      console.warn(`Share to ${appName} (web) failed:`, e && e.message);
+    }
+  }
+  Alert.alert('Share failed', `Couldn't open ${appName}. Your post is copied — open ${appName} and paste it.`);
 };
 
 // True when running inside Expo Go, where native modules like the Facebook
@@ -367,41 +376,39 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     return `file://${media}`;
   };
 
-  // X accepts pre-filled text, so we pass the act directly (and copy it as a
-  // backup in case the draft is truncated).
-  const shareToX = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const encoded = encodeURIComponent(buildShareMessage());
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
-      await openOrFallback(
-        `twitter://post?message=${encoded}`,
-        `https://twitter.com/intent/tweet?text=${encoded}`,
-        'X'
-      );
-    } catch (e) {
-      console.warn('X share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
-
-  // Facebook and TikTok don't accept pre-filled text from another app. Copy the
-  // caption, tell the user to paste it, and open the app they picked so they can
-  // log in and post.
+  // Share the act's PICTURE where we can: hand it to the iOS share sheet so the
+  // user can post it to whichever app they picked, with the caption copied to
+  // paste. If no picture can be made (no photo/story), fall back to copying the
+  // caption and opening the chosen app so they can paste it there.
   const shareViaClipboardThenOpen = async (name, appUrl, webUrl) => {
     if (sharing) return;
     setSharing(true);
     try {
       try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      const uri = await localShareUri();
+      if (uri) {
+        await Share.share({ url: uri });
+        return;
+      }
       Alert.alert(
         `Share to ${name}`,
-        `Your post is copied to the clipboard.\n\n${name} will open now — start a new post and paste (touch and hold, then tap Paste) to share your act.`,
+        `Your post is copied to the clipboard.\n\n${name} will open now — start a new post and paste to share your act.`,
         [
           { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn(`${name} share failed:`, e && e.message);
     } finally { setSharing(false); }
+  };
+
+  // X: same picture-first behavior; the fallback opens X with a short pre-filled
+  // post (X caps at 280 chars, so the full invite would overflow).
+  const shareToX = () => {
+    const xText = `🕊️ Day ${dayNumber} of the 30 Acts of Kindness™ — done! One kind act a day. Join me 🌳 ${APP_HASHTAG}\n${inviteUrl}`;
+    const enc = encodeURIComponent(xText);
+    return shareViaClipboardThenOpen('X', `twitter://post?message=${enc}`, `https://twitter.com/intent/tweet?text=${enc}`);
   };
 
   const shareImage = async (uri) => {
