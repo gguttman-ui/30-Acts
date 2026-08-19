@@ -357,35 +357,37 @@ const handleShareEmail = () => {
     return `file://${media}`;
   };
 
-  // Facebook, X, and TikTok can't be opened directly with a picture by another
-  // app (only Instagram can). The reliable way to share the act PICTURE to them
-  // is the iOS share sheet: the picture is ready and the user taps the app they
-  // want. The caption is copied to paste. If there's no picture, share the text.
-  const shareToSheet = async () => {
+  // Facebook, X, and TikTok can't be opened with a picture already attached (only
+  // Instagram can). So we copy the act PICTURE to the clipboard, open the app the
+  // user picked, and they paste the picture into their post. Falls back to copying
+  // the text if the image can't be read.
+  const shareToApp = async (name, appUrl, webUrl) => {
     if (sharing) return;
     setSharing(true);
     try {
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       const uri = await localShareUri();
+      let copiedImage = false;
       if (uri) {
-        let Sharing = null;
-        try { Sharing = require('expo-sharing'); } catch {}
-        if (Sharing && (await Sharing.isAvailableAsync())) {
-          await Sharing.shareAsync(uri, { UTI: 'public.jpeg', mimeType: 'image/jpeg', dialogTitle: 'Share your act' });
-        } else {
-          await Share.share({ url: uri });
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          await Clipboard.setImageAsync(base64);
+          copiedImage = true;
+        } catch (e) {
+          console.warn('Copy picture to clipboard failed:', e && e.message);
         }
-        return;
       }
-      await Share.share({ message: buildShareMessage() });
+      if (!copiedImage) {
+        try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      }
+      await openOrFallback(appUrl, webUrl, name);
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('Share failed:', e && e.message);
+      if (e?.message !== 'User did not share') console.warn(`${name} share failed:`, e && e.message);
     } finally { setSharing(false); }
   };
 
-  const shareToX = shareToSheet;
+  const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
 
-  const shareToFacebook = shareToSheet;
+  const shareToFacebook = () => shareToApp('Facebook', 'fb://', 'https://www.facebook.com/');
 
   const shareToInstagram = async () => {
     if (sharing) return;
@@ -410,7 +412,7 @@ const handleShareEmail = () => {
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = shareToSheet;
+  const shareToTikTok = () => shareToApp('TikTok', 'tiktok://', 'https://www.tiktok.com/');
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
