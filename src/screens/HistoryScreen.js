@@ -379,7 +379,17 @@ const handleShareEmail = () => {
       if (!copiedImage) {
         try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       }
-      await openOrFallback(appUrl, webUrl, name);
+      // Tell the user what to do, THEN open the app when they tap Open.
+      Alert.alert(
+        `Share to ${name}`,
+        copiedImage
+          ? `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`
+          : `Your caption is copied.\n\n${name} will open — start a new post and paste it.`,
+        [
+          { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn(`${name} share failed:`, e && e.message);
     } finally { setSharing(false); }
