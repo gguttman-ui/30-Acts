@@ -412,7 +412,7 @@ const handleShareEmail = () => {
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen Facebook, tap "What\'s on your mind?" → Photo/Video, choose the newest photo (your act), then paste the caption.'
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen Facebook and tap the photo icon (📷) at the right of the "What\'s on your mind?" bar, pick the newest photo (your act), then paste the caption.'
           : 'Your caption is copied.\n\nOpen Facebook, start a post, and paste the caption.',
         [{ text: 'Got it' }]
       );
