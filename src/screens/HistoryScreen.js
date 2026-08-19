@@ -397,11 +397,10 @@ const handleShareEmail = () => {
 
   const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
 
-  // Facebook's composer won't paste an image from the clipboard — it adds photos
-  // from your library (Add media). So we SAVE the act picture to Photos (it lands
-  // at the top of your recents), copy the caption text, and open Facebook's
-  // composer. The user taps Add media, picks the freshly-saved photo, and pastes
-  // the caption.
+  // Facebook can't be opened straight into a photo composer from another app
+  // (its deep link lands on a link-share sheet, not "Add media"), and its
+  // composer won't paste an image. So — like TikTok — we SAVE the act picture to
+  // Photos + copy the caption, and the user makes the post in their own Facebook.
   const shareToFacebook = async () => {
     if (sharing) return;
     setSharing(true);
@@ -413,12 +412,9 @@ const handleShareEmail = () => {
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap Add media, pick the most-recent photo (your act), then paste the caption.'
-          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
-        [
-          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen Facebook, tap "What\'s on your mind?" → Photo/Video, choose the newest photo (your act), then paste the caption.'
+          : 'Your caption is copied.\n\nOpen Facebook, start a post, and paste the caption.',
+        [{ text: 'Got it' }]
       );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
