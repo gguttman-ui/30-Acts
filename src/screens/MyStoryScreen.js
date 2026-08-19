@@ -473,7 +473,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = () => shareToApp('TikTok', 'tiktok://', 'https://www.tiktok.com/');
+  const shareToTikTok = () => shareToApp('TikTok', 'https://www.tiktok.com/', 'https://www.tiktok.com/');
 
   const tryFacebookShareDialog = async (localUri) => {
     if (!localUri || isExpoGo) return false;
@@ -516,7 +516,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  const shareToFacebook = () => shareToApp('Facebook', 'fb://', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },

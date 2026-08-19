@@ -387,7 +387,7 @@ const handleShareEmail = () => {
 
   const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
 
-  const shareToFacebook = () => shareToApp('Facebook', 'fb://', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
 
   const shareToInstagram = async () => {
     if (sharing) return;
@@ -412,7 +412,7 @@ const handleShareEmail = () => {
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = () => shareToApp('TikTok', 'tiktok://', 'https://www.tiktok.com/');
+  const shareToTikTok = () => shareToApp('TikTok', 'https://www.tiktok.com/', 'https://www.tiktok.com/');
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },

@@ -732,7 +732,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  const shareToFacebook = () => shareToApp('Facebook', 'fb://', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
 
   const shareToInstagram = async () => {
     if (sharing) return;
@@ -756,7 +756,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = () => shareToApp('TikTok', 'tiktok://', 'https://www.tiktok.com/');
+  const shareToTikTok = () => shareToApp('TikTok', 'https://www.tiktok.com/', 'https://www.tiktok.com/');
 
   const pickMedia = async (useCamera) => {
     try {
