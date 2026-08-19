@@ -422,8 +422,11 @@ const handleShareEmail = () => {
     } finally { setSharing(false); }
   };
 
-  // TikTok builds posts from your Photos/gallery, not from a pasted image, so we
-  // SAVE the act picture to Photos (and copy the caption text), then open TikTok.
+  // TikTok builds posts from your Photos/gallery, and opening it from a link lands
+  // in a guest session where posting is blocked (+ throws "Something went wrong").
+  // So we just SAVE the act picture to Photos + copy the caption, and tell the
+  // user to open their own (logged-in) TikTok app to upload it. (A native build
+  // could open TikTok directly — see the LSApplicationQueriesSchemes item.)
   const shareToTikTok = async () => {
     if (sharing) return;
     setSharing(true);
@@ -435,12 +438,9 @@ const handleShareEmail = () => {
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕, choose Upload, pick the saved photo, then paste the caption.'
-          : 'Your caption is copied.\n\nTikTok will open — tap ➕ to create a post and paste the caption.',
-        [
-          { text: 'Open TikTok', onPress: () => openOrFallback('https://www.tiktok.com/', 'https://www.tiktok.com/', 'TikTok') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved photo, then paste the caption.'
+          : 'Your caption is copied.\n\nOpen the TikTok app, tap ➕ to create a post, and paste the caption.',
+        [{ text: 'Got it' }]
       );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
