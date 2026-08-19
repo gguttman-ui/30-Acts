@@ -564,9 +564,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen Facebook and tap the photo icon (📷) at the right of the "What\'s on your mind?" bar, pick the newest photo (your act), then paste the caption.'
-          : 'Your caption is copied.\n\nOpen Facebook, start a post, and paste the caption.',
-        [{ text: 'Got it' }]
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your act), then paste the caption.'
+          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+        [
+          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
       );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);

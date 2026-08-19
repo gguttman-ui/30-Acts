@@ -5,17 +5,72 @@ import {
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import QRCode from 'react-native-qrcode-svg';
+import Constants from 'expo-constants';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import { Btn, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
+const APP_URL = 'https://30ActsofKindness.org';
+const FB_APP_ID = '1033236095805810';
+
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === 'storeClient';
 
 const extractPhone = (email) => {
   if (!email || typeof email !== 'string') return null;
   if (!email.endsWith('@phone.30acts.app')) return null;
   return email.replace('@phone.30acts.app', '');
+};
+
+// Opens an app's URL scheme, falling back to the web URL if the app link fails.
+const openOrFallback = async (appUrl, webUrl, appName) => {
+  let opened = false;
+  try {
+    let supported = false;
+    try { supported = await Linking.canOpenURL(appUrl); } catch { supported = false; }
+    if (supported) {
+      try { await Linking.openURL(appUrl); opened = true; } catch (e) {
+        console.warn(`${appName} app link failed, falling back to web:`, e && e.message);
+      }
+    }
+  } catch (err) {
+    console.warn(`Share to ${appName} (app) failed:`, err);
+  }
+  if (opened) return;
+  if (webUrl) {
+    try { await Linking.openURL(webUrl); return; } catch (e) {
+      console.warn(`Share to ${appName} (web) failed:`, e && e.message);
+    }
+  }
+  Alert.alert('Share failed', `Couldn't open ${appName}. Your post is copied — open ${appName} and paste it.`);
+};
+
+// Saves an image to the photo library so it can be picked in Facebook/TikTok.
+const saveToCameraRoll = async (uri) => {
+  try {
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'We need photo library access to share to Facebook or TikTok.');
+      return null;
+    }
+    let localUri = uri;
+    if (uri.startsWith('http')) {
+      const filename = `${FileSystem.cacheDirectory}cert-${Date.now()}.png`;
+      const dl = await FileSystem.downloadAsync(uri, filename);
+      localUri = dl.uri;
+    }
+    const asset = await MediaLibrary.createAssetAsync(localUri);
+    return asset.uri;
+  } catch (err) {
+    console.warn('saveToCameraRoll error:', err);
+    return null;
+  }
 };
 
 // The "Certified Kind Person" certificate: the person's name, the completion
@@ -106,6 +161,108 @@ export default function CertificateScreen({ navigation }) {
     }
   };
 
+  // ── Social sharing (same behavior as sharing an Act) ──────────────────────
+  // Renders the certificate to a PNG and shares it: Instagram opens directly;
+  // X opens its composer with the image on the clipboard to paste; Facebook and
+  // TikTok save the certificate to Photos so you add it in their post composer.
+  const certImageUri = async () => {
+    try {
+      await captureRef(certRef, { format: 'png', quality: 1 }); // warm-up pass
+      const uri = await captureRef(certRef, { format: 'png', quality: 1 });
+      if (!uri) return null;
+      if (uri.startsWith('file://') || uri.startsWith('ph://')) return uri;
+      return `file://${uri}`;
+    } catch (e) {
+      console.warn('Certificate capture failed:', e && e.message);
+      return null;
+    }
+  };
+
+  const shareSingleTo = async (socialKey, extra) => {
+    let RNShare = null;
+    try { RNShare = require('react-native-share').default; } catch {}
+    if (!RNShare || isExpoGo) return false;
+    const social = RNShare?.Social?.[socialKey];
+    if (!social) return false;
+    try { await RNShare.shareSingle({ social, ...extra }); return true; }
+    catch (e) { if (e?.message !== 'User did not share') console.warn(`shareSingle(${socialKey}) failed:`, e && e.message); return false; }
+  };
+
+  const shareToInstagram = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      if (!uri) { Alert.alert('Could not prepare the image', 'Please try again.'); return; }
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      const ok = await shareSingleTo('INSTAGRAM_STORIES', { appId: FB_APP_ID, backgroundImage: uri });
+      if (!ok) {
+        let Sharing = null;
+        try { Sharing = require('expo-sharing'); } catch {}
+        if (Sharing && (await Sharing.isAvailableAsync())) await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+        else await Share.share({ url: uri });
+      }
+    } catch (e) { if (e?.message !== 'User did not share') console.warn('Instagram share failed:', e && e.message); }
+    finally { setSharing(false); }
+  };
+
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      if (uri) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          await Clipboard.setImageAsync(base64);
+        } catch { try { await Clipboard.setStringAsync(buildShareMessage()); } catch {} }
+      } else { try { await Clipboard.setStringAsync(buildShareMessage()); } catch {} }
+      await openOrFallback('twitter://post', 'https://twitter.com/intent/tweet', 'X');
+    } catch (e) { if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message); }
+    finally { setSharing(false); }
+  };
+
+  const shareToFacebook = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      Alert.alert(
+        'Share to Facebook',
+        saved
+          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your certificate), then paste the caption.'
+          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+        [
+          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) { if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message); }
+    finally { setSharing(false); }
+  };
+
+  const shareToTikTok = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      Alert.alert(
+        'Share to TikTok',
+        saved
+          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved certificate, then paste the caption.'
+          : 'Your caption is copied.\n\nOpen the TikTok app, tap ➕ to create a post, and paste the caption.',
+        [{ text: 'Got it' }]
+      );
+    } catch (e) { if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message); }
+    finally { setSharing(false); }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Your Certificate" onBack={goHome} />
@@ -155,6 +312,25 @@ export default function CertificateScreen({ navigation }) {
             </View>
             <Text style={s.qrLabel}>Scan to join — new members grow your kindness tree 🌳</Text>
           </View>
+        </View>
+
+        <View style={s.shareRow}>
+          <TouchableOpacity style={s.shareBtn} onPress={shareToInstagram}>
+            <Text style={s.shareBtnIcon}>📸</Text>
+            <Text style={s.shareBtnLabel}>Instagram</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shareBtn} onPress={shareToFacebook}>
+            <Text style={s.shareBtnIcon}>📘</Text>
+            <Text style={s.shareBtnLabel}>Facebook</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shareBtn} onPress={shareToTikTok}>
+            <Text style={s.shareBtnIcon}>🎵</Text>
+            <Text style={s.shareBtnLabel}>TikTok</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shareBtn} onPress={shareToX}>
+            <Text style={s.shareBtnIcon}>✖️</Text>
+            <Text style={s.shareBtnLabel}>X</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={s.shareRow}>
