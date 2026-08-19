@@ -483,7 +483,30 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  const shareToTikTok = () => shareToApp('TikTok', 'https://www.tiktok.com/', 'https://www.tiktok.com/');
+  // TikTok builds posts from your Photos/gallery, not from a pasted image, so we
+  // SAVE the act picture to Photos (and copy the caption text), then open TikTok.
+  const shareToTikTok = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      Alert.alert(
+        'Share to TikTok',
+        saved
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕, choose Upload, pick the saved photo, then paste the caption.'
+          : 'Your caption is copied.\n\nTikTok will open — tap ➕ to create a post and paste the caption.',
+        [
+          { text: 'Open TikTok', onPress: () => openOrFallback('https://www.tiktok.com/', 'https://www.tiktok.com/', 'TikTok') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   const tryFacebookShareDialog = async (localUri) => {
     if (!localUri || isExpoGo) return false;
