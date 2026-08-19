@@ -742,7 +742,33 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  const shareToFacebook = () => shareToApp('Facebook', `fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`);
+  // Facebook's composer won't paste an image from the clipboard — it adds photos
+  // from your library (Add media). So we SAVE the act picture to Photos (it lands
+  // at the top of your recents), copy the caption text, and open Facebook's
+  // composer. The user taps Add media, picks the freshly-saved photo, and pastes
+  // the caption.
+  const shareToFacebook = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      try { await Clipboard.setStringAsync(getShareMessage()); } catch {}
+      Alert.alert(
+        'Share to Facebook',
+        saved
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap Add media, pick the most-recent photo (your act), then paste the caption.'
+          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+        [
+          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('Facebook share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   const shareToInstagram = async () => {
     if (sharing) return;
