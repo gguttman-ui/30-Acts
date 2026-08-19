@@ -397,7 +397,7 @@ const handleShareEmail = () => {
 
   const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
 
-  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', `fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`);
 
   const shareToInstagram = async () => {
     if (sharing) return;

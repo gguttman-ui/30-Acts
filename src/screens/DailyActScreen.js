@@ -742,7 +742,7 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', `fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`);
 
   const shareToInstagram = async () => {
     if (sharing) return;

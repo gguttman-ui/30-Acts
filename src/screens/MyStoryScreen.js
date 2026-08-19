@@ -526,7 +526,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     }
   };
 
-  const shareToFacebook = () => shareToApp('Facebook', 'https://www.facebook.com/', 'https://www.facebook.com/');
+  const shareToFacebook = () => shareToApp('Facebook', `fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`);
 
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
