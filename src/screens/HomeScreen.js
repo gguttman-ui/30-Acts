@@ -214,6 +214,10 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
     // on top -- presenting one during the navigation transition freezes the
     // dashboard until a tab switch remounts it.
     if (missedEverRef.current) return;
+    // If today's act is already done (or there's no open day for today), don't
+    // prompt to document — just leave the user on the dashboard.
+    const todayDay = days.find(d => d.scheduledDate === today);
+    if (!todayDay || todayDay.status === 'COMPLETED') return;
     if (documentPromptShownThisSession) return;
     documentPromptShownThisSession = true;
     setDocumentPrompt(true);
