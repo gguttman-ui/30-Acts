@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { C, todayStr } from '../constants';
 import {
@@ -187,10 +187,10 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     dt.setDate(dt.getDate() + n);
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
   };
-  const padBoard = (cells, startDate) => {
+  const padBoard = (cells, startDate, startDayNo = 1) => {
     const out = cells.slice(0, CHALLENGE_LEN);
     for (let i = out.length; i < CHALLENGE_LEN; i++) {
-      out.push({ type: 'future', dayNo: i + 1, date: startDate ? addDaysStr(startDate, i) : null });
+      out.push({ type: 'future', dayNo: startDayNo + i, date: startDate ? addDaysStr(startDate, i) : null });
     }
     return out;
   };
@@ -219,8 +219,32 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
 
     if (pc.kind === 'challenge') {
       flush();
-      const tiles = pc.dates.map((d, k) => ({ type: 'act', date: d, actNo: k + 1, row: byDate.get(d) }));
-      pages.push({ type: 'challenge', tiles, start: pc.dates[0], end: pc.dates[pc.dates.length - 1] });
+      // A streak can run past 30 days into a new lap. Give EACH 30-day lap its
+      // own page so day 31 starts a fresh page instead of a lone tile hanging
+      // off the bottom of the 30-grid. A finished lap is a "Completed" page; the
+      // in-progress final lap becomes the interactive current board.
+      const ds      = pc.dates;
+      const numLaps = Math.ceil(ds.length / CHALLENGE_LEN);
+      for (let lap = 0; lap < numLaps; lap++) {
+        const slice      = ds.slice(lap * CHALLENGE_LEN, (lap + 1) * CHALLENGE_LEN);
+        const startDayNo = lap * CHALLENGE_LEN + 1;
+        const isLastLap  = lap === numLaps - 1;
+        const isFull     = slice.length === CHALLENGE_LEN;
+
+        if (isCurrent && isLastLap && !isFull) {
+          // In-progress lap (e.g. day 31): its own fresh 30-day board — logged
+          // days, the "+" for today if still open, then future placeholders.
+          const cells = slice.map((d, k) => ({
+            type: 'act', date: d, actNo: startDayNo + k, row: byDate.get(d), interactive: true,
+          }));
+          if (hasLoggableDay) cells.push({ type: 'next', interactive: true });
+          pages.push({ type: 'current', cells: padBoard(cells, slice[0], startDayNo), hasCurrent: true });
+          currentPlaced = true;
+        } else {
+          const tiles = slice.map((d, k) => ({ type: 'act', date: d, actNo: startDayNo + k, row: byDate.get(d) }));
+          pages.push({ type: 'challenge', tiles, start: slice[0], end: slice[slice.length - 1] });
+        }
+      }
       return;
     }
 
@@ -299,31 +323,53 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   }
 
   if (!runs.length) {
-    // Brand-new user: no completions yet. Without a button here the only way to
-    // log a first act was the in-grid "+" tile, which doesn't render in this
-    // empty state — so a fresh user had no way to log at all. This CTA opens
-    // the same act-logging flow the "+" tile and header use (startNewAct).
+    // Brand-new user: show the full 30-slot board with a "+" on the first tile
+    // (today = Day 1) and faint placeholders for the rest, so a fresh user sees
+    // the same journey board everyone else does and taps the "+" to log Day 1.
+    const addDays = (dateStr, n) => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + n);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    };
+    const startFirstAct = () => navigation.navigate('MyStory', {
+      day: {
+        dayNumber: 1,
+        scheduledDate: today,
+        status: 'NOT_SET',
+        title: '',
+        proofType: null,
+        completionId: null,
+      },
+      returnTo: 'MyStory',
+    });
     return (
-      <View style={s.centerBox}>
-        <Text style={s.emptyBig}>No acts yet</Text>
-        <Text style={s.emptySub}>Log your first act and your streak starts today.</Text>
-        <TouchableOpacity
-          style={[s.logCta, { marginTop: 20 }]}
-          onPress={() => navigation.navigate('MyStory', {
-            day: {
-              dayNumber: 1,
-              scheduledDate: today,
-              status: 'NOT_SET',
-              title: '',
-              proofType: null,
-              completionId: null,
-            },
-            returnTo: 'MyStory',
-          })}
-        >
-          <Text style={s.logCtaText}>+ Log Today's Act</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView contentContainerStyle={{ paddingVertical: 14 }}>
+        <Text style={[s.emptySub, { marginBottom: 14 }]}>
+          Tap the + to log your first act — your 30-day journey starts today.
+        </Text>
+        <View style={s.grid}>
+          {Array.from({ length: CHALLENGE_LEN }, (_, i) => (
+            i === 0 ? (
+              <TouchableOpacity key={i} onPress={startFirstAct} style={[s.dayCell, s.dayCellNext]}>
+                <Text style={s.dayNum}>{' '}</Text>
+                <View style={s.centerSlot}><Text style={s.nextGlyph} allowFontScaling={false}>+</Text></View>
+                <View style={s.bottomSlot}>
+                  <Text style={[s.tileDate, s.tileDateDone]} numberOfLines={1} adjustsFontSizeToFit>TODAY</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View key={i} style={[s.dayCell, s.dayCellEmpty]}>
+                <Text style={s.dayNum}>{i + 1}</Text>
+                <View style={s.centerSlot} />
+                <View style={s.bottomSlot}>
+                  <Text style={s.tileDate} numberOfLines={1} adjustsFontSizeToFit>{fmtMonthDay(addDays(today, i))}</Text>
+                </View>
+              </View>
+            )
+          ))}
+        </View>
+      </ScrollView>
     );
   }
 
