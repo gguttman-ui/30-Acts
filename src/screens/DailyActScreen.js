@@ -791,11 +791,10 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  // TikTok builds posts from your Photos/gallery, and opening it from a link lands
-  // in a guest session where posting is blocked (+ throws "Something went wrong").
-  // So we just SAVE the act picture to Photos + copy the caption, and tell the
-  // user to open their own (logged-in) TikTok app to upload it. (A native build
-  // could open TikTok directly — see the LSApplicationQueriesSchemes item.)
+  // TikTok builds posts from your Photos/gallery. Save the act picture to Photos +
+  // copy the caption, then open the NATIVE TikTok app via its app scheme
+  // (Linking.openURL, not canOpenURL — so it opens the installed, logged-in app
+  // rather than the guest website where posting fails). Web is the last resort.
   const shareToTikTok = async () => {
     if (sharing) return;
     setSharing(true);
@@ -807,9 +806,15 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved photo, then paste the caption.'
-          : 'Your caption is copied.\n\nOpen the TikTok app, tap ➕ to create a post, and paste the caption.',
-        [{ text: 'Got it' }]
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
+          : 'Your caption is copied.\n\nTikTok will open — tap ➕ to create a post and paste the caption.',
+        [
+          { text: 'Open TikTok', onPress: async () => {
+            try { await Linking.openURL('tiktok://'); }
+            catch { try { await Linking.openURL('https://www.tiktok.com/'); } catch {} }
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
       );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
