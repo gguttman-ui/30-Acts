@@ -21,10 +21,22 @@ export default function DonationScreen({ navigation }) {
       return;
     }
 
-    // PayPal / Venmo: open externally.
+    // PayPal / Venmo: open externally. When the entry carries a deepLink, try
+    // the app's own URL scheme FIRST — Venmo's web profile is login-walled and
+    // renders as a blank white page in Safari, which looks like a broken app.
+    // openURL rejects when the app isn't installed, so we fall through to the
+    // web URL. (canOpenURL is deliberately not used: it returns false for any
+    // scheme not whitelisted in Info.plist, which would block this over-the-air.)
+    if (d.deepLink) {
+      try {
+        await Linking.openURL(d.deepLink);
+        return;
+      } catch (e) {
+        // Not installed — fall through to the web URL.
+      }
+    }
+
     try {
-      const canOpen = await Linking.canOpenURL(d.url);
-      if (!canOpen) throw new Error('cannot open');
       await Linking.openURL(d.url);
     } catch (e) {
       Alert.alert(

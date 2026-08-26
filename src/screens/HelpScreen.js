@@ -3,7 +3,6 @@ import {
   View, Text, Image, ScrollView, StyleSheet, Alert, Linking, Platform,
 } from 'react-native';
 import Constants from 'expo-constants';
-import * as Application from 'expo-application';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { extractPhone } from '../lib/streak';
@@ -11,9 +10,11 @@ import { extractPhone } from '../lib/streak';
 // Where "Report a Problem" sends support email.
 const SUPPORT_EMAIL = 'info@30actsofkindness.org';
 
-// Real native build number, read straight from the installed binary. No manual
-// bumping needed — it always matches the TestFlight build you installed.
-const APP_BUILD = Application.nativeBuildVersion ?? '—';
+// Manual build number for now. NEXT NATIVE BUILD: run `npx expo install
+// expo-application`, then set this to `Application.nativeBuildVersion` so it
+// fills in automatically. (expo-application is native, so it can't ship
+// over-the-air — it only works once compiled into a build.)
+const APP_BUILD = '96';
 
 export default function HelpScreen({ user }) {
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';

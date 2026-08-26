@@ -7,7 +7,9 @@ import { Btn, Card, ScreenHeader } from '../components';
 import { C, DONATIONS } from '../constants';
 import { supabase } from '../lib/supabase';
 
-const SHIP_AMOUNT = '$6.95';
+const SHIP_AMOUNT_NUM = '6.95';
+const SHIP_AMOUNT     = `$${SHIP_AMOUNT_NUM}`;
+const SHIP_NOTE       = 'Kindness bracelet shipping';
 
 // $6.95 bracelet-shipping payment. PayPal / Venmo / Zelle are handle-based, so
 // there's no automatic confirmation: the user sends the money and taps
@@ -31,6 +33,24 @@ export default function BraceletPaymentScreen({ navigation, route }) {
       }
       return;
     }
+    // Venmo's web profile is login-walled and renders as a blank white page in
+    // Safari. Open the app's pay sheet instead, with the shipping amount and a
+    // note already filled in so the donor can't send the wrong figure. Falls
+    // back to the web URL when the app isn't installed.
+    const deepLink = d.handle
+      ? `venmo://paycharge?txn=pay&recipients=${d.handle}`
+        + `&amount=${SHIP_AMOUNT_NUM}&note=${encodeURIComponent(SHIP_NOTE)}`
+      : d.deepLink;
+
+    if (deepLink) {
+      try {
+        await Linking.openURL(deepLink);
+        return;
+      } catch (e) {
+        // Not installed — fall through to the web URL.
+      }
+    }
+
     try {
       await Linking.openURL(d.url);
     } catch (e) {

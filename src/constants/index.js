@@ -440,8 +440,15 @@ export const DONATIONS = [
     icon: '💚',
     color: '#3D95CE',
     value: '@Actsofkindness30',
+    handle: 'Actsofkindness30',
     cta: 'Donate with Venmo',
     action: 'open',
+    // Venmo's web profile is login-walled and renders as a blank white page in
+    // mobile Safari, so send donors straight into the Venmo app's pay sheet.
+    // Linking.openURL (unlike canOpenURL) does not need the scheme whitelisted
+    // in Info.plist, so this works over-the-air; the https URL below is the
+    // fallback for a phone with no Venmo app installed.
+    deepLink: 'venmo://paycharge?txn=pay&recipients=Actsofkindness30',
     url: 'https://venmo.com/u/Actsofkindness30',
     hint: 'Opens Venmo. Enter your amount in the app.',
   },
@@ -494,4 +501,15 @@ export function localDateInTZ(tz, date = new Date()) {
   } catch {
     return _localDateStr(date);
   }
-}
+}
+// ── SMS reminder consent (shared) ───────────────────────────────────────────
+// Express-consent disclosure + version for recurring SMS reminders (CTIA/TCPA
+// and toll-free A2P). Shared by the Me/Settings screen and the signup flow so
+// the exact text a user agreed to is recorded identically wherever they opt in.
+// Bump the version whenever the wording below materially changes.
+export const SMS_CONSENT_VERSION = '2026-07-19';
+export const SMS_CONSENT_TEXT =
+  'By turning this on you agree to receive recurring automated text ' +
+  'reminders from 30 Acts of Kindness at your sign-up number — up to 2 ' +
+  'per day at the times you choose. Msg & data rates may apply. Reply ' +
+  'STOP to cancel or HELP for help. Consent is not a condition of using the app.';
