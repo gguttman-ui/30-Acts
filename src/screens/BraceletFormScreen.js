@@ -14,7 +14,7 @@ const extractPhone = (email) => {
 
 // Shipping-address form for the bracelet. Saves into recognition_orders
 // (bracelet_requested = true, plus certificate_requested when the user picked
-// "Both"). Payment for the $4.95 comes in the next phase; this phase captures
+// "Both"). Payment for the $6.95 comes in the next phase; this phase captures
 // the address and records the request.
 //
 // NOTE: the input fields are inlined (not a sub-component defined in render) —
@@ -101,7 +101,7 @@ export default function BraceletFormScreen({ navigation, route }) {
         return;
       }
 
-      // Address saved — on to the $4.95 shipping payment.
+      // Address saved — on to the $6.95 shipping payment.
       navigation.navigate('BraceletPayment', { withCertificate });
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -119,7 +119,7 @@ export default function BraceletFormScreen({ navigation, route }) {
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Text style={s.intro}>
-            Your kindness bracelet ships for just $4.95. Enter your mailing address below.
+            Your kindness bracelet ships for just $6.95. Enter your mailing address below.
           </Text>
 
           <Text style={s.label}>Full name</Text>

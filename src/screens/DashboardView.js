@@ -195,13 +195,31 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     return out;
   };
 
+  // A lap page is always a full 30-slot board. A lap that only got partway --
+  // e.g. a 32-day streak whose second lap holds just days 31 and 32 -- fills
+  // slots 1 and 2 and leaves the other 28 as faint placeholders carrying their
+  // day number and no date (those days never happened, so a projected date
+  // would be a lie). This is what makes day 31 read as the start of a new
+  // 30-day board instead of a lone tile hanging off the previous grid.
+  const padPast = (cells, startDayNo = 1) => {
+    const out = cells.slice(0, CHALLENGE_LEN);
+    for (let i = out.length; i < CHALLENGE_LEN; i++) {
+      out.push({ type: 'future', dayNo: startDayNo + i, date: null });
+    }
+    return out;
+  };
+
+  const rangeLabel = (a, b) => (a === b ? fmtMonthDay(a) : `${fmtMonthDay(a)}${'–'}${fmtMonthDay(b)}`);
+
   const lastIdx = pieces.length - 1;
   const pages = [];
   let buffer = null;
   const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
 
-  // Pack a set of cells into the running consolidated buffer, keeping a piece
-  // together when it fits and wrapping only a piece too big for one page.
+  // Short, never-completed streaks share a page, oldest first, one blank tile
+  // between them -- six little May/June streaks belong together on one page,
+  // not spread over six near-empty ones. A piece stays whole when it fits, and
+  // only a piece too big for one page wraps.
   const packInto = (cells) => {
     const sep = (buffer && buffer.cells.length) ? 1 : 0;
     if (buffer && buffer.cells.length && buffer.cells.length + sep + cells.length > TILES_PER_PAGE) flush();
@@ -218,6 +236,8 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     const isCurrent = pi === lastIdx;
 
     if (pc.kind === 'challenge') {
+      // Earlier short streaks come first chronologically, so close their shared
+      // page before this completed streak claims one of its own.
       flush();
       // A streak can run past 30 days into a new lap. Give EACH 30-day lap its
       // own page so day 31 starts a fresh page instead of a lone tile hanging
@@ -230,19 +250,31 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
         const startDayNo = lap * CHALLENGE_LEN + 1;
         const isLastLap  = lap === numLaps - 1;
         const isFull     = slice.length === CHALLENGE_LEN;
+        const cells      = slice.map((d, k) => ({
+          type: 'act', date: d, actNo: startDayNo + k, row: byDate.get(d),
+        }));
 
-        if (isCurrent && isLastLap && !isFull) {
+        // The trailing partial lap is only TODAY's board if the streak is still
+        // alive (last act was today or yesterday). A 32-day streak that died in
+        // July must render its lap 2 as a past page, not as a live board with a
+        // "+" on it.
+        const stillAlive = dayDiffDays(ds[ds.length - 1], today) <= 1;
+
+        if (isCurrent && isLastLap && !isFull && stillAlive) {
           // In-progress lap (e.g. day 31): its own fresh 30-day board — logged
           // days, the "+" for today if still open, then future placeholders.
-          const cells = slice.map((d, k) => ({
-            type: 'act', date: d, actNo: startDayNo + k, row: byDate.get(d), interactive: true,
-          }));
-          if (hasLoggableDay) cells.push({ type: 'next', interactive: true });
-          pages.push({ type: 'current', cells: padBoard(cells, slice[0], startDayNo), hasCurrent: true });
+          const live = cells.map((c) => ({ ...c, interactive: true }));
+          if (hasLoggableDay) live.push({ type: 'next', interactive: true });
+          pages.push({ type: 'current', cells: padBoard(live, slice[0], startDayNo), hasCurrent: true });
           currentPlaced = true;
         } else {
-          const tiles = slice.map((d, k) => ({ type: 'act', date: d, actNo: startDayNo + k, row: byDate.get(d) }));
-          pages.push({ type: 'challenge', tiles, start: slice[0], end: slice[slice.length - 1] });
+          pages.push({
+            type:  'streak',
+            cells: padPast(cells, startDayNo),
+            label: lap === 0
+              ? `STREAK ${'·'} Completed ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`
+              : `STREAK ${'·'} LAP ${lap + 1} ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`,
+          });
         }
       }
       return;
@@ -262,8 +294,8 @@ function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
         flush();
         pages.push({ type: 'current', cells: padBoard(cells, pc.dates[0]), hasCurrent: true });
       } else {
-        // The last streak ENDED (yesterday was missed) — show it as a past
-        // streak, and start today on a brand-new board as Day 1 (own page).
+        // The last streak ENDED (yesterday was missed) — it joins the earlier
+        // short streaks, and today starts a brand-new board as Day 1.
         packInto(fragmentCells(pc.dates, false));
         flush();
         if (hasLoggableDay) {
@@ -552,14 +584,17 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   };
 
   const renderPage = ({ item }) => {
-    // A completed challenge: 30+ consecutive days on its own page.
-    if (item.type === 'challenge') {
-      const label = `STREAK ${'·'} Completed ${'·'} ${fmtMonthDay(item.start)}${'–'}${fmtMonthDay(item.end)}`;
+    // A past streak (or a finished 30-day lap) on its own full 30-slot board.
+    if (item.type === 'streak') {
       return (
         <View style={{ width: SCREEN_W }}>
-          <Text style={s.pastRunLabel}>{label}</Text>
+          <Text style={s.pastRunLabel}>{item.label}</Text>
           <View style={s.grid}>
-            {item.tiles.map((cell, i) => renderActCell(cell, `ch-${i}`, false))}
+            {item.cells.map((cell, i) =>
+              cell.type === 'act'
+                ? renderActCell(cell, `st-${i}`, false)
+                : renderTileCell(cell, `st-${i}`, {})
+            )}
           </View>
           {pages.length > 1 && renderDots(item)}
         </View>
@@ -800,9 +835,11 @@ const s = StyleSheet.create({
   tileDate:     { fontSize: sf(11), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
   tileDateDone: { color: C.primary },
 
+  // A long-running user accumulates lap pages, so wrap the dots onto extra rows
+  // instead of letting the row run off the edge of the screen.
   pageDots: {
-    flexDirection: 'row', justifyContent: 'center',
-    gap: 6, marginTop: 16,
+    flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap',
+    gap: 6, marginTop: 16, paddingHorizontal: 16,
   },
   pageDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
   pageDotActive: { backgroundColor: C.primary, width: 18 },

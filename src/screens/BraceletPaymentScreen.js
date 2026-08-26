@@ -7,9 +7,9 @@ import { Btn, Card, ScreenHeader } from '../components';
 import { C, DONATIONS } from '../constants';
 import { supabase } from '../lib/supabase';
 
-const SHIP_AMOUNT = '$4.95';
+const SHIP_AMOUNT = '$6.95';
 
-// $4.95 bracelet-shipping payment. PayPal / Venmo / Zelle are handle-based, so
+// $6.95 bracelet-shipping payment. PayPal / Venmo / Zelle are handle-based, so
 // there's no automatic confirmation: the user sends the money and taps
 // "I've sent it," which records the method and leaves the order payment_status
 // = 'pending' for an admin to verify before shipping.
@@ -106,7 +106,7 @@ export default function BraceletPaymentScreen({ navigation, route }) {
         })}
 
         <Btn
-          label={saving ? 'Saving…' : "✓ I've sent the $4.95"}
+          label={saving ? 'Saving…' : "✓ I've sent the $6.95"}
           onPress={handleSent}
           loading={saving}
           style={{ marginTop: 8 }}
