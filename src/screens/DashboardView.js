@@ -491,7 +491,13 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     const day         = cell.day;
     const interactive = !!(opts && opts.interactive);
     const grid        = opts && opts.grid;
-    const isToday     = interactive && day.scheduledDate === today;
+    // Today is today on EVERY page, interactive or not. Gating this on
+    // `interactive` meant that the moment a streak page became read-only --
+    // e.g. day 30 lands today, so the whole lap renders as a finished
+    // "Completed" page -- today's tile fell back to showing its date instead of
+    // the TODAY label. isYesterday stays gated: it only styles the back-fill
+    // affordance, which genuinely applies to the live board alone.
+    const isToday     = day.scheduledDate === today;
     const isYesterday = interactive && day.scheduledDate === yesterday;
     const isDone      = day.status === 'COMPLETED';
     const isNextSlot  = interactive && hasLoggableDay && !isDone

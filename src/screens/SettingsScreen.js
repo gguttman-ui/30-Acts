@@ -765,8 +765,24 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               </View>
               )}
 
+              {/* Picking a time with the arrows changes nothing until it is
+                  saved, and "Save Profile" sits far below this card behind the
+                  tree/invite section — testers set a time, walked away, and got
+                  no texts. This button saves right here, so the reminder card
+                  is self-contained. It runs the same handleSave as the profile
+                  button, so ZIP/timezone and daytime-window checks still apply. */}
+              <Btn
+                label={saved ? '✓ Reminder set' : 'Set reminder'}
+                onPress={handleSave}
+                style={{
+                  alignSelf: 'stretch',
+                  marginTop: 18,
+                  backgroundColor: saved ? C.success : C.primary,
+                  borderWidth: 0,
+                }}
+              />
               <Text style={s.reminderHint}>
-                Tap Save Profile below to save your reminder times.
+                Your times aren't saved until you tap Set reminder.
               </Text>
             </View>
           )}
