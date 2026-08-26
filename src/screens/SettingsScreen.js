@@ -134,6 +134,10 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // reminder2_* fields as null on Save, which makes the send-reminders function
   // skip slot 2 entirely (it only fires a slot whose hour is a number).
   const [reminder2Enabled, setReminder2Enabled] = useState(false);
+  // Which "Set … reminder" button was last tapped, so only that button shows the
+  // ✓ confirmation. Both buttons run the same save (handleSave writes all the
+  // reminder fields at once) — this is purely about which one acknowledges it.
+  const [reminderSetWhich, setReminderSetWhich] = useState(null);
   // ISO timestamp of the first time the user opted in to SMS reminders. Kept as
   // proof of express consent for toll-free / A2P compliance; never overwritten
   // once set (only cleared server-side on a STOP opt-out).
@@ -711,6 +715,23 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 </View>
               </View>
 
+              {/* Picking a time with the arrows changes nothing until it is
+                  saved, and "Save Profile" sits far below this card behind the
+                  tree/invite section — testers set a time, walked away, and got
+                  no texts. Each reminder now saves from its own button, right
+                  under the time it belongs to. Both run the same handleSave, so
+                  the ZIP/timezone and daytime-window checks still apply. */}
+              <Btn
+                label={saved && reminderSetWhich === 'first' ? '✓ First reminder set' : 'Set first reminder'}
+                onPress={() => { setReminderSetWhich('first'); handleSave(); }}
+                style={{
+                  alignSelf: 'stretch',
+                  marginTop: 14,
+                  backgroundColor: saved && reminderSetWhich === 'first' ? C.success : C.primary,
+                  borderWidth: 0,
+                }}
+              />
+
               <View style={[s.toggleRow, { marginTop: 18 }]}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={s.reminderTimeLabel}>SECOND REMINDER</Text>
@@ -725,6 +746,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               </View>
 
               {reminder2Enabled && (
+              <>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 12 ? 1 : h + 1)}>
@@ -763,26 +785,22 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                   </TouchableOpacity>
                 </View>
               </View>
-              )}
 
-              {/* Picking a time with the arrows changes nothing until it is
-                  saved, and "Save Profile" sits far below this card behind the
-                  tree/invite section — testers set a time, walked away, and got
-                  no texts. This button saves right here, so the reminder card
-                  is self-contained. It runs the same handleSave as the profile
-                  button, so ZIP/timezone and daytime-window checks still apply. */}
               <Btn
-                label={saved ? '✓ Reminder set' : 'Set reminder'}
-                onPress={handleSave}
+                label={saved && reminderSetWhich === 'second' ? '✓ Second reminder set' : 'Set second reminder'}
+                onPress={() => { setReminderSetWhich('second'); handleSave(); }}
                 style={{
                   alignSelf: 'stretch',
-                  marginTop: 18,
-                  backgroundColor: saved ? C.success : C.primary,
+                  marginTop: 14,
+                  backgroundColor: saved && reminderSetWhich === 'second' ? C.success : C.primary,
                   borderWidth: 0,
                 }}
               />
+              </>
+              )}
+
               <Text style={s.reminderHint}>
-                Your times aren't saved until you tap Set reminder.
+                A time isn't saved until you tap its Set button.
               </Text>
             </View>
           )}
