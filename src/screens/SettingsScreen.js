@@ -693,7 +693,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
             </View>
             <Switch
               value={reminderEnabled}
-              onValueChange={setReminderEnabled}
+              onValueChange={(v) => toggleReminder('first', v)}
               trackColor={{ false: C.border, true: C.primary + '88' }}
               thumbColor={reminderEnabled ? C.primary : '#f4f3f4'}
             />
@@ -767,14 +767,16 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                   beside it. Both run the same handleSave, so the ZIP/timezone
                   and daytime-window checks still apply. */}
               <View style={s.reminderSetRow}>
-                <Btn
-                  label={saved && reminderSetWhich === 'first' ? '✓ Set' : 'Set'}
-                  onPress={() => { setReminderSetWhich('first'); handleSave(); }}
-                  style={[
-                    s.reminderSetBtn,
-                    saved && reminderSetWhich === 'first' && { backgroundColor: C.success },
-                  ]}
-                />
+                <View style={s.reminderSetBtnWrap}>
+                  <Btn
+                    label={saved && reminderSetWhich === 'first' ? '✓ Reminder 1 set' : 'Set reminder 1'}
+                    onPress={() => { setReminderSetWhich('first'); handleSave(); }}
+                    style={[
+                      s.reminderSetBtn,
+                      saved && reminderSetWhich === 'first' && { backgroundColor: C.success },
+                    ]}
+                  />
+                </View>
                 <TouchableOpacity
                   onPress={() => toggleReminder('first', !reminderEnabled)}
                   style={[s.statusChip, reminderEnabled ? s.statusChipOn : s.statusChipOff]}
@@ -792,7 +794,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 </View>
                 <Switch
                   value={reminder2Enabled}
-                  onValueChange={setReminder2Enabled}
+                  onValueChange={(v) => toggleReminder('second', v)}
                   trackColor={{ false: C.border, true: C.primary + '88' }}
                   thumbColor={reminder2Enabled ? C.primary : '#f4f3f4'}
                 />
@@ -840,14 +842,16 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               </View>
 
               <View style={s.reminderSetRow}>
-                <Btn
-                  label={saved && reminderSetWhich === 'second' ? '✓ Set' : 'Set'}
-                  onPress={() => { setReminderSetWhich('second'); handleSave(); }}
-                  style={[
-                    s.reminderSetBtn,
-                    saved && reminderSetWhich === 'second' && { backgroundColor: C.success },
-                  ]}
-                />
+                <View style={s.reminderSetBtnWrap}>
+                  <Btn
+                    label={saved && reminderSetWhich === 'second' ? '✓ Reminder 2 set' : 'Set reminder 2'}
+                    onPress={() => { setReminderSetWhich('second'); handleSave(); }}
+                    style={[
+                      s.reminderSetBtn,
+                      saved && reminderSetWhich === 'second' && { backgroundColor: C.success },
+                    ]}
+                  />
+                </View>
                 <TouchableOpacity
                   onPress={() => toggleReminder('second', !reminder2Enabled)}
                   style={[s.statusChip, reminder2Enabled ? s.statusChipOn : s.statusChipOff]}
@@ -1073,13 +1077,17 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     gap: 10, marginTop: 14,
   },
+  // The shared Btn hard-codes width: '100%', so a style override can't shrink
+  // it -- it stretched across the row and pushed the status chip off the right
+  // edge. Constraining it with a wrapper is the only reliable fix: flex so it
+  // adapts to narrow screens, maxWidth so it stays compact on wide ones.
+  reminderSetBtnWrap: { flex: 1, maxWidth: 190 },
   reminderSetBtn: {
-    paddingVertical: 10, paddingHorizontal: 26,
-    alignSelf: 'flex-start', minWidth: 92,
+    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12,
   },
   statusChip: {
     paddingVertical: 7, paddingHorizontal: 14,
-    borderRadius: 999, borderWidth: 1.5,
+    borderRadius: 999, borderWidth: 1.5, flexShrink: 0,
   },
   statusChipOn:  { borderColor: C.success, backgroundColor: C.success + '1A' },
   statusChipOff: { borderColor: C.border,  backgroundColor: 'transparent' },
