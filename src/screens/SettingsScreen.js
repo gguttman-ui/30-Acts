@@ -216,13 +216,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
         setReminder2Period(meta.reminder2_period);
       }
       // Second reminder is opt-in: default OFF unless the user explicitly enabled it.
-      setReminder2Enabled(meta.reminder2_enabled === true);
+      setReminder2Enabled(meta.reminder_enabled === true && meta.reminder2_enabled === true);
       // Slot 1 is opt-in too. The fallback covers accounts saved before slot 1
       // had its own flag: a stored hour means they had scheduled it, so keep it
       // on rather than silently cancelling their reminder.
       setReminder1Enabled(
-        meta.reminder1_enabled === true ||
-        (meta.reminder1_enabled === undefined && typeof meta.reminder_hour === 'number')
+        meta.reminder_enabled === true && (
+          meta.reminder1_enabled === true ||
+          (meta.reminder1_enabled === undefined && typeof meta.reminder_hour === 'number')
+        )
       );
       if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
       // Saved values are in place — from here a time change is the USER moving
@@ -502,9 +504,23 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   const toggleReminder = async (which, next) => {
     const t = REMINDER_TARGETS[which];
     if (!t) return;
+
+    // Switching the master OFF clears both slots. Otherwise switching it back
+    // on silently resumed whatever was scheduled before, so reminders arrived
+    // without anyone choosing a time -- turning it on must start from OFF/OFF
+    // and wait to be told.
+    const clearSlots = which === 'master' && !next;
+    const overrides  = { [t.key]: next };
+    if (clearSlots) {
+      overrides.reminder1Enabled = false;
+      overrides.reminder2Enabled = false;
+    }
+
     t.set(next);
+    if (clearSlots) { setReminder1Enabled(false); setReminder2Enabled(false); }
     flashReminder(`${t.label} turned ${next ? 'ON' : 'OFF'}`);
-    const ok = await handleSave({ [t.key]: next });
+
+    const ok = await handleSave(overrides);
     if (!ok) {
       t.set(!next);
       flashReminder(`Couldn't save — ${t.label} left ${next ? 'OFF' : 'ON'}`);
@@ -587,6 +603,17 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           </TouchableOpacity>
         )}
       />
+      {/* Pinned directly under the header, OUTSIDE the ScrollView. Inside the
+          reminder card it only showed if that card happened to be on screen --
+          tap a chip near the bottom of a long card and the banner appeared
+          hundreds of pixels above the fold, which is indistinguishable from no
+          banner at all. Here it is visible at any scroll position. */}
+      {!!reminderFlash && (
+        <View style={s.reminderFlash}>
+          <Text style={s.reminderFlashText}>{reminderFlash}</Text>
+        </View>
+      )}
+
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
 
        <Card style={s.mb}>
@@ -756,15 +783,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
         <Card style={s.mb}>
           <Text style={s.cardTitle}>Daily Reminder</Text>
-
-          {/* Lives at CARD level, not inside the reminderEnabled block: turning
-              the first reminder off unmounts that block, which would take the
-              banner announcing it down with it. */}
-          {!!reminderFlash && (
-            <View style={s.reminderFlash}>
-              <Text style={s.reminderFlashText}>{reminderFlash}</Text>
-            </View>
-          )}
 
           <View style={s.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
@@ -1158,13 +1176,11 @@ const s = StyleSheet.create({
   statusChipTextOff: { color: C.muted },
 
   reminderFlash: {
-    backgroundColor: C.primary + '1A',
-    borderColor: C.primary + '66', borderWidth: 1,
-    borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12,
-    marginBottom: 12,
+    backgroundColor: C.primary,
+    paddingVertical: 14, paddingHorizontal: 16,
   },
   reminderFlashText: {
-    color: C.primary, fontSize: 13, fontWeight: '800', textAlign: 'center',
+    color: C.bg, fontSize: 15, fontWeight: '900', textAlign: 'center',
   },
 
   buildStamp: {
