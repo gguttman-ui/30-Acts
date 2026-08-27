@@ -24,6 +24,13 @@ const KB_DONE_ID = 'settingsKbDone';
 // How long a confirmation flash stays on screen.
 const FLASH_MS = 10000;
 
+// Held at MODULE scope, not in component state. Saving calls
+// supabase.auth.updateUser, and anything that re-mounts this screen off the
+// back of that would reset component state -- wiping the very message the save
+// just produced, which is exactly what "still no flash screens" looks like.
+// Surviving here means a fresh mount picks the message back up mid-flash.
+let flashHolder = { msg: '', until: 0 };
+
 // SMS_CONSENT_VERSION / SMS_CONSENT_TEXT now live in ../constants so the Me
 // screen and the signup flow record the exact same consent language + version.
 const AGE_BRACKETS = [
@@ -138,18 +145,38 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // reminder2_* fields as null on Save, which makes the send-reminders function
   // skip slot 2 entirely (it only fires a slot whose hour is a number).
   const [reminder2Enabled, setReminder2Enabled] = useState(false);
+  // Slot 1 has its OWN flag. It used to share `reminderEnabled` with the master
+  // switch, so switching reminders on switched slot 1 on at the same instant --
+  // the user never got to choose. Master = "texts allowed at all"; this = "slot
+  // 1 is scheduled". Off by default, like slot 2.
+  const [reminder1Enabled, setReminder1Enabled] = useState(false);
   // Brief confirmation shown inside the reminder card — most importantly when a
   // reminder is switched OFF, which otherwise changed nothing visible except a
   // chip and left people unsure whether the texts had actually stopped.
-  const [reminderFlash, setReminderFlash] = useState('');
+  const [reminderFlash, setReminderFlash] = useState(
+    () => (Date.now() < flashHolder.until ? flashHolder.msg : '')
+  );
+  const [flashSeq, setFlashSeq] = useState(0);
   const metaLoaded = useRef(false);
   const time1Tmr   = useRef(null);
   const time2Tmr   = useRef(null);
   const fmtTime = (h, m, p) => `${h}:${String(m).padStart(2, '0')} ${p}`;
   const flashReminder = (msg) => {
+    flashHolder = { msg, until: Date.now() + FLASH_MS };
     setReminderFlash(msg);
-    setTimeout(() => setReminderFlash(''), FLASH_MS);
+    // Bumped so re-flashing the SAME text still restarts the timer -- setting
+    // state to an identical value wouldn't re-run the effect on its own.
+    setFlashSeq((n) => n + 1);
   };
+
+  useEffect(() => {
+    if (!reminderFlash) return undefined;
+    const t = setTimeout(() => {
+      flashHolder = { msg: '', until: 0 };
+      setReminderFlash('');
+    }, Math.max(0, flashHolder.until - Date.now()));
+    return () => clearTimeout(t);
+  }, [reminderFlash, flashSeq]);
   // ISO timestamp of the first time the user opted in to SMS reminders. Kept as
   // proof of express consent for toll-free / A2P compliance; never overwritten
   // once set (only cleared server-side on a STOP opt-out).
@@ -190,6 +217,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       }
       // Second reminder is opt-in: default OFF unless the user explicitly enabled it.
       setReminder2Enabled(meta.reminder2_enabled === true);
+      // Slot 1 is opt-in too. The fallback covers accounts saved before slot 1
+      // had its own flag: a stored hour means they had scheduled it, so keep it
+      // on rather than silently cancelling their reminder.
+      setReminder1Enabled(
+        meta.reminder1_enabled === true ||
+        (meta.reminder1_enabled === undefined && typeof meta.reminder_hour === 'number')
+      );
       if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
       // Saved values are in place — from here a time change is the USER moving
       // the arrows, not hydration, so the auto-save effects may run.
@@ -332,6 +366,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // successful save so callers know whether to announce it.
   const handleSave = async (overrides = {}) => {
     const rEnabled  = overrides.reminderEnabled  !== undefined ? overrides.reminderEnabled  : reminderEnabled;
+    const r1Enabled = overrides.reminder1Enabled !== undefined ? overrides.reminder1Enabled : reminder1Enabled;
     const r2Enabled = overrides.reminder2Enabled !== undefined ? overrides.reminder2Enabled : reminder2Enabled;
 
     if (contactEmail.trim() && !contactEmail.includes('@')) {
@@ -369,7 +404,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       // outside that window would be silently dropped — catch it here.
       const to24 = (h, p) => (p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12));
       const inWindow = (h, p) => { const hr = to24(h, p); return hr >= 6 && hr < 22; };
-      const bad1 = !inWindow(reminderHour, reminderPeriod);
+      const bad1 = r1Enabled && !inWindow(reminderHour, reminderPeriod);
       const bad2 = r2Enabled && !inWindow(reminder2Hour, reminder2Period);
       if (bad1 || bad2) {
         Alert.alert(
@@ -400,9 +435,12 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           street2:       street2.trim() || null,
           age_bracket: ageBracket || null,
           reminder_enabled: rEnabled,
-          reminder_hour:    reminderHour,
-          reminder_minute:  reminderMinute,
-          reminder_period:  reminderPeriod,
+          reminder1_enabled: r1Enabled,
+          // Nulled when slot 1 is off: the sender only fires a slot whose hour
+          // is a number, exactly as slot 2 already worked.
+          reminder_hour:    r1Enabled ? reminderHour   : null,
+          reminder_minute:  r1Enabled ? reminderMinute : null,
+          reminder_period:  r1Enabled ? reminderPeriod : null,
           // Second reminder only persists real times when opted in; otherwise
           // null so the sender skips it (and turning it off future-proofs: an
           // existing 2nd reminder is cleared on the next Save).
@@ -450,14 +488,27 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // Turn one reminder on or off from its status chip: flip the flag, persist it
   // in the same tap (passing the new value through so the async state update
   // can't race the save), announce it, and roll back if the save failed.
+  const REMINDER_TARGETS = {
+    master: { label: 'Reminders',       set: setReminderEnabled,  key: 'reminderEnabled'  },
+    first:  { label: 'First reminder',  set: setReminder1Enabled, key: 'reminder1Enabled' },
+    second: { label: 'Second reminder', set: setReminder2Enabled, key: 'reminder2Enabled' },
+  };
+
+  // The flash fires BEFORE the save, not after it. Announcing only on success
+  // meant any hiccup inside handleSave -- a slow moderation call, a thrown
+  // error, a validation bail -- swallowed the confirmation entirely and the tap
+  // looked like it did nothing. Feedback is now immediate, and a failed save
+  // corrects it afterwards rather than being the thing that gates it.
   const toggleReminder = async (which, next) => {
-    const setFlag = which === 'first' ? setReminderEnabled : setReminder2Enabled;
-    setFlag(next);
-    const ok = await handleSave(
-      which === 'first' ? { reminderEnabled: next } : { reminder2Enabled: next }
-    );
-    if (!ok) { setFlag(!next); return; }
-    flashReminder(`${which === 'first' ? 'First' : 'Second'} reminder turned ${next ? 'on' : 'off'}`);
+    const t = REMINDER_TARGETS[which];
+    if (!t) return;
+    t.set(next);
+    flashReminder(`${t.label} turned ${next ? 'ON' : 'OFF'}`);
+    const ok = await handleSave({ [t.key]: next });
+    if (!ok) {
+      t.set(!next);
+      flashReminder(`Couldn't save — ${t.label} left ${next ? 'OFF' : 'ON'}`);
+    }
   };
 
   // With the Set buttons gone, a time change has to save itself. Debounced so a
@@ -473,13 +524,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   };
 
   useEffect(
-    () => saveTimeSoon(time1Tmr, reminderEnabled, () =>
+    () => saveTimeSoon(time1Tmr, reminderEnabled && reminder1Enabled, () =>
       `First reminder set for ${fmtTime(reminderHour, reminderMinute, reminderPeriod)}`),
     [reminderHour, reminderMinute, reminderPeriod]
   );
 
   useEffect(
-    () => saveTimeSoon(time2Tmr, reminder2Enabled, () =>
+    () => saveTimeSoon(time2Tmr, reminderEnabled && reminder2Enabled, () =>
       `Second reminder set for ${fmtTime(reminder2Hour, reminder2Minute, reminder2Period)}`),
     [reminder2Hour, reminder2Minute, reminder2Period]
   );
@@ -724,7 +775,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
             </View>
             <Switch
               value={reminderEnabled}
-              onValueChange={(v) => toggleReminder('first', v)}
+              onValueChange={(v) => toggleReminder('master', v)}
               trackColor={{ false: C.border, true: C.primary + '88' }}
               thumbColor={reminderEnabled ? C.primary : '#f4f3f4'}
             />
@@ -750,7 +801,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
 {/* Rendered whether or not the reminder is on: a switched-off reminder
               still needs its time to be readable and resettable. */}
-          <View style={[s.reminderTimeWrap, !reminderEnabled && s.reminderTimeWrapOff]}>
+          <View style={s.reminderTimeWrap}>
+              <View style={!reminder1Enabled && s.reminderTimeWrapOff}>
               <Text style={s.reminderTimeLabel}>FIRST REMINDER</Text>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
@@ -798,13 +850,14 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                   action they can't see. */}
               <View style={s.reminderSetRow}>
                 <TouchableOpacity
-                  onPress={() => toggleReminder('first', !reminderEnabled)}
-                  style={[s.statusChip, reminderEnabled ? s.statusChipOn : s.statusChipOff]}
+                  onPress={() => toggleReminder('first', !reminder1Enabled)}
+                  style={[s.statusChip, reminder1Enabled ? s.statusChipOn : s.statusChipOff]}
                 >
-                  <Text style={[s.statusChipText, reminderEnabled ? s.statusChipTextOn : s.statusChipTextOff]}>
-                    {reminderEnabled ? '\u25CF  ON' : '\u25CB  OFF'}
+                  <Text style={[s.statusChipText, reminder1Enabled ? s.statusChipTextOn : s.statusChipTextOff]}>
+                    {reminder1Enabled ? '\u25CF  ON' : '\u25CB  OFF'}
                   </Text>
                 </TouchableOpacity>
+              </View>
               </View>
 
               <View style={[s.toggleRow, { marginTop: 18 }]}>

@@ -15,7 +15,15 @@ export default function FeedbackScreen({ navigation }) {
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async () => {
-    if (msg.length < 10) return;
+    // Validated HERE rather than by greying out the button. A disabled button
+    // gives no reason for itself: when it stuck, it was indistinguishable from
+    // the app being broken, and there was no way to tell a too-short message
+    // from a failed save. Now every tap either submits or says why not.
+    if (msg.trim().length < 10) {
+      setError('Please write at least 10 characters so we know what you mean.');
+      return;
+    }
+    if (loading) return;
     setLoading(true);
     setError('');
     try {
@@ -30,13 +38,29 @@ export default function FeedbackScreen({ navigation }) {
         });
       if (insertError) throw insertError;
       setSubmitted(true);
-      setTimeout(() => navigation.goBack(), 3000);
     } catch (e) {
       console.error('Feedback error:', e);
-      setError(e.message || 'Failed to submit. Please try again.');
+      // Include the Postgres code/details: if something server-side is capping
+      // submissions, the code (23505 = unique violation, 42501 = RLS refusal)
+      // names the cause instead of hiding behind "please try again".
+      const parts = [e.message || 'Failed to submit. Please try again.'];
+      if (e.code)    parts.push(`(${e.code})`);
+      if (e.details) parts.push(e.details);
+      setError(parts.join(' '));
     } finally {
       setLoading(false);
     }
+  };
+
+  // Send another without leaving the screen. The success screen used to bounce
+  // back to Settings after 3 seconds, so sending a second thought meant
+  // navigating in again -- enough friction that one submission felt like the
+  // limit. Nothing here caps you to one a day.
+  const startAnother = () => {
+    setMsg('');
+    setRating(0);
+    setError('');
+    setSubmitted(false);
   };
 
   // ── Success screen ─────────────────────────────────────────────────────────
@@ -48,8 +72,11 @@ export default function FeedbackScreen({ navigation }) {
         <Text style={s.successMsg}>
           Thank you for your feedback and being part of the 30 Acts of Kindness™ Community.
         </Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.successBtn}>
-          <Text style={s.successBtnText}>Back to Settings</Text>
+        <TouchableOpacity onPress={startAnother} style={s.successBtn}>
+          <Text style={s.successBtnText}>Send more feedback</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.successBtnAlt}>
+          <Text style={s.successBtnAltText}>Back to Settings</Text>
         </TouchableOpacity>
       </View>
     );
@@ -105,7 +132,9 @@ export default function FeedbackScreen({ navigation }) {
             multiline
           />
           <Text style={{ color: C.muted, fontSize: 11, marginTop: 6, textAlign: 'right' }}>
-            {msg.length < 10 ? `${10 - msg.length} characters or more needed` : '✓ Ready to submit'}
+            {msg.trim().length < 10
+              ? `${10 - msg.trim().length} more characters`
+              : '✓ Ready to submit'}
           </Text>
         </Card>
 
@@ -113,7 +142,6 @@ export default function FeedbackScreen({ navigation }) {
           label="Submit Feedback"
           onPress={handleSubmit}
           loading={loading}
-          disabled={msg.length < 10}
         />
 
       </ScrollView>
@@ -153,5 +181,11 @@ const s = StyleSheet.create({
   },
   successBtnText: {
     color: C.bg, fontWeight: '700', fontSize: 15,
+  },
+  successBtnAlt: {
+    marginTop: 14, paddingHorizontal: 20, paddingVertical: 10,
+  },
+  successBtnAltText: {
+    color: C.sub, fontWeight: '700', fontSize: 14, textDecorationLine: 'underline',
   },
 });
