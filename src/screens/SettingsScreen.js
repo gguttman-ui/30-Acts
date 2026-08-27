@@ -16,6 +16,7 @@ import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
 import { loadRuns, lapCount, actsInLap } from '../lib/runs';
 import QRCode from 'react-native-qrcode-svg';
+import * as Updates from 'expo-updates';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -137,14 +138,14 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // reminder2_* fields as null on Save, which makes the send-reminders function
   // skip slot 2 entirely (it only fires a slot whose hour is a number).
   const [reminder2Enabled, setReminder2Enabled] = useState(false);
-  // Which "Set … reminder" button was last tapped, so only that button shows the
-  // ✓ confirmation. Both buttons run the same save (handleSave writes all the
-  // reminder fields at once) — this is purely about which one acknowledges it.
-  const [reminderSetWhich, setReminderSetWhich] = useState(null);
   // Brief confirmation shown inside the reminder card — most importantly when a
   // reminder is switched OFF, which otherwise changed nothing visible except a
   // chip and left people unsure whether the texts had actually stopped.
   const [reminderFlash, setReminderFlash] = useState('');
+  const metaLoaded = useRef(false);
+  const time1Tmr   = useRef(null);
+  const time2Tmr   = useRef(null);
+  const fmtTime = (h, m, p) => `${h}:${String(m).padStart(2, '0')} ${p}`;
   const flashReminder = (msg) => {
     setReminderFlash(msg);
     setTimeout(() => setReminderFlash(''), FLASH_MS);
@@ -173,7 +174,10 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       if (meta.street1)       setStreet1(meta.street1);
       if (meta.street2)       setStreet2(meta.street2);
       if (meta.age_bracket) setAgeBracket(meta.age_bracket);
-      if (typeof meta.reminder_enabled === 'boolean') setReminderEnabled(meta.reminder_enabled);
+      // A first-time visitor has no reminder_enabled in their metadata, and
+      // must land on OFF — never opted in by default. Anything that isn't an
+      // explicit true reads as off.
+      setReminderEnabled(meta.reminder_enabled === true);
       if (typeof meta.reminder_hour    === 'number')  setReminderHour(meta.reminder_hour);
       if (typeof meta.reminder_minute  === 'number')  setReminderMinute(meta.reminder_minute);
       if (meta.reminder_period === 'AM' || meta.reminder_period === 'PM') {
@@ -187,6 +191,9 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
       // Second reminder is opt-in: default OFF unless the user explicitly enabled it.
       setReminder2Enabled(meta.reminder2_enabled === true);
       if (meta.reminder_consent_at) setReminderConsentAt(meta.reminder_consent_at);
+      // Saved values are in place — from here a time change is the USER moving
+      // the arrows, not hydration, so the auto-save effects may run.
+      metaLoaded.current = true;
     });
   }, [user?.firstName, user?.lastName]);
 
@@ -443,17 +450,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // Turn one reminder on or off from its status chip: flip the flag, persist it
   // in the same tap (passing the new value through so the async state update
   // can't race the save), announce it, and roll back if the save failed.
-  // The Set button doubles as the way back on. Hiding the time controls behind
-  // the enabled flag meant a switched-off reminder could never be reset -- you
-  // had to switch it on first, blind, then find the time. Now the controls stay
-  // put and Set re-enables the reminder along with saving the new time.
-  const setReminderTime = (which) => {
-    setReminderSetWhich(which);
-    const enabled = which === 'first' ? reminderEnabled : reminder2Enabled;
-    if (!enabled) return toggleReminder(which, true);
-    return handleSave();
-  };
-
   const toggleReminder = async (which, next) => {
     const setFlag = which === 'first' ? setReminderEnabled : setReminder2Enabled;
     setFlag(next);
@@ -463,6 +459,30 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     if (!ok) { setFlag(!next); return; }
     flashReminder(`${which === 'first' ? 'First' : 'Second'} reminder turned ${next ? 'on' : 'off'}`);
   };
+
+  // With the Set buttons gone, a time change has to save itself. Debounced so a
+  // run of arrow taps is one write, and gated on metaLoaded so hydrating the
+  // saved values doesn't immediately write them straight back.
+  const saveTimeSoon = (ref, enabled, announce) => {
+    if (!metaLoaded.current || !enabled) return undefined;
+    clearTimeout(ref.current);
+    ref.current = setTimeout(async () => {
+      if (await handleSave()) flashReminder(announce());
+    }, 1200);
+    return () => clearTimeout(ref.current);
+  };
+
+  useEffect(
+    () => saveTimeSoon(time1Tmr, reminderEnabled, () =>
+      `First reminder set for ${fmtTime(reminderHour, reminderMinute, reminderPeriod)}`),
+    [reminderHour, reminderMinute, reminderPeriod]
+  );
+
+  useEffect(
+    () => saveTimeSoon(time2Tmr, reminder2Enabled, () =>
+      `Second reminder set for ${fmtTime(reminder2Hour, reminder2Minute, reminder2Period)}`),
+    [reminder2Hour, reminder2Minute, reminder2Period]
+  );
 
   const handleGoToChallenge = () => {
     if (navigation) navigation.navigate('Home');
@@ -771,24 +791,12 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 </View>
               </View>
 
-              {/* Picking a time with the arrows changes nothing until it is
-                  saved, and "Save Profile" sits far below this card behind the
-                  tree/invite section — testers set a time, walked away, and got
-                  no texts. Each reminder now saves from its own compact button,
-                  right under the time it belongs to, with its live on/off status
-                  beside it. Both run the same handleSave, so the ZIP/timezone
-                  and daytime-window checks still apply. */}
+              {/* The ON/OFF button is the ONLY control: it switches the
+                  reminder and saves in the same tap. There is no separate Set
+                  button, so a time change while ON is auto-saved (see the
+                  effect above) — nothing here relies on the user finding a save
+                  action they can't see. */}
               <View style={s.reminderSetRow}>
-                <View style={s.reminderSetBtnWrap}>
-                  <Btn
-                    label={saved && reminderSetWhich === 'first' ? '✓ Reminder 1 set' : 'Set reminder 1'}
-                    onPress={() => setReminderTime('first')}
-                    style={[
-                      s.reminderSetBtn,
-                      saved && reminderSetWhich === 'first' && { backgroundColor: C.success },
-                    ]}
-                  />
-                </View>
                 <TouchableOpacity
                   onPress={() => toggleReminder('first', !reminderEnabled)}
                   style={[s.statusChip, reminderEnabled ? s.statusChipOn : s.statusChipOff]}
@@ -855,16 +863,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               </View>
 
               <View style={s.reminderSetRow}>
-                <View style={s.reminderSetBtnWrap}>
-                  <Btn
-                    label={saved && reminderSetWhich === 'second' ? '✓ Reminder 2 set' : 'Set reminder 2'}
-                    onPress={() => setReminderTime('second')}
-                    style={[
-                      s.reminderSetBtn,
-                      saved && reminderSetWhich === 'second' && { backgroundColor: C.success },
-                    ]}
-                  />
-                </View>
                 <TouchableOpacity
                   onPress={() => toggleReminder('second', !reminder2Enabled)}
                   style={[s.statusChip, reminder2Enabled ? s.statusChipOn : s.statusChipOff]}
@@ -877,8 +875,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               </View>
 
               <Text style={s.reminderHint}>
-                A time isn't saved until you tap its Set button. Setting a time
-                on a reminder that's off turns it back on.
+                Tap ON or OFF to switch a reminder. Time changes save on their own.
               </Text>
           </View>
         </Card>
@@ -972,6 +969,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   onPress={() => setShowDeleteConfirm(true)}
   style={{ marginBottom: 24 }}
 />
+        {/* Which JS bundle is actually running. "embedded" means no
+            over-the-air update has been applied and the phone is still on the
+            code that shipped inside the build. */}
+        <Text style={s.buildStamp}>
+          v{Updates.runtimeVersion || '1.0.0'} {'\u00b7'} {Updates.channel || 'dev'} {'\u00b7'} update{' '}
+          {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'}
+        </Text>
       </ScrollView>
 <Modal visible={showAgeBrackets} animationType="slide" presentationStyle="pageSheet">
   <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -1087,24 +1091,16 @@ const s = StyleSheet.create({
   reminderPeriodText: { color: C.muted, fontSize: 13, fontWeight: '700' },
   reminderPeriodTextActive: { color: C.primary },
   reminderSetRow: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, marginTop: 14,
   },
-  // The shared Btn hard-codes width: '100%', so a style override can't shrink
-  // it -- it stretched across the row and pushed the status chip off the right
-  // edge. Constraining it with a wrapper is the only reliable fix: flex so it
-  // adapts to narrow screens, maxWidth so it stays compact on wide ones.
-  reminderSetBtnWrap: { flex: 1, maxWidth: 190 },
-  reminderSetBtn: {
-    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12,
-  },
   statusChip: {
-    paddingVertical: 7, paddingHorizontal: 14,
-    borderRadius: 999, borderWidth: 1.5, flexShrink: 0,
+    paddingVertical: 12, paddingHorizontal: 26,
+    borderRadius: 999, borderWidth: 2, flexShrink: 0,
   },
   statusChipOn:  { borderColor: C.success, backgroundColor: C.success + '1A' },
   statusChipOff: { borderColor: C.border,  backgroundColor: 'transparent' },
-  statusChipText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
+  statusChipText: { fontSize: 15, fontWeight: '900', letterSpacing: 1 },
   statusChipTextOn:  { color: C.success },
   statusChipTextOff: { color: C.muted },
 
@@ -1118,6 +1114,10 @@ const s = StyleSheet.create({
     color: C.primary, fontSize: 13, fontWeight: '800', textAlign: 'center',
   },
 
+  buildStamp: {
+    color: C.muted, fontSize: 11, textAlign: 'center',
+    marginTop: 18, marginBottom: 6, letterSpacing: 0.4,
+  },
   reminderHint: {
     color: C.muted, fontSize: 11, fontStyle: 'italic',
     textAlign: 'center', marginTop: 12,
