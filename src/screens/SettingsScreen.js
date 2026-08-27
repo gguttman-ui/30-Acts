@@ -20,6 +20,9 @@ import QRCode from 'react-native-qrcode-svg';
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
 
+// How long a confirmation flash stays on screen.
+const FLASH_MS = 3000;
+
 // SMS_CONSENT_VERSION / SMS_CONSENT_TEXT now live in ../constants so the Me
 // screen and the signup flow record the exact same consent language + version.
 const AGE_BRACKETS = [
@@ -138,6 +141,14 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // ✓ confirmation. Both buttons run the same save (handleSave writes all the
   // reminder fields at once) — this is purely about which one acknowledges it.
   const [reminderSetWhich, setReminderSetWhich] = useState(null);
+  // Brief confirmation shown inside the reminder card — most importantly when a
+  // reminder is switched OFF, which otherwise changed nothing visible except a
+  // chip and left people unsure whether the texts had actually stopped.
+  const [reminderFlash, setReminderFlash] = useState('');
+  const flashReminder = (msg) => {
+    setReminderFlash(msg);
+    setTimeout(() => setReminderFlash(''), FLASH_MS);
+  };
   // ISO timestamp of the first time the user opted in to SMS reminders. Kept as
   // proof of express consent for toll-free / A2P compliance; never overwritten
   // once set (only cleared server-side on a STOP opt-out).
@@ -307,10 +318,18 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     );
   };
 
-  const handleSave = async () => {
+  // `overrides` lets a caller save an enabled-flag it has only just set. React
+  // state updates are async, so `toggleReminder` flipping reminder2Enabled and
+  // immediately calling handleSave() would otherwise persist the OLD value and
+  // the reminder would keep firing after being switched off. Returns true on a
+  // successful save so callers know whether to announce it.
+  const handleSave = async (overrides = {}) => {
+    const rEnabled  = overrides.reminderEnabled  !== undefined ? overrides.reminderEnabled  : reminderEnabled;
+    const r2Enabled = overrides.reminder2Enabled !== undefined ? overrides.reminder2Enabled : reminder2Enabled;
+
     if (contactEmail.trim() && !contactEmail.includes('@')) {
       Alert.alert('Invalid email', 'Enter a valid email or leave it blank.');
-      return;
+      return false;
     }
 
     // first_name / last_name are rendered as "First L." on challenge
@@ -319,11 +338,11 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     const nameToCheck = [firstName, lastName].filter(Boolean).join(' ');
     if (nameToCheck.trim() && await isContentBlocked(nameToCheck)) {
       Alert.alert('Name Not Allowed', BLOCKED_MESSAGE);
-      return;
+      return false;
     }
     if (zip && !/^\d{5}$/.test(zip)) {
       Alert.alert('Invalid ZIP', 'Enter a 5-digit ZIP or leave it blank.');
-      return;
+      return false;
     }
 
     // Timezone the reminders (and streak) rely on. Prefer the ZIP-derived value;
@@ -331,32 +350,32 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     // ZIP still gets a valid IANA zone. (A missing zone silently blocks reminders.)
     const effectiveTz = timezone || (zipState ? (STATE_IANA_TZ[zipState] || null) : null);
 
-    if (reminderEnabled) {
+    if (rEnabled) {
       if (!effectiveTz) {
         Alert.alert(
           'Add your ZIP code',
           'To send reminders we need your ZIP code so we know your time zone. Add it above, then Save.'
         );
-        return;
+        return false;
       }
       // The backend only sends between 6:00 AM and 10:00 PM local time, so a time
       // outside that window would be silently dropped — catch it here.
       const to24 = (h, p) => (p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12));
       const inWindow = (h, p) => { const hr = to24(h, p); return hr >= 6 && hr < 22; };
       const bad1 = !inWindow(reminderHour, reminderPeriod);
-      const bad2 = reminder2Enabled && !inWindow(reminder2Hour, reminder2Period);
+      const bad2 = r2Enabled && !inWindow(reminder2Hour, reminder2Period);
       if (bad1 || bad2) {
         Alert.alert(
           'Pick a daytime reminder',
           'Reminders can only be sent between 6:00 AM and 9:59 PM. Please choose a time in that range.'
         );
-        return;
+        return false;
       }
     }
 
     // Stamp (and then preserve) the express-consent timestamp the first time
     // reminders are enabled — our record that the user opted in to recurring SMS.
-    const nextConsentAt = reminderEnabled
+    const nextConsentAt = rEnabled
       ? (reminderConsentAt || new Date().toISOString())
       : reminderConsentAt;
 
@@ -373,22 +392,22 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
           street1:       street1.trim() || null,
           street2:       street2.trim() || null,
           age_bracket: ageBracket || null,
-          reminder_enabled: reminderEnabled,
+          reminder_enabled: rEnabled,
           reminder_hour:    reminderHour,
           reminder_minute:  reminderMinute,
           reminder_period:  reminderPeriod,
           // Second reminder only persists real times when opted in; otherwise
           // null so the sender skips it (and turning it off future-proofs: an
           // existing 2nd reminder is cleared on the next Save).
-          reminder2_enabled: reminder2Enabled,
-          reminder2_hour:    reminder2Enabled ? reminder2Hour   : null,
-          reminder2_minute:  reminder2Enabled ? reminder2Minute : null,
-          reminder2_period:  reminder2Enabled ? reminder2Period : null,
+          reminder2_enabled: r2Enabled,
+          reminder2_hour:    r2Enabled ? reminder2Hour   : null,
+          reminder2_minute:  r2Enabled ? reminder2Minute : null,
+          reminder2_period:  r2Enabled ? reminder2Period : null,
           reminder_consent_at:      nextConsentAt || null,
-          reminder_consent_version: reminderEnabled ? SMS_CONSENT_VERSION : null,
+          reminder_consent_version: rEnabled ? SMS_CONSENT_VERSION : null,
         },
       });
-      if (error) { Alert.alert('Error', error.message); return; }
+      if (error) { Alert.alert('Error', error.message); return false; }
 
       const authUser = data?.user;
       if (authUser) {
@@ -413,10 +432,25 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
       setSaved(true);
       setReminderConsentAt(nextConsentAt || null);
-      setTimeout(() => setSaved(false), 2500);
+      setTimeout(() => setSaved(false), FLASH_MS);
+      return true;
     } catch (e) {
       Alert.alert('Error', 'Could not save profile.');
+      return false;
     }
+  };
+
+  // Turn one reminder on or off from its status chip: flip the flag, persist it
+  // in the same tap (passing the new value through so the async state update
+  // can't race the save), announce it, and roll back if the save failed.
+  const toggleReminder = async (which, next) => {
+    const setFlag = which === 'first' ? setReminderEnabled : setReminder2Enabled;
+    setFlag(next);
+    const ok = await handleSave(
+      which === 'first' ? { reminderEnabled: next } : { reminder2Enabled: next }
+    );
+    if (!ok) { setFlag(!next); return; }
+    flashReminder(`${which === 'first' ? 'First' : 'Second'} reminder turned ${next ? 'on' : 'off'}`);
   };
 
   const handleGoToChallenge = () => {
@@ -611,7 +645,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               <Text style={{ color: C.success, fontWeight: '700', fontSize: 13 }}>✓ Profile saved</Text>
             </View>
           )}
-          <Btn label="Save Profile" onPress={handleSave} />
+          <Btn label="Save Profile" onPress={() => handleSave()} />
         </Card>
 
         <Card style={s.mb}>
@@ -640,6 +674,16 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
         <Card style={s.mb}>
           <Text style={s.cardTitle}>Daily Reminder</Text>
+
+          {/* Lives at CARD level, not inside the reminderEnabled block: turning
+              the first reminder off unmounts that block, which would take the
+              banner announcing it down with it. */}
+          {!!reminderFlash && (
+            <View style={s.reminderFlash}>
+              <Text style={s.reminderFlashText}>{reminderFlash}</Text>
+            </View>
+          )}
+
           <View style={s.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={s.toggleTitle}>Text me a daily reminder</Text>
@@ -718,19 +762,28 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               {/* Picking a time with the arrows changes nothing until it is
                   saved, and "Save Profile" sits far below this card behind the
                   tree/invite section — testers set a time, walked away, and got
-                  no texts. Each reminder now saves from its own button, right
-                  under the time it belongs to. Both run the same handleSave, so
-                  the ZIP/timezone and daytime-window checks still apply. */}
-              <Btn
-                label={saved && reminderSetWhich === 'first' ? '✓ First reminder set' : 'Set first reminder'}
-                onPress={() => { setReminderSetWhich('first'); handleSave(); }}
-                style={{
-                  alignSelf: 'stretch',
-                  marginTop: 14,
-                  backgroundColor: saved && reminderSetWhich === 'first' ? C.success : C.primary,
-                  borderWidth: 0,
-                }}
-              />
+                  no texts. Each reminder now saves from its own compact button,
+                  right under the time it belongs to, with its live on/off status
+                  beside it. Both run the same handleSave, so the ZIP/timezone
+                  and daytime-window checks still apply. */}
+              <View style={s.reminderSetRow}>
+                <Btn
+                  label={saved && reminderSetWhich === 'first' ? '✓ Set' : 'Set'}
+                  onPress={() => { setReminderSetWhich('first'); handleSave(); }}
+                  style={[
+                    s.reminderSetBtn,
+                    saved && reminderSetWhich === 'first' && { backgroundColor: C.success },
+                  ]}
+                />
+                <TouchableOpacity
+                  onPress={() => toggleReminder('first', !reminderEnabled)}
+                  style={[s.statusChip, reminderEnabled ? s.statusChipOn : s.statusChipOff]}
+                >
+                  <Text style={[s.statusChipText, reminderEnabled ? s.statusChipTextOn : s.statusChipTextOff]}>
+                    {reminderEnabled ? '\u25CF  ON' : '\u25CB  OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={[s.toggleRow, { marginTop: 18 }]}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
@@ -786,16 +839,24 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 </View>
               </View>
 
-              <Btn
-                label={saved && reminderSetWhich === 'second' ? '✓ Second reminder set' : 'Set second reminder'}
-                onPress={() => { setReminderSetWhich('second'); handleSave(); }}
-                style={{
-                  alignSelf: 'stretch',
-                  marginTop: 14,
-                  backgroundColor: saved && reminderSetWhich === 'second' ? C.success : C.primary,
-                  borderWidth: 0,
-                }}
-              />
+              <View style={s.reminderSetRow}>
+                <Btn
+                  label={saved && reminderSetWhich === 'second' ? '✓ Set' : 'Set'}
+                  onPress={() => { setReminderSetWhich('second'); handleSave(); }}
+                  style={[
+                    s.reminderSetBtn,
+                    saved && reminderSetWhich === 'second' && { backgroundColor: C.success },
+                  ]}
+                />
+                <TouchableOpacity
+                  onPress={() => toggleReminder('second', !reminder2Enabled)}
+                  style={[s.statusChip, reminder2Enabled ? s.statusChipOn : s.statusChipOff]}
+                >
+                  <Text style={[s.statusChipText, reminder2Enabled ? s.statusChipTextOn : s.statusChipTextOff]}>
+                    {reminder2Enabled ? '\u25CF  ON' : '\u25CB  OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               </>
               )}
 
@@ -1008,6 +1069,34 @@ const s = StyleSheet.create({
   },
   reminderPeriodText: { color: C.muted, fontSize: 13, fontWeight: '700' },
   reminderPeriodTextActive: { color: C.primary },
+  reminderSetRow: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 10, marginTop: 14,
+  },
+  reminderSetBtn: {
+    paddingVertical: 10, paddingHorizontal: 26,
+    alignSelf: 'flex-start', minWidth: 92,
+  },
+  statusChip: {
+    paddingVertical: 7, paddingHorizontal: 14,
+    borderRadius: 999, borderWidth: 1.5,
+  },
+  statusChipOn:  { borderColor: C.success, backgroundColor: C.success + '1A' },
+  statusChipOff: { borderColor: C.border,  backgroundColor: 'transparent' },
+  statusChipText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
+  statusChipTextOn:  { color: C.success },
+  statusChipTextOff: { color: C.muted },
+
+  reminderFlash: {
+    backgroundColor: C.primary + '1A',
+    borderColor: C.primary + '66', borderWidth: 1,
+    borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  reminderFlashText: {
+    color: C.primary, fontSize: 13, fontWeight: '800', textAlign: 'center',
+  },
+
   reminderHint: {
     color: C.muted, fontSize: 11, fontStyle: 'italic',
     textAlign: 'center', marginTop: 12,
