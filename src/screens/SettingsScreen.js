@@ -21,7 +21,7 @@ import QRCode from 'react-native-qrcode-svg';
 const KB_DONE_ID = 'settingsKbDone';
 
 // How long a confirmation flash stays on screen.
-const FLASH_MS = 3000;
+const FLASH_MS = 10000;
 
 // SMS_CONSENT_VERSION / SMS_CONSENT_TEXT now live in ../constants so the Me
 // screen and the signup flow record the exact same consent language + version.
@@ -443,6 +443,17 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   // Turn one reminder on or off from its status chip: flip the flag, persist it
   // in the same tap (passing the new value through so the async state update
   // can't race the save), announce it, and roll back if the save failed.
+  // The Set button doubles as the way back on. Hiding the time controls behind
+  // the enabled flag meant a switched-off reminder could never be reset -- you
+  // had to switch it on first, blind, then find the time. Now the controls stay
+  // put and Set re-enables the reminder along with saving the new time.
+  const setReminderTime = (which) => {
+    setReminderSetWhich(which);
+    const enabled = which === 'first' ? reminderEnabled : reminder2Enabled;
+    if (!enabled) return toggleReminder(which, true);
+    return handleSave();
+  };
+
   const toggleReminder = async (which, next) => {
     const setFlag = which === 'first' ? setReminderEnabled : setReminder2Enabled;
     setFlag(next);
@@ -717,8 +728,9 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
             </Text>
           )}
 
-{reminderEnabled && (
-            <View style={s.reminderTimeWrap}>
+{/* Rendered whether or not the reminder is on: a switched-off reminder
+              still needs its time to be readable and resettable. */}
+          <View style={[s.reminderTimeWrap, !reminderEnabled && s.reminderTimeWrapOff]}>
               <Text style={s.reminderTimeLabel}>FIRST REMINDER</Text>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
@@ -770,7 +782,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 <View style={s.reminderSetBtnWrap}>
                   <Btn
                     label={saved && reminderSetWhich === 'first' ? '✓ Reminder 1 set' : 'Set reminder 1'}
-                    onPress={() => { setReminderSetWhich('first'); handleSave(); }}
+                    onPress={() => setReminderTime('first')}
                     style={[
                       s.reminderSetBtn,
                       saved && reminderSetWhich === 'first' && { backgroundColor: C.success },
@@ -800,8 +812,9 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 />
               </View>
 
-              {reminder2Enabled && (
-              <>
+              {/* Also always rendered, and dimmed while off, so a second
+                  reminder that has been switched off can still be reset. */}
+              <View style={!reminder2Enabled && s.reminderTimeWrapOff}>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 12 ? 1 : h + 1)}>
@@ -845,7 +858,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                 <View style={s.reminderSetBtnWrap}>
                   <Btn
                     label={saved && reminderSetWhich === 'second' ? '✓ Reminder 2 set' : 'Set reminder 2'}
-                    onPress={() => { setReminderSetWhich('second'); handleSave(); }}
+                    onPress={() => setReminderTime('second')}
                     style={[
                       s.reminderSetBtn,
                       saved && reminderSetWhich === 'second' && { backgroundColor: C.success },
@@ -861,14 +874,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
                   </Text>
                 </TouchableOpacity>
               </View>
-              </>
-              )}
+              </View>
 
               <Text style={s.reminderHint}>
-                A time isn't saved until you tap its Set button.
+                A time isn't saved until you tap its Set button. Setting a time
+                on a reminder that's off turns it back on.
               </Text>
-            </View>
-          )}
+          </View>
         </Card>
 
         <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5, alignItems: 'center' }]}>
@@ -1039,6 +1051,7 @@ const s = StyleSheet.create({
   toggleTitle: { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 2 },
   toggleSub:   { color: C.sub,  fontSize: 12, lineHeight: 16 },
 
+  reminderTimeWrapOff: { opacity: 0.55 },
   reminderTimeWrap: {
     marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border,
   },
