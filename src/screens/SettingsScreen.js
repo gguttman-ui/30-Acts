@@ -22,7 +22,7 @@ import * as Updates from 'expo-updates';
 const KB_DONE_ID = 'settingsKbDone';
 
 // How long a confirmation flash stays on screen.
-const FLASH_MS = 10000;
+const FLASH_MS = 5000;
 
 // Held at MODULE scope, not in component state. Saving calls
 // supabase.auth.updateUser, and anything that re-mounts this screen off the
@@ -505,19 +505,30 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
     const t = REMINDER_TARGETS[which];
     if (!t) return;
 
-    // Switching the master OFF clears both slots. Otherwise switching it back
-    // on silently resumed whatever was scheduled before, so reminders arrived
-    // without anyone choosing a time -- turning it on must start from OFF/OFF
-    // and wait to be told.
-    const clearSlots = which === 'master' && !next;
+    // Slot 2 is a SECOND reminder, so it only makes sense on top of a first
+    // one. Refuse to switch it on alone rather than scheduling an afternoon
+    // text with no morning one behind it.
+    if (which === 'second' && next && !reminder1Enabled) {
+      flashReminder('Turn the first reminder on before adding a second');
+      return;
+    }
+
+    // Switching the master OFF clears both slots, and switching slot 1 OFF
+    // clears slot 2 with it. Otherwise switching either back on silently
+    // resumed whatever was scheduled before, so reminders arrived without
+    // anyone choosing a time -- turning one on must start from OFF and wait.
+    const clearSlots = (which === 'master' && !next) || (which === 'first' && !next);
     const overrides  = { [t.key]: next };
     if (clearSlots) {
-      overrides.reminder1Enabled = false;
       overrides.reminder2Enabled = false;
+      if (which === 'master') overrides.reminder1Enabled = false;
     }
 
     t.set(next);
-    if (clearSlots) { setReminder1Enabled(false); setReminder2Enabled(false); }
+    if (clearSlots) {
+      setReminder2Enabled(false);
+      if (which === 'master') setReminder1Enabled(false);
+    }
     flashReminder(`${t.label} turned ${next ? 'ON' : 'OFF'}`);
 
     const ok = await handleSave(overrides);
@@ -881,10 +892,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
               <View style={[s.toggleRow, { marginTop: 18 }]}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={s.reminderTimeLabel}>SECOND REMINDER</Text>
-                  <Text style={s.toggleSub}>Optional — off unless you turn it on.</Text>
+                  <Text style={s.toggleSub}>
+                    {reminder1Enabled
+                      ? 'Optional — off unless you turn it on.'
+                      : 'Available once the first reminder is on.'}
+                  </Text>
                 </View>
                 <Switch
                   value={reminder2Enabled}
+                  disabled={!reminder1Enabled}
                   onValueChange={(v) => toggleReminder('second', v)}
                   trackColor={{ false: C.border, true: C.primary + '88' }}
                   thumbColor={reminder2Enabled ? C.primary : '#f4f3f4'}
@@ -893,7 +909,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
               {/* Also always rendered, and dimmed while off, so a second
                   reminder that has been switched off can still be reset. */}
-              <View style={!reminder2Enabled && s.reminderTimeWrapOff}>
+              <View style={(!reminder2Enabled || !reminder1Enabled) && s.reminderTimeWrapOff}>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 12 ? 1 : h + 1)}>
@@ -935,8 +951,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
 
               <View style={s.reminderSetRow}>
                 <TouchableOpacity
+                  disabled={!reminder1Enabled}
                   onPress={() => toggleReminder('second', !reminder2Enabled)}
-                  style={[s.statusChip, reminder2Enabled ? s.statusChipOn : s.statusChipOff]}
+                  style={[
+                    s.statusChip,
+                    reminder2Enabled ? s.statusChipOn : s.statusChipOff,
+                    !reminder1Enabled && { opacity: 0.4 },
+                  ]}
                 >
                   <Text style={[s.statusChipText, reminder2Enabled ? s.statusChipTextOn : s.statusChipTextOff]}>
                     {reminder2Enabled ? '\u25CF  ON' : '\u25CB  OFF'}
