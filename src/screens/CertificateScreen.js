@@ -10,6 +10,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Btn, ScreenHeader } from '../components';
+import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
@@ -314,45 +315,17 @@ export default function CertificateScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={s.shareRow}>
-          <TouchableOpacity style={s.shareBtn} onPress={shareToInstagram}>
-            <Text style={s.shareBtnIcon}>📸</Text>
-            <Text style={s.shareBtnLabel}>Instagram</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.shareBtn} onPress={shareToFacebook}>
-            <Text style={s.shareBtnIcon}>📘</Text>
-            <Text style={s.shareBtnLabel}>Facebook</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.shareBtn} onPress={shareToTikTok}>
-            <Text style={s.shareBtnIcon}>🎵</Text>
-            <Text style={s.shareBtnLabel}>TikTok</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.shareBtn} onPress={shareToX}>
-            <Text style={s.shareBtnIcon}>✖️</Text>
-            <Text style={s.shareBtnLabel}>X</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.shareRow}>
-          <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-            <Text style={s.shareBtnIcon}>💬</Text>
-            <Text style={s.shareBtnLabel}>Text</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-            <Text style={s.shareBtnIcon}>📧</Text>
-            <Text style={s.shareBtnLabel}>Email</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-            <Text style={s.shareBtnIcon}>↗️</Text>
-            <Text style={s.shareBtnLabel}>More</Text>
-          </TouchableOpacity>
-        </View>
-        <Btn
-          label={sharing ? 'Preparing…' : '🖼️ Share as image'}
-          onPress={handleShareImage}
-          loading={sharing}
-          variant="secondary"
-          style={{ marginTop: 12 }}
+        <ShareButtons
+          social={buildSocialButtons({
+            onInstagram: shareToInstagram,
+            onFacebook:  shareToFacebook,
+            onTikTok:    shareToTikTok,
+            onX:         shareToX,
+          })}
+          onText={handleShareText}
+          onEmail={handleShareEmail}
+          onMore={handleShareOther}
+          disabled={sharing}
         />
         <Text style={s.note}>
           Share your certificate. Anyone who scans your QR and signs up is added to your tree.

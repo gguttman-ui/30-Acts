@@ -11,6 +11,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ShareButtons from '../components/ShareButtons';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
 // so the screen still works in Expo Go, where the mic just focuses the box.
@@ -908,39 +909,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 </View>
               ) : null}
 
-              <View style={s.shareDivider}>
-                <Text style={s.sharePrompt}>Spread the kindness — invite someone to join!</Text>
-              </View>
-
-              <View style={s.socialRow}>
-                {socialButtons.map((b) => (
-                  <TouchableOpacity
-                    key={b.name}
-                    accessibilityLabel={`Share to ${b.name}`}
-                    style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-                    onPress={b.onPress}
-                    disabled={sharing}
-                    activeOpacity={0.7}
-                  >
-                    <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={s.shareRow}>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-                  <Text style={s.shareBtnIcon}>💬</Text>
-                  <Text style={s.shareBtnLabel}>Text</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-                  <Text style={s.shareBtnIcon}>📧</Text>
-                  <Text style={s.shareBtnLabel}>Email</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-                  <Text style={s.shareBtnIcon}>↗️</Text>
-                  <Text style={s.shareBtnLabel}>More</Text>
-                </TouchableOpacity>
-              </View>
+              <ShareButtons
+                style={{ marginTop: 20 }}
+                social={socialButtons}
+                onText={handleShareText}
+                onEmail={handleShareEmail}
+                onMore={handleShareOther}
+                disabled={sharing}
+              />
 
               <TouchableOpacity onPress={goToCalendar} style={s.skipShare}>
                 <Text style={s.skipShareText}>Done</Text>
@@ -1053,4 +1029,5 @@ const s = StyleSheet.create({
     alignItems: 'flex-end',
   },
   kbDone: { color: C.primary, fontSize: 16, fontWeight: '700' },
-});
+});
+

@@ -13,6 +13,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Video, ResizeMode, Audio } from 'expo-av';
 import { decode as base64Decode } from 'base64-arraybuffer';
 import { FontAwesome6 } from '@expo/vector-icons';
+import ShareButtons from '../components/ShareButtons';
 import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import StoryCard from '../components/StoryCard';
@@ -1206,7 +1207,7 @@ const today = todayStr();
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
     { name: 'Facebook',  faIcon: 'facebook',  onPress: shareToFacebook,  brand: '#1877F2' },
     { name: 'TikTok',    faIcon: 'tiktok',    onPress: shareToTikTok,    brand: '#25F4EE' },
-    { name: 'X',         faIcon: 'x-twitter', onPress: shareToX,         brand: '#000000' },
+    { name: 'X',         faIcon: 'x-twitter', onPress: shareToX,         brand: '#FFFFFF' },
   ];
 
     const handleSheetNotNow = () => {
@@ -1556,39 +1557,13 @@ const today = todayStr();
               </TouchableOpacity>
             )}
 
-            <View style={s.shareDivider}>
-              <Text style={s.sharePrompt}>Spread the kindness — invite someone to join!</Text>
-            </View>
-
-            <View style={s.socialRow}>
-              {socialButtons.map((b) => (
-                <TouchableOpacity
-                  key={b.name}
-                  accessibilityLabel={`Share to ${b.name}`}
-                  style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-                  onPress={b.onPress}
-                  disabled={sharing}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={s.shareRow}>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-                <Text style={s.shareBtnIcon}>💬</Text>
-                <Text style={s.shareBtnLabel}>Text</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-                <Text style={s.shareBtnIcon}>📧</Text>
-                <Text style={s.shareBtnLabel}>Email</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-                <Text style={s.shareBtnIcon}>↗️</Text>
-                <Text style={s.shareBtnLabel}>More</Text>
-              </TouchableOpacity>
-            </View>
+            <ShareButtons
+              social={socialButtons}
+              onText={handleShareText}
+              onEmail={handleShareEmail}
+              onMore={handleShareOther}
+              disabled={sharing}
+            />
 
             {day?.dayNumber === 30 && (
               <TouchableOpacity style={s.addressBtn} onPress={goToAddressForm}>
@@ -1622,39 +1597,13 @@ const today = todayStr();
               <Text style={s.successTitle}>Act Completed!</Text>
               <Text style={s.successSub}>You're making the world a kinder place.</Text>
 
-              <View style={[s.shareDivider, { marginTop: 12, paddingTop: 12 }]}>
-                <Text style={s.sharePrompt}>Share your act with others and get them to join the Movement</Text>
-              </View>
-
-              <View style={s.socialRow}>
-                {socialButtons.map((b) => (
-                  <TouchableOpacity
-                    key={b.name}
-                    accessibilityLabel={`Share to ${b.name}`}
-                    style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-                    onPress={b.onPress}
-                    disabled={sharing}
-                    activeOpacity={0.7}
-                  >
-                    <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={s.shareRow}>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-                  <Text style={s.shareBtnIcon}>💬</Text>
-                  <Text style={s.shareBtnLabel}>Text</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-                  <Text style={s.shareBtnIcon}>📧</Text>
-                  <Text style={s.shareBtnLabel}>Email</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-                  <Text style={s.shareBtnIcon}>↗️</Text>
-                  <Text style={s.shareBtnLabel}>More</Text>
-                </TouchableOpacity>
-              </View>
+              <ShareButtons
+                social={socialButtons}
+                onText={handleShareText}
+                onEmail={handleShareEmail}
+                onMore={handleShareOther}
+                disabled={sharing}
+              />
 
               <TouchableOpacity
                 style={s.notNowBtn}
@@ -1729,41 +1678,14 @@ const today = todayStr();
                 30‑Day Congratulations
               </Text>
               <Text style={s.day30Body}>{DAY_30_MESSAGE}</Text>
-              <View style={s.shareDivider}>
-                <Text style={s.sharePrompt}>You did it — share your 30-day achievement and inspire others to join!</Text>
-              </View>
-
-              <View style={s.socialRow}>
-                {socialButtons.map((b) => (
-                  <TouchableOpacity
-                    key={b.name}
-                    accessibilityLabel={`Share to ${b.name}`}
-                    style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-                    onPress={b.onPress}
-                    disabled={sharing}
-                    activeOpacity={0.7}
-                  >
-                    {b.img
-                      ? <Image source={b.img} style={s.socialImg} resizeMode="contain" />
-                      : <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={s.shareRow}>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-                  <Text style={s.shareBtnIcon}>💬</Text>
-                  <Text style={s.shareBtnLabel}>Text</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-                  <Text style={s.shareBtnIcon}>📧</Text>
-                  <Text style={s.shareBtnLabel}>Email</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-                  <Text style={s.shareBtnIcon}>↗️</Text>
-                  <Text style={s.shareBtnLabel}>More</Text>
-                </TouchableOpacity>
-              </View>
+              <ShareButtons
+                prompt="You did it — share your 30-day achievement and inspire others to join!"
+                social={socialButtons}
+                onText={handleShareText}
+                onEmail={handleShareEmail}
+                onMore={handleShareOther}
+                disabled={sharing}
+              />
 
               <TouchableOpacity
                 style={s.directionsBtn}

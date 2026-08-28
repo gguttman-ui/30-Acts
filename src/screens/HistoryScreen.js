@@ -8,6 +8,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { FontAwesome6 } from '@expo/vector-icons';
+import ShareButtons from '../components/ShareButtons';
 import Constants from 'expo-constants';
 import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
@@ -617,40 +618,13 @@ const handleShareEmail = () => {
           <Card style={{ marginTop: 12 }}>
 
             <Text style={s.shareHeader}>Share this Act</Text>
-            <Text style={s.sharePrompt}>
-              Spread the kindness — invite someone to join in!
-            </Text>
-
-            {/* Social row: icon-only buttons. */}
-            <View style={s.socialRow}>
-              {socialButtons.map((b) => (
-                <TouchableOpacity
-                  key={b.name}
-                  accessibilityLabel={`Share to ${b.name}`}
-                  style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-                  onPress={b.onPress}
-                  disabled={sharing}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={s.shareRow}>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareText}>
-                <Text style={s.shareBtnIcon}>💬</Text>
-                <Text style={s.shareBtnLabel}>Text</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareEmail}>
-                <Text style={s.shareBtnIcon}>📧</Text>
-                <Text style={s.shareBtnLabel}>Email</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.shareBtn} onPress={handleShareOther}>
-                <Text style={s.shareBtnIcon}>↗️</Text>
-                <Text style={s.shareBtnLabel}>More</Text>
-              </TouchableOpacity>
-            </View>
+            <ShareButtons
+              social={socialButtons}
+              onText={handleShareText}
+              onEmail={handleShareEmail}
+              onMore={handleShareOther}
+              disabled={sharing}
+            />
 </Card>
         )}
       </ScrollView>
