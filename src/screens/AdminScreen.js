@@ -218,6 +218,9 @@ export default function AdminScreen({ navigation }) {
   // App-wide dashboard stats from the admin-only RPC (bypasses RLS). null = loading.
   const [stats, setStats] = useState(null);
 
+  // Growth funnel from admin_growth_stats(). null = loading or unavailable.
+  const [growth, setGrowth] = useState(null);
+
   const [groups,        setGroups]        = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [zips,          setZips]          = useState([]);
@@ -251,6 +254,18 @@ export default function AdminScreen({ navigation }) {
       if (error) throw error;
       setStats(data);
     } catch (e) { console.warn('Stats load failed:', e.message); }
+  }, []);
+
+  // Launch-funnel numbers. Returns nulls / zeros until there is real data,
+  // so this is safe to ship before go-live. Downloads are NOT queryable from
+  // the database (App Store Connect owns that number) - the RPC reads it from
+  // the app_metrics table, where it can be entered by hand.
+  const fetchGrowth = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('admin_growth_stats');
+      if (error) throw error;
+      setGrowth(data);
+    } catch (e) { console.warn('Growth stats load failed:', e.message); }
   }, []);
 
   const fetchGroups = useCallback(async () => {
@@ -374,6 +389,7 @@ export default function AdminScreen({ navigation }) {
     fetchAdmins();
     fetchReviewers();
     fetchStats();
+    fetchGrowth();
     fetchGroups();
     fetchZips();
   }, []);
@@ -527,6 +543,19 @@ export default function AdminScreen({ navigation }) {
             <StatTile icon="✅" label="Acts"   value={stats?.acts   ?? '—'} color={C.success} onPress={() => setActiveTab('completions')} />
             <StatTile icon="🏆" label="Groups" value={stats?.groups ?? '—'} color={C.warning} onPress={() => setActiveTab('groups')} />
             <StatTile icon="📍" label="ZIPs"   value={stats?.zips   ?? '—'} onPress={() => setActiveTab('zips')} />
+          </View>
+        </Card>
+
+        <Card>
+          <Text style={s.section}>📈 Growth</Text>
+          <Text style={s.growthNote}>
+            Fills in once the app is live. A dash means no data yet.
+          </Text>
+          <View style={[s.row, { flexWrap: 'wrap' }]}>
+            <StatTile icon="⬇️" label="Downloads"        value={growth?.downloads   ?? '—'} />
+            <StatTile icon="🔑" label="Signed in"        value={growth?.signins     ?? '—'} color={C.accent} />
+            <StatTile icon="🌱" label="Did 1+ act"       value={growth?.did_one_act ?? '—'} color={C.success} />
+            <StatTile icon="🔥" label="30 days in a row" value={growth?.streak_30   ?? '—'} color={C.gold} />
           </View>
         </Card>
 
@@ -721,6 +750,7 @@ const s = StyleSheet.create({
   tile: { flex: 1, minWidth: '45%', backgroundColor: C.card2, borderRadius: 14, borderWidth: 1, padding: 14, alignItems: 'center' },
   tileVal: { fontSize: 24, fontWeight: '900' },
   tileLbl: { color: C.muted, fontSize: 11, marginTop: 4, textAlign: 'center' },
+  growthNote: { color: C.muted, fontSize: 11, marginBottom: 10, marginTop: -4 },
   ratePct: { fontSize: 26, fontWeight: '900' },
   rateLbl: { color: C.muted, fontSize: 11, marginBottom: 6 },
   barBg:   { height: 6, backgroundColor: C.surface, borderRadius: 99, overflow: 'hidden' },
