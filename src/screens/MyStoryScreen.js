@@ -12,6 +12,7 @@ import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons from '../components/ShareButtons';
+import { buildActShareMessage } from '../lib/shareMessage';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
 // so the screen still works in Expo Go, where the mic just focuses the box.
@@ -332,26 +333,65 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     return () => { alive = false; };
   }, [invitePhone]);
 
-  const buildShareMessage = () => {
-    const s = completedStory.trim();
-    const storyPart = s ? `\n\nHere's what I did:\n"${s}"` : '';
-    return `🕊️ I just completed Day ${dayNumber} of the 30 Acts of Kindness™!\n\nMy act today: "${completedTitle}"${storyPart}\n\n${APP_HASHTAG}\n\nWant to join me? Here's how:\n1. Scan the QR code, or tap the link below\n2. Download the free 30 Acts of Kindness app\n3. Sign up with your phone number\n4. Do one kind act a day — you'll be added to my kindness tree 🌳\n\n${inviteUrl}`;
+  // Which channel this caption goes out on decides whether it may mention the
+  // QR code. Only an image share carries one (StoryCard embeds it); SMS and
+  // email are plain text. See src/lib/shareMessage.js and its tests.
+  const buildShareMessage = (channel = 'image') =>
+    buildActShareMessage({
+      dayNumber,
+      actTitle: completedTitle,
+      story: completedStory,
+      inviteUrl,
+      channel,
+    });
+
+  // Text and Email must carry the QR code. A plain sms:/mailto: link cannot
+  // carry an image at all, so these hand the rendered StoryCard - which embeds
+  // the QR - to the share sheet, where Messages and Mail attach it. Only if
+  // there is no image to send do they fall back to the plain link, and the
+  // caption then stops promising a QR code. See src/lib/shareMessage.js.
+  const shareCardVia = async (label) => {
+    if (sharing) return false;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      if (!uri || isExpoGo) return false;
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (!RNShare) return false;
+
+      await RNShare.open({
+        url: uri,
+        message: buildShareMessage('image'),
+        subject: completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`,
+        failOnCancel: false,
+      });
+      return true;
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn(`${label} share failed:`, e && e.message);
+      return false;
+    } finally {
+      setSharing(false);
+    }
   };
 
-  const handleShareText = () => {
-    const msg = encodeURIComponent(buildShareMessage());
+  const handleShareText = async () => {
+    if (await shareCardVia('Text')) return;
+    const msg = encodeURIComponent(buildShareMessage('text'));
     const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
   };
 
-  const handleShareEmail = () => {
+  const handleShareEmail = async () => {
+    if (await shareCardVia('Email')) return;
     const subject = encodeURIComponent(completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`);
-    const body    = encodeURIComponent(buildShareMessage());
+    const body    = encodeURIComponent(buildShareMessage('email'));
     Linking.openURL(`mailto:?subject=${subject}&body=${body}`).catch(() => Alert.alert('Error', 'Could not open Mail.'));
   };
 
   const handleShareOther = async () => {
-    try { await Share.share({ message: buildShareMessage() }); }
+    try { await Share.share({ message: buildShareMessage('text') }); }
     catch (e) { console.warn('Share error:', e.message); }
   };
 
@@ -416,7 +456,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         }
       }
       if (!copiedImage) {
-        try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+        try { await Clipboard.setStringAsync(buildShareMessage('text')); } catch {}
       }
       // Tell the user what to do, THEN open the app when they tap Open.
       Alert.alert(
@@ -476,7 +516,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
         return;
       }
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       const usedStory = await shareToInstagramStory(uri);
       if (!usedStory) await shareImage(uri);
     } catch (e) {
@@ -495,7 +535,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       Alert.alert(
         'Share to TikTok',
         saved
@@ -537,7 +577,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const shareFacebookViaSheet = async (uri) => {
     if (uri) {
       await Share.share(
-        Platform.OS === 'ios' ? { url: uri } : { url: uri, message: buildShareMessage() }
+        Platform.OS === 'ios' ? { url: uri } : { url: uri, message: buildShareMessage('image') }
       );
     } else {
       Alert.alert(
@@ -566,7 +606,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       Alert.alert(
         'Share to Facebook',
         saved

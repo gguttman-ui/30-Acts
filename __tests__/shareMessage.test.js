@@ -1,0 +1,119 @@
+// Share caption rules. The bug these guard against: SMS and email carry no
+// image, so they carry no QR code — but the caption used to tell the reader to
+// scan one anyway.
+import {
+  buildActShareMessage,
+  buildJoinSteps,
+  channelHasQr,
+  APP_HASHTAG,
+} from '../src/lib/shareMessage';
+
+const base = {
+  dayNumber: 77,
+  actTitle: 'My Story',
+  story: "I'm going to make six tests today",
+  inviteUrl: 'https://alrpa.app.link/wpZcPtFSh5b',
+};
+
+describe('channelHasQr', () => {
+  test('only an image share carries the QR code', () => {
+    expect(channelHasQr('image')).toBe(true);
+    expect(channelHasQr('text')).toBe(false);
+    expect(channelHasQr('email')).toBe(false);
+  });
+});
+
+describe('buildJoinSteps', () => {
+  test('image share mentions the QR code', () => {
+    const s = buildJoinSteps({ channel: 'image', inviteUrl: base.inviteUrl });
+    expect(s).toContain('Scan the QR code');
+  });
+
+  test('text share never mentions a QR code', () => {
+    const s = buildJoinSteps({ channel: 'text', inviteUrl: base.inviteUrl });
+    expect(s).not.toMatch(/QR/i);
+    expect(s).toContain('Tap the link below');
+  });
+
+  test('email share never mentions a QR code', () => {
+    const s = buildJoinSteps({ channel: 'email', inviteUrl: base.inviteUrl });
+    expect(s).not.toMatch(/QR/i);
+  });
+
+  test('no link and no QR falls back to the App Store, not a dangling "below"', () => {
+    const s = buildJoinSteps({ channel: 'text', inviteUrl: '' });
+    expect(s).not.toMatch(/QR/i);
+    expect(s).not.toContain('link below');
+    expect(s).toContain('App Store');
+  });
+
+  test('QR but no link does not promise a link', () => {
+    const s = buildJoinSteps({ channel: 'image', inviteUrl: '' });
+    expect(s).toContain('Scan the QR code');
+    expect(s).not.toContain('link below');
+  });
+
+  test('always four numbered steps', () => {
+    for (const channel of ['image', 'text', 'email']) {
+      const s = buildJoinSteps({ channel, inviteUrl: base.inviteUrl });
+      expect(s.split('\n')).toHaveLength(4);
+      expect(s).toMatch(/^1\. /);
+    }
+  });
+});
+
+describe('buildActShareMessage', () => {
+  test('text share: no QR mention, link still present', () => {
+    const m = buildActShareMessage({ ...base, channel: 'text' });
+    expect(m).not.toMatch(/QR/i);
+    expect(m).toContain(base.inviteUrl);
+  });
+
+  test('email share: no QR mention', () => {
+    const m = buildActShareMessage({ ...base, channel: 'email' });
+    expect(m).not.toMatch(/QR/i);
+  });
+
+  test('image share: QR mention is kept', () => {
+    const m = buildActShareMessage({ ...base, channel: 'image' });
+    expect(m).toContain('Scan the QR code');
+  });
+
+  test('defaults to the image channel', () => {
+    const m = buildActShareMessage(base);
+    expect(m).toContain('Scan the QR code');
+  });
+
+  test('carries day number, act title and hashtag', () => {
+    const m = buildActShareMessage({ ...base, channel: 'text' });
+    expect(m).toContain('Day 77');
+    expect(m).toContain('"My Story"');
+    expect(m).toContain(APP_HASHTAG);
+  });
+
+  test('includes the story when there is one', () => {
+    const m = buildActShareMessage({ ...base, channel: 'text' });
+    expect(m).toContain("Here's what I did:");
+    expect(m).toContain(base.story);
+  });
+
+  test('omits the story block when blank or whitespace', () => {
+    for (const story of ['', '   ', '\n\n']) {
+      const m = buildActShareMessage({ ...base, story, channel: 'text' });
+      expect(m).not.toContain("Here's what I did:");
+    }
+  });
+
+  test('the referral link survives every channel — it feeds the kindness tree', () => {
+    for (const channel of ['image', 'text', 'email']) {
+      expect(buildActShareMessage({ ...base, channel })).toContain(base.inviteUrl);
+    }
+  });
+
+  test('no trailing link line when there is no invite URL', () => {
+    const m = buildActShareMessage({ ...base, inviteUrl: '', channel: 'text' });
+    expect(m.trimEnd()).toBe(m.trimEnd());
+    expect(m).not.toContain('undefined');
+    expect(m).not.toContain('null');
+  });
+});
