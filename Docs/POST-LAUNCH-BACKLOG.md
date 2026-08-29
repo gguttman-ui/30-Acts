@@ -106,7 +106,28 @@ reason to revert.
 
 ---
 
-## 5. PayPal donate path
+## 5. Clean up hosted share cards
+
+Emailing an act now uploads the rendered card to the public `act-media` bucket
+under `share-cards/`, so the picture can render inside the message body — an
+`<img>` needs a real URL, and email clients strip `data:` URIs.
+
+Two consequences that need attention once there is real traffic:
+
+- **They accumulate.** Every emailed act leaves a JPEG behind forever. At any
+  volume this needs a retention job — a `pg_cron` sweep deleting
+  `share-cards/*` older than, say, 90 days would do it.
+- **They are public.** Anyone holding the URL can view the card. That is what
+  makes it render in someone else's inbox, and it is the same bargain the app
+  already makes for act media — but it is worth a deliberate look before the
+  volume is real.
+
+**Do it when:** emailed shares are actually happening, or before any privacy
+review.
+
+---
+
+## 6. PayPal donate path
 
 The PayPal link on the Donate page is a managed QR code, not a hosted Donate
 button. That means no preset amounts and no guest card checkout — a donor
@@ -117,7 +138,7 @@ donation traffic to judge whether it actually costs anything.
 
 ---
 
-## 6. Admin browse redesign
+## 7. Admin browse redesign
 
 The Admin screen overhaul was started earlier; the browse redesign was fully
 built but never landed on disk because of file-delivery problems at the time.
@@ -126,7 +147,7 @@ so this could be picked back up whenever it is worth the attention.
 
 ---
 
-## 7. Confirm Supabase backup retention
+## 8. Confirm Supabase backup retention
 
 Supabase runs automatic backups, but retention depends on the plan, and
 free-tier retention is short. Worth checking what the project actually keeps

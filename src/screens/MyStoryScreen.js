@@ -13,6 +13,7 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons from '../components/ShareButtons';
 import { buildActShareMessage } from '../lib/shareMessage';
+import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
 // so the screen still works in Expo Go, where the mic just focuses the box.
@@ -381,40 +382,77 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
   };
 
-  // Email is fussier than Text. Three paths, tried in order:
-  //   1. shareSingle -> iOS Mail composer with the card attached. Needs a Mail
-  //      account configured on the device; silently unavailable if not.
-  //   2. The share sheet, card attached, user picks Mail themselves.
-  //   3. A plain mailto: link - no image, so the caption drops the QR line.
-  // If all three fail we SAY so. The old version failed silently, which looked
-  // like the button was dead.
-  // Email goes through the SAME share sheet as Text, which is proven to work.
+  // Email shows the card INSIDE the message rather than attaching it.
   //
-  // It used to try react-native-share's Social.EMAIL first, to drop straight
-  // into the Mail composer. On a device with no Mail account that call opened
-  // nothing AND never resolved, so `sharing` stayed true and the button went
-  // permanently dead - tap, nothing happens, no error. Not worth the risk for
-  // one saved tap.
+  // An <img> needs a real URL - email clients strip data: URIs - so the card is
+  // uploaded to the public act-media bucket first and the HTML points at it.
+  // Three fallbacks, because every step here can fail on a given device:
+  //   1. Upload + Mail composer with an HTML body  -> picture renders inline.
+  //   2. Share sheet with the file attached        -> picture as an attachment.
+  //   3. Plain mailto:                             -> text only, no QR promise.
   //
-  // The only difference from Text is the subject line, which Mail and Gmail
-  // both pick up from the sheet.
+  // Every await is bounded. An unbounded one is what previously left `sharing`
+  // stuck true and the button permanently dead.
   const handleShareEmail = async () => {
     if (sharing) return;
     setSharing(true);
     const subjectText = completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`;
+
+    const cap = (promise, ms, label) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    };
+
     try {
       const uri = await localShareUri();
 
+      // 1. Inline: host the card, then compose HTML mail pointing at it.
+      if (uri) {
+        let MailComposer = null;
+        try { MailComposer = require('expo-mail-composer'); } catch {}
+
+        let mailAvailable = false;
+        if (MailComposer?.isAvailableAsync) {
+          mailAvailable = await cap(
+            MailComposer.isAvailableAsync(), 5000, 'mail check timed out',
+          ).catch(() => false);
+        }
+
+        if (mailAvailable) {
+          const publicUrl = await cap(
+            uploadShareCard({
+              supabase,
+              readBase64: (u) => FileSystem.readAsStringAsync(u, { encoding: 'base64' }),
+              uri,
+              dayNumber,
+            }),
+            30000,
+            'card upload timed out',
+          ).catch((e) => { console.warn('Card upload skipped:', e && e.message); return null; });
+
+          if (publicUrl) {
+            await MailComposer.composeAsync({
+              subject: subjectText,
+              body: buildShareEmailHtml({ imageUrl: publicUrl, inviteUrl }),
+              isHtml: true,
+            });
+            return;
+          }
+        }
+      }
+
+      // 2. Share sheet, card attached.
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
-
       if (uri && RNShare && !isExpoGo) {
         await RNShare.open({ url: uri, subject: subjectText, failOnCancel: false });
         return;
       }
 
-      // No card to send (capture failed, or Expo Go): plain mailto, text only,
-      // so the caption drops its QR line.
+      // 3. Plain mailto - text only, so the caption drops its QR line.
       const subject = encodeURIComponent(subjectText);
       const body    = encodeURIComponent(buildShareMessage('email'));
       const mailto  = `mailto:?subject=${subject}&body=${body}`;

@@ -109,7 +109,8 @@
           "apiKey": "key_live_hxAVySfBnexcBbICp4gznckeFqjrD981",
           "iosAppDomain": "alrpa.app.link"
         }
-      ]
+      ],
+      "expo-mail-composer"
     ],
     "extra": {
       "eas": {
@@ -123,4 +124,4 @@
       "url": "https://u.expo.dev/4d47d9a1-dc2b-43d5-9fd2-e45167d9ba8e"
     }
   }
-}
+}
