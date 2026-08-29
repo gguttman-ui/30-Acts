@@ -388,6 +388,16 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   //   3. A plain mailto: link - no image, so the caption drops the QR line.
   // If all three fail we SAY so. The old version failed silently, which looked
   // like the button was dead.
+  // Email goes through the SAME share sheet as Text, which is proven to work.
+  //
+  // It used to try react-native-share's Social.EMAIL first, to drop straight
+  // into the Mail composer. On a device with no Mail account that call opened
+  // nothing AND never resolved, so `sharing` stayed true and the button went
+  // permanently dead - tap, nothing happens, no error. Not worth the risk for
+  // one saved tap.
+  //
+  // The only difference from Text is the subject line, which Mail and Gmail
+  // both pick up from the sheet.
   const handleShareEmail = async () => {
     if (sharing) return;
     setSharing(true);
@@ -398,37 +408,13 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
 
-      // 1. Straight into Mail with the card attached.
-      if (uri && RNShare && !isExpoGo && RNShare?.Social?.EMAIL) {
-        try {
-          await RNShare.shareSingle({
-            social: RNShare.Social.EMAIL,
-            subject: subjectText,
-            urls: [uri],
-          });
-          return;
-        } catch (e) {
-          if (e?.message === 'User did not share') return;
-          console.warn('Mail composer unavailable, falling back:', e && e.message);
-        }
-      }
-
-      // 2. Share sheet with the card attached; the user picks Mail.
       if (uri && RNShare && !isExpoGo) {
-        try {
-          await RNShare.open({
-            url: uri,
-            subject: subjectText,
-            failOnCancel: false,
-          });
-          return;
-        } catch (e) {
-          if (e?.message === 'User did not share') return;
-          console.warn('Share sheet failed, falling back to mailto:', e && e.message);
-        }
+        await RNShare.open({ url: uri, subject: subjectText, failOnCancel: false });
+        return;
       }
 
-      // 3. Plain mailto: - text only, so no QR promise in the caption.
+      // No card to send (capture failed, or Expo Go): plain mailto, text only,
+      // so the caption drops its QR line.
       const subject = encodeURIComponent(subjectText);
       const body    = encodeURIComponent(buildShareMessage('email'));
       const mailto  = `mailto:?subject=${subject}&body=${body}`;
@@ -436,14 +422,16 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       if (!canOpen) {
         Alert.alert(
           'No email app set up',
-          'This iPhone has no Mail account configured, so there is nothing to open. Add one in Settings → Mail, or use Text or More to share instead.',
+          'This iPhone has no Mail account configured. Add one in Settings → Mail, or use More to share.',
         );
         return;
       }
       await Linking.openURL(mailto);
     } catch (e) {
-      console.warn('Email share failed:', e && e.message);
-      Alert.alert('Could not open email', 'Try Text or More to share this act instead.');
+      if (e?.message !== 'User did not share') {
+        console.warn('Email share failed:', e && e.message);
+        Alert.alert('Could not open email', 'Try More to share this act instead.');
+      }
     } finally {
       setSharing(false);
     }
