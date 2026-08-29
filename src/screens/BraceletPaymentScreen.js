@@ -51,6 +51,30 @@ export default function BraceletPaymentScreen({ navigation, route }) {
       }
     }
 
+    // PayPal's managed QR-code link takes no amount parameter, so PayPal opens
+    // with an empty box and the payer types whatever they like. Until that
+    // account has a PayPal.me handle or a hosted button with a preset amount,
+    // the best we can do is put the figure on the clipboard and say so, so it
+    // is a paste rather than a guess.
+    if (!d.deepLink && !d.handle) {
+      try { await Clipboard.setStringAsync(SHIP_AMOUNT_NUM); } catch {}
+      Alert.alert(
+        `Send ${SHIP_AMOUNT} in ${d.label}`,
+        `${d.label} cannot pre-fill the amount, so ${SHIP_AMOUNT_NUM} is copied to your clipboard.\n\n`
+        + `${d.label} will open — paste it into the amount box, and put your name in the note so we can match your payment.`,
+        [
+          { text: `Open ${d.label}`, onPress: async () => {
+            try { await Linking.openURL(d.url); }
+            catch (e) {
+              Alert.alert(d.label, `We couldn't open ${d.label}. Send ${SHIP_AMOUNT} to:\n\n${d.value}`);
+            }
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
     try {
       await Linking.openURL(d.url);
     } catch (e) {

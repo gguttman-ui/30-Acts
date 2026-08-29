@@ -12,6 +12,7 @@ import ShareButtons from '../components/ShareButtons';
 import Constants from 'expo-constants';
 import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
+import { generateInviteLink } from '../lib/branch';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Badge, ScreenHeader, Card } from '../components';
 import {
@@ -203,6 +204,24 @@ export function DayDetailScreen({ route, navigation, onDelete }) {
   const [videoThumbUri, setVideoThumbUri] = useState(null);
   const storyCardRef = useRef(null);
 
+  // Invite link for the QR on the shared card. Every share sends the card, and
+  // the card carries the QR plus the line explaining it - see StoryCard.js.
+  const [inviteUrl, setInviteUrl] = useState(APP_URL);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const phone = extractPhone(user?.email) || user?.phone || null;
+        if (!phone) return;
+        if (alive) setInviteUrl(`${APP_URL}?ref=${encodeURIComponent(phone)}`);
+        const url = await generateInviteLink({ phone });
+        if (alive && url) setInviteUrl(url);
+      } catch (e) { console.warn('Invite link failed:', e && e.message); }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   // Generate thumbnail when a video is loaded
   useEffect(() => {
     let cancelled = false;
@@ -296,50 +315,71 @@ return () => { cancelled = true; };
     return `🕊️ I completed Day ${day.dayNumber} of the 30 Acts of Kindness™!\n\nMy act: "${day.title}"${storyPart}\n\n${APP_HASHTAG}\nJoin me at ${APP_URL}`;
   };
 
-  const handleShareText = () => {
-    const msg = encodeURIComponent(buildShareMessage());
-    const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
-  };
-
-const handleShareEmail = () => {
-    const subject = encodeURIComponent(day?.title || `Day ${day.dayNumber} of 30 Acts of Kindness™`);
-    const body    = encodeURIComponent(buildShareMessage());
-    Linking.openURL(`mailto:?subject=${subject}&body=${body}`)
-      .catch(() => Alert.alert('Error', 'Could not open Mail.'));
-  };
-
-  const handleShareOther = async () => {
+  // Picture only, through the share sheet - Messages attaches the card.
+  const handleShareText = async () => {
+    if (sharing) return;
+    setSharing(true);
     try {
-      await Share.share({ message: buildShareMessage() });
+      const uri = await localShareUri();
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+      await shareImage(uri);
     } catch (e) {
-      console.warn('Share error:', e.message);
-    }
+      if (e?.message !== 'User did not share') console.warn('Text share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
+
+  // Picture only. Same sheet as Text, with a subject line for mail apps.
+  const handleShareEmail = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          subject: `Day ${day?.dayNumber} of 30 Acts of Kindness`,
+          failOnCancel: false,
+        });
+        return;
+      }
+      await shareImage(uri);
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('Email share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
+
+  // More: the picture, nothing else.
+  const handleShareOther = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+      await shareImage(uri);
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('Share error:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // Resolves the image/video to share. Photo/video → the media itself.
   // Story (text) → snapshot the hidden StoryCard to a JPEG so it can go to
   // image-only platforms (Instagram / TikTok) and attach on X / Facebook.
+  // The card is the share, always - it carries the day number, branding,
+  // hashtag, QR code and the line explaining the QR. Sharing the user's own
+  // photo instead would drop the QR, so it does not win here.
   const resolveShareMedia = async () => {
-    // Gate on the real data, not day.proofType: older completions come through
-    // with proofType === null (it's never refetched here), which used to skip the
-    // capture and produce "Couldn't prepare an image". mediaUri is set only for
-    // photo/video; story (from completion.notes) is set only for story acts.
-    if (mediaUri) {
-      return mediaUri;
+    if (!storyCardRef.current) return null;
+    try {
+      // Two passes: the first can race the off-screen layout on cold renders.
+      await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
+      return await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
+    } catch (err) {
+      console.warn('Story card capture failed:', err);
+      return null;
     }
-    if (story.trim() && storyCardRef.current) {
-      try {
-        // First pass can race the layout on a cold render; second is reliable.
-        await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
-        const uri = await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
-        return uri;
-      } catch (err) {
-        Alert.alert('Capture failed', String(err && err.message ? err.message : err));
-        return null;
-      }
-    }
-    return null;
   };
 
   // Returns a local file:// uri suitable for the native iOS share sheet.
@@ -378,14 +418,13 @@ const handleShareEmail = () => {
         }
       }
       if (!copiedImage) {
-        try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
+        Alert.alert('Could not prepare the picture', 'Please try again.');
+        return;
       }
       // Tell the user what to do, THEN open the app when they tap Open.
       Alert.alert(
         `Share to ${name}`,
-        copiedImage
-          ? `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`
-          : `Your caption is copied.\n\n${name} will open — start a new post and paste it.`,
+        `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`,
         [
           { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
           { text: 'Cancel', style: 'cancel' },
@@ -409,12 +448,11 @@ const handleShareEmail = () => {
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your act), then paste the caption.'
-          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+          ? 'Your act picture is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your act).'
+          : 'Facebook will open — start a post.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
           { text: 'Cancel', style: 'cancel' },
@@ -438,7 +476,6 @@ const handleShareEmail = () => {
         return;
       }
       // Caption can't ride along to Instagram, so copy it for pasting.
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       // Hand the image straight to Instagram via the iOS share sheet. This
       // bypasses Instagram's limited-photo-access and its Reel composer — the
       // app receives the image directly and lets you post it to Feed or Story.
@@ -459,12 +496,11 @@ const handleShareEmail = () => {
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
-          : 'Your caption is copied.\n\nTikTok will open — tap ➕ to create a post and paste the caption.',
+          ? 'Your act picture is saved to your Photos.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo.'
+          : 'TikTok will open — tap ➕ to create a post.',
         [
           { text: 'Open TikTok', onPress: async () => {
             try { await Linking.openURL('tiktok://'); }
@@ -493,14 +529,13 @@ const handleShareEmail = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {!mediaUri && story.trim() ? (
-        <StoryCard
-          ref={storyCardRef}
-          title={day.title}
-          story={story}
-          dayNumber={day?.dayNumber}
-        />
-      ) : null}
+      <StoryCard
+        ref={storyCardRef}
+        title={day.title}
+        story={story}
+        dayNumber={day?.dayNumber}
+        inviteUrl={inviteUrl}
+      />
 <ScreenHeader title={`Day ${day?.dayNumber}`} onBack={() => navigation.goBack()}
         right={<Badge status={day?.status} />} />
       <ScrollView

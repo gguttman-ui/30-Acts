@@ -124,22 +124,37 @@ export default function CertificateScreen({ navigation }) {
     return `🕊️ ${who}just completed all 30 Acts of Kindness™ and earned a Certificate of Kindness!\n\n#30ActsOfKindness\n\nWant to join me? Here's how:\n1. Download the free 30 Acts of Kindness app:\n${APP_STORE_URL}\n2. Sign up with your phone number\n3. Do one kind act a day${linkPart}`;
   };
 
-  const handleShareText = () => {
-    const msg = encodeURIComponent(buildShareMessage());
-    const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
+  // Every method sends the certificate picture and nothing else. The
+  // certificate itself carries the QR code and the line explaining it.
+  const shareCertImage = async (subject) => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({ url: uri, ...(subject ? { subject } : {}), failOnCancel: false });
+        return;
+      }
+
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+        return;
+      }
+      await Share.share({ url: uri });
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('Certificate share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
-  const handleShareEmail = () => {
-    const subject = encodeURIComponent('My 30 Acts of Kindness™ Certificate');
-    const body    = encodeURIComponent(buildShareMessage());
-    Linking.openURL(`mailto:?subject=${subject}&body=${body}`).catch(() => Alert.alert('Error', 'Could not open Mail.'));
-  };
-
-  const handleShareOther = async () => {
-    try { await Share.share({ message: buildShareMessage() }); }
-    catch (e) { /* user cancelled */ }
-  };
+  const handleShareText  = () => shareCertImage();
+  const handleShareEmail = () => shareCertImage('My 30 Acts of Kindness Certificate');
+  const handleShareOther = () => shareCertImage();
 
   const certRef = useRef(null);
   const [sharing, setSharing] = useState(false);
@@ -195,7 +210,6 @@ export default function CertificateScreen({ navigation }) {
     try {
       const uri = await certImageUri();
       if (!uri) { Alert.alert('Could not prepare the image', 'Please try again.'); return; }
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       const ok = await shareSingleTo('INSTAGRAM_STORIES', { appId: FB_APP_ID, backgroundImage: uri });
       if (!ok) {
         let Sharing = null;
@@ -216,8 +230,8 @@ export default function CertificateScreen({ navigation }) {
         try {
           const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
           await Clipboard.setImageAsync(base64);
-        } catch { try { await Clipboard.setStringAsync(buildShareMessage()); } catch {} }
-      } else { try { await Clipboard.setStringAsync(buildShareMessage()); } catch {} }
+        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
+      }
       await openOrFallback('twitter://post', 'https://twitter.com/intent/tweet', 'X');
     } catch (e) { if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message); }
     finally { setSharing(false); }
@@ -230,12 +244,11 @@ export default function CertificateScreen({ navigation }) {
       const uri = await certImageUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your certificate), then paste the caption.'
-          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+          ? 'Your certificate is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your certificate).'
+          : 'Facebook will open — start a post.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
           { text: 'Cancel', style: 'cancel' },
@@ -252,12 +265,11 @@ export default function CertificateScreen({ navigation }) {
       const uri = await certImageUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage()); } catch {}
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved certificate, then paste the caption.'
-          : 'Your caption is copied.\n\nOpen the TikTok app, tap ➕ to create a post, and paste the caption.',
+          ? 'Your certificate is saved to your Photos.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved certificate.'
+          : 'Open the TikTok app, tap ➕ to create a post,.',
         [{ text: 'Got it' }]
       );
     } catch (e) { if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message); }

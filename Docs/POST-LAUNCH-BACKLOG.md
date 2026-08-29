@@ -127,14 +127,34 @@ review.
 
 ---
 
-## 6. PayPal donate path
+## 6. PayPal donate path — no preset amount
 
-The PayPal link on the Donate page is a managed QR code, not a hosted Donate
-button. That means no preset amounts and no guest card checkout — a donor
-without a PayPal account hits friction.
+The PayPal link is a managed QR code:
+`paypal.com/qrcodes/managed/ea84696b-…`
 
-Flagged as unresolved before promotion. Worth revisiting once there is real
-donation traffic to judge whether it actually costs anything.
+That URL format accepts **no amount parameter**, so PayPal opens with an empty
+box and the payer types whatever they like. Venmo prefills because
+`venmo://paycharge` takes `&amount=`; there is no equivalent for a managed QR
+link. It also means no guest card checkout, so a donor without a PayPal account
+hits friction.
+
+**Current workaround (shipped 2026-08-29):** the bracelet screen copies `6.95`
+to the clipboard and tells the payer to paste it. Better than nothing, but wrong
+amounts are still possible.
+
+**The real fix, either of:**
+
+- **PayPal.me handle** — the URL becomes `paypal.me/<handle>/6.95` and the
+  amount is prefilled. Smallest change: set the handle up in PayPal, then one
+  line in `DONATIONS` in `src/constants/index.js`.
+- **Hosted donate button** — create one in PayPal with a preset amount; gives a
+  `paypal.com/donate?hosted_button_id=…` link and restores guest card checkout.
+
+Both are PayPal account-side tasks first. Once the link exists, wiring it is a
+one-line change.
+
+**Do it when:** there is real donation or bracelet traffic, or sooner if wrong
+payment amounts start needing manual reconciliation.
 
 ---
 
