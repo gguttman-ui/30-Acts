@@ -362,11 +362,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       try { RNShare = require('react-native-share').default; } catch {}
       if (!RNShare) return false;
 
-      await RNShare.open({
+      const res = await RNShare.open({
         url: uri,
         failOnCancel: false,
       });
-      return true;
+      // v12 reports {success}. Older builds return nothing - treat that as sent.
+      return res?.success !== false;
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn(`${label} share failed:`, e && e.message);
       return false;
@@ -376,7 +377,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   };
 
   const handleShareText = async () => {
-    if (await shareCardVia('Text')) return;
+    if (await shareCardVia('Text')) { goToCalendar(); return; }
     const msg = encodeURIComponent(buildShareMessage('text'));
     const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
@@ -434,11 +435,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           ).catch((e) => { console.warn('Card upload skipped:', e && e.message); return null; });
 
           if (publicUrl) {
-            await MailComposer.composeAsync({
+            const result = await MailComposer.composeAsync({
               subject: subjectText,
               body: buildShareEmailHtml({ imageUrl: publicUrl, inviteUrl }),
               isHtml: true,
             });
+            if (result?.status !== 'cancelled') goToCalendar();
             return;
           }
         }
@@ -448,7 +450,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (uri && RNShare && !isExpoGo) {
-        await RNShare.open({ url: uri, subject: subjectText, failOnCancel: false });
+        const res = await RNShare.open({ url: uri, subject: subjectText, failOnCancel: false });
+        if (res?.success !== false) goToCalendar();
         return;
       }
 
@@ -483,6 +486,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const uri = await localShareUri();
       if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
       await shareImage(uri);
+      goToCalendar();
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Share error:', e && e.message);
     } finally { setSharing(false); }
@@ -559,7 +563,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         `Share to ${name}`,
         `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`,
         [
-          { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
+          { text: `Open ${name}`, onPress: async () => {
+            await openOrFallback(appUrl, webUrl, name);
+            goToCalendar();
+          } },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
@@ -612,6 +619,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       }
       const usedStory = await shareToInstagramStory(uri);
       if (!usedStory) await shareImage(uri);
+      goToCalendar();
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Instagram share failed:', e && e.message);
     } finally { setSharing(false); }
@@ -637,6 +645,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           { text: 'Open TikTok', onPress: async () => {
             try { await Linking.openURL('tiktok://'); }
             catch { try { await Linking.openURL('https://www.tiktok.com/'); } catch {} }
+            goToCalendar();
           } },
           { text: 'Cancel', style: 'cancel' },
         ]
@@ -704,7 +713,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           ? 'Your act picture is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?" and pick the newest photo (your act).'
           : 'Could not save the picture.\n\nFacebook will open anyway — you can add a photo yourself.',
         [
-          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
+          { text: 'Open Facebook', onPress: async () => {
+            await openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook');
+            goToCalendar();
+          } },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
