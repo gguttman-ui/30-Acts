@@ -363,8 +363,6 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
       await RNShare.open({
         url: uri,
-        message: buildShareMessage('image'),
-        subject: completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`,
         failOnCancel: false,
       });
       return true;
@@ -383,21 +381,92 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
   };
 
+  // Email is fussier than Text. Three paths, tried in order:
+  //   1. shareSingle -> iOS Mail composer with the card attached. Needs a Mail
+  //      account configured on the device; silently unavailable if not.
+  //   2. The share sheet, card attached, user picks Mail themselves.
+  //   3. A plain mailto: link - no image, so the caption drops the QR line.
+  // If all three fail we SAY so. The old version failed silently, which looked
+  // like the button was dead.
   const handleShareEmail = async () => {
-    if (await shareCardVia('Email')) return;
-    const subject = encodeURIComponent(completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`);
-    const body    = encodeURIComponent(buildShareMessage('email'));
-    Linking.openURL(`mailto:?subject=${subject}&body=${body}`).catch(() => Alert.alert('Error', 'Could not open Mail.'));
+    if (sharing) return;
+    setSharing(true);
+    const subjectText = completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`;
+    try {
+      const uri = await localShareUri();
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+
+      // 1. Straight into Mail with the card attached.
+      if (uri && RNShare && !isExpoGo && RNShare?.Social?.EMAIL) {
+        try {
+          await RNShare.shareSingle({
+            social: RNShare.Social.EMAIL,
+            subject: subjectText,
+            urls: [uri],
+          });
+          return;
+        } catch (e) {
+          if (e?.message === 'User did not share') return;
+          console.warn('Mail composer unavailable, falling back:', e && e.message);
+        }
+      }
+
+      // 2. Share sheet with the card attached; the user picks Mail.
+      if (uri && RNShare && !isExpoGo) {
+        try {
+          await RNShare.open({
+            url: uri,
+            subject: subjectText,
+            failOnCancel: false,
+          });
+          return;
+        } catch (e) {
+          if (e?.message === 'User did not share') return;
+          console.warn('Share sheet failed, falling back to mailto:', e && e.message);
+        }
+      }
+
+      // 3. Plain mailto: - text only, so no QR promise in the caption.
+      const subject = encodeURIComponent(subjectText);
+      const body    = encodeURIComponent(buildShareMessage('email'));
+      const mailto  = `mailto:?subject=${subject}&body=${body}`;
+      const canOpen = await Linking.canOpenURL(mailto).catch(() => false);
+      if (!canOpen) {
+        Alert.alert(
+          'No email app set up',
+          'This iPhone has no Mail account configured, so there is nothing to open. Add one in Settings → Mail, or use Text or More to share instead.',
+        );
+        return;
+      }
+      await Linking.openURL(mailto);
+    } catch (e) {
+      console.warn('Email share failed:', e && e.message);
+      Alert.alert('Could not open email', 'Try Text or More to share this act instead.');
+    } finally {
+      setSharing(false);
+    }
   };
 
+  // More: the picture, nothing else.
   const handleShareOther = async () => {
-    try { await Share.share({ message: buildShareMessage('text') }); }
-    catch (e) { console.warn('Share error:', e.message); }
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await localShareUri();
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+      await shareImage(uri);
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('Share error:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // Render the off-screen StoryCard to a JPEG for image-only platforms.
   const resolveShareMedia = async () => {
-    if (completedStory.trim() && storyCardRef.current) {
+    // The card IS the share - it carries the day number, branding, hashtag and
+    // the QR code, so it is worth rendering even when the user wrote no story.
+    if (storyCardRef.current) {
       try {
         // Two passes: first capture can race the off-screen layout on cold renders.
         await captureRef(storyCardRef, { format: 'jpg', quality: 0.92 });
@@ -456,14 +525,13 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         }
       }
       if (!copiedImage) {
-        try { await Clipboard.setStringAsync(buildShareMessage('text')); } catch {}
+        Alert.alert('Could not prepare the picture', 'Please try again.');
+        return;
       }
       // Tell the user what to do, THEN open the app when they tap Open.
       Alert.alert(
         `Share to ${name}`,
-        copiedImage
-          ? `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`
-          : `Your caption is copied.\n\n${name} will open — start a new post and paste it.`,
+        `Your act picture is copied.\n\n${name} will open — start a new post and paste (touch and hold, then tap Paste) to add your picture.`,
         [
           { text: `Open ${name}`, onPress: () => openOrFallback(appUrl, webUrl, name) },
           { text: 'Cancel', style: 'cancel' },
@@ -513,10 +581,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     try {
       const uri = await localShareUri();
       if (!uri) {
-        Alert.alert('Could not prepare an image', 'Write a story for this act, then try sharing again.');
+        Alert.alert('Could not prepare the picture', 'Please try again.');
         return;
       }
-      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       const usedStory = await shareToInstagramStory(uri);
       if (!usedStory) await shareImage(uri);
     } catch (e) {
@@ -535,12 +602,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
-          : 'Your caption is copied.\n\nTikTok will open — tap ➕ to create a post and paste the caption.',
+          ? 'Your act picture is saved to your Photos.\n\nTikTok will open — tap ➕ → Upload and pick the saved photo.'
+          : 'Could not save the picture.\n\nTikTok will open anyway — you can add a photo yourself.',
         [
           { text: 'Open TikTok', onPress: async () => {
             try { await Linking.openURL('tiktok://'); }
@@ -577,7 +643,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const shareFacebookViaSheet = async (uri) => {
     if (uri) {
       await Share.share(
-        Platform.OS === 'ios' ? { url: uri } : { url: uri, message: buildShareMessage('image') }
+        { url: uri }
       );
     } else {
       Alert.alert(
@@ -606,12 +672,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const uri = await localShareUri();
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
-      try { await Clipboard.setStringAsync(buildShareMessage('image')); } catch {}
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your act), then paste the caption.'
-          : 'Your caption is copied.\n\nFacebook will open — start a post and paste the caption.',
+          ? 'Your act picture is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?" and pick the newest photo (your act).'
+          : 'Could not save the picture.\n\nFacebook will open anyway — you can add a photo yourself.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
           { text: 'Cancel', style: 'cancel' },
