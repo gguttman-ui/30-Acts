@@ -264,33 +264,39 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
-  // X, via the iOS share sheet. twitter://post carries text only - X's URL
-  // scheme has never accepted media from another app, and react-native-share's
-  // TWITTER target rides that same scheme. The share sheet hands the file to X's
-  // share extension, which does attach it. One extra tap, but it works.
+  // X: open the app directly with the caption prefilled, certificate on the
+  // clipboard to paste. The share sheet's X extension takes both, but iOS
+  // decides where X sits in that row and an app cannot reorder it - making
+  // someone scroll to find X is not a working button.
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
-      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
-
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          failOnCancel: false,
-        });
-        return;
+      let copiedImage = false;
+      if (uri) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          await Clipboard.setImageAsync(base64);
+          copiedImage = true;
+        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
       }
 
-      let Sharing = null;
-      try { Sharing = require('expo-sharing'); } catch {}
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
-      }
+      const caption = buildSocialMessage({ inviteUrl });
+      Alert.alert(
+        'Share to X',
+        copiedImage
+          ? 'Your certificate is copied.\n\nX will open with your caption ready — touch and hold in the post and tap Paste to add the picture.'
+          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
+        [
+          { text: 'Open X', onPress: () => openOrFallback(
+            `twitter://post?message=${encodeURIComponent(caption)}`,
+            `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
+            'X',
+          ) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
     } finally { setSharing(false); }

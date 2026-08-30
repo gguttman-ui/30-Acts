@@ -745,52 +745,50 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  // X, via the iOS share sheet.
+  // X: open the app directly with the caption prefilled, picture on the
+  // clipboard to paste. Same shape as TikTok/Instagram/Facebook - the app opens,
+  // one paste finishes it.
   //
-  // Two direct routes were tried and neither works: twitter://post carries text
-  // only (no media), and react-native-share's TWITTER target rides the same
-  // scheme, so it cannot attach a picture either - and it could hang, which left
-  // the button dead. X's URL scheme has never accepted media from another app.
-  //
-  // What DOES work is X's iOS share extension, which the system share sheet
-  // hands the file to - the same mechanism that already puts the card into
-  // Messages. One extra tap to choose X, and the picture actually arrives.
+  // Why not the share sheet: X's extension DOES take both picture and caption,
+  // but iOS decides where X sits in that app row and an app cannot reorder it or
+  // open a specific extension. Making someone scroll to find X is not a working
+  // button. twitter://post carries the caption reliably; the picture cannot ride
+  // a URL scheme, hence the paste.
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
-
-    const capped = (promise, ms) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('X share timed out')), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
-      const uri = await capped(localShareUri(), 15000).catch(() => null);
-      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
-
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare && !isExpoGo) {
-        await capped(RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          failOnCancel: false,
-        }), 60000);
-        return;
+      const uri = await localShareUri();
+      let copiedImage = false;
+      if (uri) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          await Clipboard.setImageAsync(base64);
+          copiedImage = true;
+        } catch (e) {
+          console.warn('Copy picture to clipboard failed:', e && e.message);
+        }
       }
 
-      await shareImage(uri);
+      const caption = buildSocialMessage({ inviteUrl });
+      const appUrl = `twitter://post?message=${encodeURIComponent(caption)}`;
+      const webUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
+
+      Alert.alert(
+        'Share to X',
+        copiedImage
+          ? 'Your act picture is copied.\n\nX will open with your caption ready — touch and hold in the post and tap Paste to add the picture.'
+          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
+        [
+          { text: 'Open X', onPress: async () => {
+            await openOrFallback(appUrl, webUrl, 'X');
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
-      if (e?.message !== 'User did not share') {
-        console.warn('X share failed:', e && e.message);
-        Alert.alert('Could not open the share sheet', 'Please try again.');
-      }
-    } finally {
-      setSharing(false);
-    }
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // True when running inside Expo Go, where native modules like the Facebook
