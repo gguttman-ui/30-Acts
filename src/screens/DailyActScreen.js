@@ -745,15 +745,19 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  // X cannot take a picture through its deep link - twitter://post carries text
-  // only. shareSingle CAN hand X the file plus the caption, so try that first.
+  // X, via the iOS share sheet.
   //
-  // But it is bounded by a timeout. The same call for Social.EMAIL once opened
-  // nothing and never resolved, which left `sharing` true and the button dead to
-  // every later tap. Any native call we await here gets a ceiling, and the
-  // fallback below (deep link + picture on the clipboard) is the proven path.
+  // Two direct routes were tried and neither works: twitter://post carries text
+  // only (no media), and react-native-share's TWITTER target rides the same
+  // scheme, so it cannot attach a picture either - and it could hang, which left
+  // the button dead. X's URL scheme has never accepted media from another app.
+  //
+  // What DOES work is X's iOS share extension, which the system share sheet
+  // hands the file to - the same mechanism that already puts the card into
+  // Messages. One extra tap to choose X, and the picture actually arrives.
   const shareToX = async () => {
     if (sharing) return;
+    setSharing(true);
 
     const capped = (promise, ms) => {
       let timer;
@@ -763,43 +767,30 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
       return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
     };
 
-    let sent = false;
-    setSharing(true);
     try {
       const uri = await capped(localShareUri(), 15000).catch(() => null);
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
 
-      if (uri && !isExpoGo) {
-        let RNShare = null;
-        try { RNShare = require('react-native-share').default; } catch {}
-        if (RNShare?.Social?.TWITTER) {
-          try {
-            await capped(RNShare.shareSingle({
-              social: RNShare.Social.TWITTER,
-              url: uri,
-              message: buildSocialMessage({ inviteUrl }),
-            }), 20000);
-            sent = true;
-          } catch (e) {
-            if (e?.message === 'User did not share') { sent = true; }
-            else console.warn('X shareSingle failed, falling back:', e && e.message);
-          }
-        }
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await capped(RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
+        }), 60000);
+        return;
       }
+
+      await shareImage(uri);
     } catch (e) {
-      console.warn('X share failed:', e && e.message);
+      if (e?.message !== 'User did not share') {
+        console.warn('X share failed:', e && e.message);
+        Alert.alert('Could not open the share sheet', 'Please try again.');
+      }
     } finally {
       setSharing(false);
     }
-
-    if (sent) return;
-
-    // Fallback: open X with the caption prefilled and the picture on the
-    // clipboard for the user to paste.
-    return shareToApp(
-      'X',
-      `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-    );
   };
 
   // True when running inside Expo Go, where native modules like the Facebook
@@ -913,37 +904,55 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  // TikTok builds posts from your Photos/gallery. Save the act picture to Photos +
-  // copy the caption, then open the NATIVE TikTok app via its app scheme
-  // (Linking.openURL, not canOpenURL — so it opens the installed, logged-in app
-  // rather than the guest website where posting fails). Web is the last resort.
+  // TikTok, via the iOS share sheet - the same route as X.
+  //
+  // The old flow saved the card to Photos and opened tiktok://, leaving the user
+  // to hunt for the newest photo. The share sheet hands TikTok's share extension
+  // the file directly, so the composer opens with the card already as the cover.
+  //
+  // The caption is a different matter: TikTok gives no third-party app a way to
+  // write into "Add a catchy title". We pass `message` in case their extension
+  // picks it up, and put it on the clipboard either way so it is one paste, not
+  // retyping.
   const shareToTikTok = async () => {
     if (sharing) return;
     setSharing(true);
+
+    const capped = (promise, ms) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('TikTok share timed out')), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    };
+
     try {
-      const uri = await localShareUri();
-      // The caption for the post. Instagram, TikTok and Facebook accept no
-      // prefilled text from another app, so the clipboard is the only route -
-      // the person pastes it into the composer. X gets it via its intent.
+      const uri = await capped(localShareUri(), 15000).catch(() => null);
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+
+      // Caption on the clipboard so it is always available to paste.
       try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
-      let saved = null;
-      if (uri) saved = await saveToCameraRoll(uri);
-      Alert.alert(
-        'Share to TikTok',
-        saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
-          : 'TikTok will open — tap ➕ to create a post.',
-        [
-          { text: 'Open TikTok', onPress: async () => {
-            try { await Linking.openURL('tiktok://'); }
-            catch { try { await Linking.openURL('https://www.tiktok.com/'); } catch {} }
-          } },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await capped(RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
+        }), 60000);
+        return;
+      }
+
+      await shareImage(uri);
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
-    } finally { setSharing(false); }
+      if (e?.message !== 'User did not share') {
+        console.warn('TikTok share failed:', e && e.message);
+        Alert.alert('Could not open the share sheet', 'Please try again.');
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   const pickMedia = async (useCamera) => {

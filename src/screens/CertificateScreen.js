@@ -231,42 +231,36 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
+  // X, via the iOS share sheet. twitter://post carries text only - X's URL
+  // scheme has never accepted media from another app, and react-native-share's
+  // TWITTER target rides that same scheme. The share sheet hands the file to X's
+  // share extension, which does attach it. One extra tap, but it works.
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
+      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
 
-      // X cannot take a picture through its deep link - twitter://post carries
-      // text only. shareSingle hands X the file AND the caption, but it is
-      // bounded: the same call for Social.EMAIL once never resolved and left the
-      // button dead. The clipboard route below is the proven fallback.
-      if (uri && !isExpoGo) {
-        let timer;
-        const timeout = new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new Error('X share timed out')), 20000);
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
         });
-        const sent = await Promise.race([
-          shareSingleTo('TWITTER', { url: uri, message: buildSocialMessage({ inviteUrl }) }),
-          timeout,
-        ]).catch((e) => { console.warn('X share:', e && e.message); return false; })
-          .finally(() => clearTimeout(timer));
-        if (sent) return;
+        return;
       }
 
-      if (uri) {
-        try {
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-          await Clipboard.setImageAsync(base64);
-        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
       }
-      await openOrFallback(
-        `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-        `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-        'X',
-      );
-    } catch (e) { if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message); }
-    finally { setSharing(false); }
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // Facebook's own ShareDialog opens the composer with the picture already
@@ -318,26 +312,37 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
+  // TikTok, via the iOS share sheet - same route as X. Their extension takes the
+  // file; the caption cannot be written into "Add a catchy title" by any
+  // third-party app, so it also goes on the clipboard to paste.
   const shareToTikTok = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
-      // The caption for the post. Instagram, TikTok and Facebook accept no
-      // prefilled text from another app, so the clipboard is the only route -
-      // the person pastes it into the composer. X gets it via its intent.
+      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
+
       try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
-      let saved = null;
-      if (uri) saved = await saveToCameraRoll(uri);
-      Alert.alert(
-        'Share to TikTok',
-        saved
-          ? 'Your certificate is saved to your Photos.\n\nOpen the TikTok app, tap ➕ → Upload, pick the saved certificate.'
-          : 'Open the TikTok app, tap ➕ to create a post,.',
-        [{ text: 'Got it' }]
-      );
-    } catch (e) { if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message); }
-    finally { setSharing(false); }
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
+        });
+        return;
+      }
+
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+      }
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   return (
