@@ -10,7 +10,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Btn, ScreenHeader } from '../components';
-import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
+import ShareButtons from '../components/ShareButtons';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
@@ -155,6 +155,39 @@ export default function CertificateScreen({ navigation }) {
       await Share.share({ url: uri });
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Certificate share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
+
+  // One share route for every social app: the system sheet. See the note in
+  // src/components/ShareButtons.js. Cancelling is not an error.
+  const handleShareAll = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await certImageUri();
+      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
+
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
+        });
+        return;
+      }
+
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+      }
+    } catch (e) {
+      const msg = (e && e.message) || '';
+      if (!/did not share|cancel|dismiss/i.test(msg)) console.warn('Share failed:', msg);
     } finally { setSharing(false); }
   };
 
@@ -397,15 +430,9 @@ export default function CertificateScreen({ navigation }) {
         </View>
 
         <ShareButtons
-          social={buildSocialButtons({
-            onInstagram: shareToInstagram,
-            onFacebook:  shareToFacebook,
-            onTikTok:    shareToTikTok,
-            onX:         shareToX,
-          })}
+          onShare={handleShareAll}
           onText={handleShareText}
           onEmail={handleShareEmail}
-          onMore={handleShareOther}
           disabled={sharing}
         />
         <Text style={s.note}>

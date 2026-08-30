@@ -609,6 +609,49 @@ return () => { cancelled = true; };
     }
   };
 
+  // One share route for every social app: the system sheet. See the long note in
+  // src/components/ShareButtons.js for why per-platform buttons were dropped.
+  // Cancelling the sheet is not an error - it must not raise an alert.
+  const handleShareAll = async () => {
+    if (sharing) return;
+    setSharing(true);
+
+    const capped = (promise, ms) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('share timed out')), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    };
+
+    try {
+      const uri = await capped(localShareUri(), 15000).catch(() => null);
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+
+      // Caption on the clipboard too: Instagram and TikTok cannot receive text
+      // from another app, so pasting is the only way it reaches the composer.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await capped(RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          failOnCancel: false,
+        }), 120000);
+        return;
+      }
+      await shareImage(uri);
+    } catch (e) {
+      const msg = (e && e.message) || '';
+      const cancelled = /did not share|cancel|dismiss/i.test(msg);
+      if (!cancelled) console.warn('Share failed:', msg);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const socialButtons = [
     { name: 'Instagram', faIcon: 'instagram', onPress: shareToInstagram, brand: '#E4405F' },
     { name: 'Facebook',  faIcon: 'facebook',  onPress: shareToFacebook,  brand: '#1877F2' },
@@ -749,10 +792,9 @@ return () => { cancelled = true; };
 
             <Text style={s.shareHeader}>Share this Act</Text>
             <ShareButtons
-              social={socialButtons}
+                onShare={handleShareAll}
               onText={handleShareText}
               onEmail={handleShareEmail}
-              onMore={handleShareOther}
               disabled={sharing}
             />
 </Card>

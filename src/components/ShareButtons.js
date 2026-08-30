@@ -1,23 +1,37 @@
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // ShareButtons.js — the ONE share UI used everywhere in the app.
 //
-// This component is presentational only. Every screen keeps its own share
-// handlers (they differ per screen: an act, a day in History, the certificate)
-// and passes them in. That keeps the look identical everywhere without
-// disturbing share logic that has already been proven on TestFlight.
+// Presentational only. Every screen keeps its own share handlers and passes them
+// in, so the look is identical everywhere without disturbing share logic.
 //
-// The layout is the "Act Completed!" row from MyStoryScreen, which is the
-// app-wide standard:
+//   Spread the kindness — invite someone to join!
 //
-//     prompt text
-//     ( IG )  ( FB )  ( TT )  ( X )      <- circular brand-coloured icons
-//     [ Text ] [ Email ] [ More ]        <- labelled buttons
+//        [        ↗️  Share        ]
+//        [ 💬 Text ]   [ 📧 Email ]
 //
-// Do NOT re-implement this markup in a screen. Import it.
-// ──────────────────────────────────────────────────────────────────────────────
+// WHY ONE "SHARE" BUTTON INSTEAD OF FOUR BRAND CIRCLES
+//
+// The row used to have Instagram / Facebook / TikTok / X circles. It looked
+// good and mostly did not work, because iOS gives a third-party app no reliable
+// way to push a picture AND a caption into those composers:
+//
+//   Instagram — no text API at all; Stories deep link takes an image only.
+//   TikTok    — no text API; cannot write into "Add a catchy title".
+//   X         — twitter://post carries text only, never media. react-native-
+//               share's TWITTER target rides the same scheme, so it cannot
+//               attach a picture either, and it could hang.
+//   Facebook  — refuses prefilled text from other apps, by policy.
+//
+// What DOES work for all of them is the system share sheet: it hands the file
+// to whichever app's share extension the person picks. So there is one button
+// that opens it. The person chooses Instagram, X, TikTok, WhatsApp, anything —
+// including apps we never wrote code for.
+//
+// Do NOT re-add per-platform buttons without a working direct path to point
+// them at. A branded button that opens a generic sheet is a button that lies.
+// ─────────────────────────────────────────────────────────────────────────────
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { C } from '../constants';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -27,44 +41,33 @@ const sf = (n) => Math.round(n * fontScale);
 
 export const SHARE_PROMPT = 'Spread the kindness — invite someone to join!';
 
-// The four platforms, in the app's standard order, with their brand colours.
-// Pass the screen's own handlers; get back the array ShareButtons expects.
-export const buildSocialButtons = ({ onInstagram, onFacebook, onTikTok, onX }) => [
-  { name: 'Instagram', faIcon: 'instagram', onPress: onInstagram, brand: '#E4405F' },
-  { name: 'Facebook',  faIcon: 'facebook',  onPress: onFacebook,  brand: '#1877F2' },
-  { name: 'TikTok',    faIcon: 'tiktok',    onPress: onTikTok,    brand: '#25F4EE' },
-  { name: 'X',         faIcon: 'x-twitter', onPress: onX,         brand: '#FFFFFF' },
-];
-
 export default function ShareButtons({
-  social,
+  onShare,
   onText,
   onEmail,
-  onMore,
   disabled = false,
   prompt = SHARE_PROMPT,
+  shareLabel = 'Share',
   style,
 }) {
   return (
     <View style={[s.wrap, style]}>
       {prompt ? <Text style={s.sharePrompt}>{prompt}</Text> : null}
 
-      <View style={s.socialRow}>
-        {(social || []).map((b) => (
-          <TouchableOpacity
-            key={b.name}
-            accessibilityLabel={`Share to ${b.name}`}
-            style={[s.socialBtn, { borderColor: b.brand + '66' }]}
-            onPress={b.onPress}
-            disabled={disabled}
-            activeOpacity={0.7}
-          >
-            {b.img
-              ? <Image source={b.img} style={s.socialImg} resizeMode="contain" />
-              : <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />}
-          </TouchableOpacity>
-        ))}
-      </View>
+      <TouchableOpacity
+        style={s.primaryBtn}
+        onPress={onShare}
+        disabled={disabled}
+        accessibilityLabel="Share to Instagram, Facebook, TikTok, X or anywhere else"
+        activeOpacity={0.8}
+      >
+        <Text style={s.primaryIcon}>↗️</Text>
+        <Text style={s.primaryLabel}>{shareLabel}</Text>
+      </TouchableOpacity>
+
+      <Text style={s.hint}>
+        Instagram, Facebook, TikTok, X and more
+      </Text>
 
       <View style={s.shareRow}>
         <TouchableOpacity
@@ -88,17 +91,6 @@ export default function ShareButtons({
           <Text style={s.shareBtnIcon}>📧</Text>
           <Text style={s.shareBtnLabel}>Email</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={s.shareBtn}
-          onPress={onMore}
-          disabled={disabled}
-          accessibilityLabel="More share options"
-          activeOpacity={0.7}
-        >
-          <Text style={s.shareBtnIcon}>↗️</Text>
-          <Text style={s.shareBtnLabel}>More</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -111,15 +103,18 @@ const s = StyleSheet.create({
     color: C.sub, fontSize: sf(13), textAlign: 'center', marginBottom: 14,
   },
 
-  socialRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 18,
+  primaryBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: C.primary, borderRadius: 14,
+    paddingVertical: 16, width: '100%',
   },
-  socialBtn: {
-    width: 56, height: 56, borderRadius: 28,
-    borderWidth: 2, backgroundColor: C.card2,
-    alignItems: 'center', justifyContent: 'center',
+  primaryIcon:  { fontSize: sf(20) },
+  primaryLabel: { color: '#06210f', fontSize: sf(17), fontWeight: '800' },
+
+  hint: {
+    color: C.muted, fontSize: sf(11.5), textAlign: 'center',
+    marginTop: 8, marginBottom: 16,
   },
-  socialImg: { width: 28, height: 28 },
 
   shareRow: {
     flexDirection: 'row', gap: 12, marginBottom: 16, width: '100%',
