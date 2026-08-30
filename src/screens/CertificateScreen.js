@@ -264,43 +264,17 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
-  // X: open X directly with the caption prefilled; the certificate goes on the
-  // clipboard and the user pastes it. One tap, one paste - the same bargain as
-  // the other three buttons. Every direct-media route was tried and failed; see
-  // the note in MyStoryScreen.js.
-  const shareToX = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const uri = await certImageUri();
-      let copiedImage = false;
-      if (uri) {
-        try {
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-          await Clipboard.setImageAsync(base64);
-          copiedImage = true;
-        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
-      }
-
-      const caption = buildSocialMessage({ inviteUrl });
-      Alert.alert(
-        'Share to X',
-        copiedImage
-          ? 'Your certificate is copied and your caption is ready.\n\nX will open — touch and hold in the post, tap Paste to add the picture, then tap Post.'
-          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
-        [
-          { text: 'Open X', onPress: () => openOrFallback(
-            `twitter://post?message=${encodeURIComponent(caption)}`,
-            `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
-            'X',
-          ) },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  // X: the system share sheet - identical to the More button.
+  //
+  // This is the ONLY route that gets the picture into X. Confirmed on device:
+  // picking X from the share sheet hands the file to X's SHARE EXTENSION, which
+  // takes the picture and the caption together. twitter://post is a URL SCHEME,
+  // a different door into the same app, and it carries text only - never media.
+  // That difference is why More worked and this button did not.
+  //
+  // Yes, it means choosing X from the sheet. There is no way to open a named
+  // share extension directly; Apple does not expose it.
+  const shareToX = () => handleShareAll();
 
   // Facebook's own ShareDialog opens the composer with the picture already
   // attached. Real builds only - the SDK is not linked in Expo Go, where this

@@ -447,65 +447,17 @@ return () => { cancelled = true; };
     } finally { setSharing(false); }
   };
 
-  // X: the share sheet, with Apple's own activities stripped out.
+  // X: the system share sheet - identical to the More button.
   //
-  // X will only take the picture AND the caption through its share extension,
-  // which only exists inside the sheet - twitter://post carries text and never
-  // media. The problem was that AirDrop, Messages, Mail, Copy, Save Image and
-  // Assign to Contact pushed X off the visible row, so it had to be hunted for.
-  // Excluding those leaves the app extensions, and X lands in view.
-  // X: open X directly with the caption prefilled; the picture goes on the
-  // clipboard and the user pastes it. ONE tap, ONE paste - the same bargain as
-  // the other three buttons (they arrive with the picture and you paste the
-  // caption; X arrives with the caption and you paste the picture).
+  // This is the ONLY route that gets the picture into X. Confirmed on device:
+  // picking X from the share sheet hands the file to X's SHARE EXTENSION, which
+  // takes the picture and the caption together. twitter://post is a URL SCHEME,
+  // a different door into the same app, and it carries text only - never media.
+  // That difference is why More worked and this button did not.
   //
-  // Everything else was tried on a real device and failed:
-  //   twitter://post with media      - the scheme carries text only, never media
-  //   react-native-share TWITTER     - rides the same scheme; also hung
-  //   system share sheet             - X's extension DOES take both, but iOS
-  //                                    decides where X sits in that row and an
-  //                                    app cannot reorder it or open a named
-  //                                    extension. X sat off-screen.
-  //   sheet with Apple types excluded - freed six slots, and iOS filled them
-  //                                    with Freeform/Notes/Reminders instead.
-  // Do not spend another afternoon on this. The paste is the floor.
-  const shareToX = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const uri = await localShareUri();
-      let copiedImage = false;
-      if (uri) {
-        try {
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-          await Clipboard.setImageAsync(base64);
-          copiedImage = true;
-        } catch (e) {
-          console.warn('Copy picture to clipboard failed:', e && e.message);
-        }
-      }
-
-      const caption = buildSocialMessage({ inviteUrl });
-      Alert.alert(
-        'Share to X',
-        copiedImage
-          ? 'Your act picture is copied and your caption is ready.\n\nX will open — touch and hold in the post, tap Paste to add the picture, then tap Post.'
-          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
-        [
-          { text: 'Open X', onPress: async () => {
-            await openOrFallback(
-              `twitter://post?message=${encodeURIComponent(caption)}`,
-              `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
-              'X',
-            );
-          } },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-    } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
-    } finally { setSharing(false); }
-  };
+  // Yes, it means choosing X from the sheet. There is no way to open a named
+  // share extension directly; Apple does not expose it.
+  const shareToX = () => handleShareAll();
 
   // Facebook: save the card to Photos, copy the caption, open Facebook's normal
   // composer. Same shape as TikTok.
