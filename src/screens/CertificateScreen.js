@@ -14,7 +14,7 @@ import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
-import { buildInviteMessage } from '../lib/shareMessage';
+import { buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
 const APP_URL = 'https://30ActsofKindness.org';
@@ -215,6 +215,10 @@ export default function CertificateScreen({ navigation }) {
     setSharing(true);
     try {
       const uri = await certImageUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       if (!uri) { Alert.alert('Could not prepare the image', 'Please try again.'); return; }
       const ok = await shareSingleTo('INSTAGRAM_STORIES', { appId: FB_APP_ID, backgroundImage: uri });
       if (!ok) {
@@ -238,7 +242,11 @@ export default function CertificateScreen({ navigation }) {
           await Clipboard.setImageAsync(base64);
         } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
       }
-      await openOrFallback('twitter://post', 'https://twitter.com/intent/tweet', 'X');
+      await openOrFallback(
+        `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+        'X',
+      );
     } catch (e) { if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message); }
     finally { setSharing(false); }
   };
@@ -271,13 +279,17 @@ export default function CertificateScreen({ navigation }) {
     setSharing(true);
     try {
       const uri = await certImageUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       if (uri && (await tryFacebookShareDialog(uri))) return;
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your certificate is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your certificate).'
+          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then paste the caption.'
           : 'Facebook will open — start a post.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
@@ -293,6 +305,10 @@ export default function CertificateScreen({ navigation }) {
     setSharing(true);
     try {
       const uri = await certImageUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(

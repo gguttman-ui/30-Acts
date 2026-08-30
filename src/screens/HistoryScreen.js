@@ -13,7 +13,7 @@ import Constants from 'expo-constants';
 import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
 import { generateInviteLink } from '../lib/branch';
-import { buildInviteMessage } from '../lib/shareMessage';
+import { buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Badge, ScreenHeader, Card } from '../components';
 import {
@@ -447,7 +447,11 @@ return () => { cancelled = true; };
     } finally { setSharing(false); }
   };
 
-  const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
+  const shareToX = () => shareToApp(
+    'X',
+    `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+  );
 
   // Facebook can't be opened straight into a photo composer from another app
   // (its deep link lands on a link-share sheet, not "Add media"), and its
@@ -458,6 +462,10 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       // Best path: Facebook's own ShareDialog opens the composer with the
       // picture already attached - no clipboard, no hunting through Photos.
       // Real builds only; the SDK is not linked in Expo Go, where it returns
@@ -470,7 +478,7 @@ return () => { cancelled = true; };
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo (your act).'
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then paste the caption.'
           : 'Facebook will open — start a post.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
@@ -487,6 +495,10 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       if (!uri) {
         Alert.alert(
           "Couldn't prepare an image",
@@ -513,12 +525,16 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo.'
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
           : 'TikTok will open — tap ➕ to create a post.',
         [
           { text: 'Open TikTok', onPress: async () => {

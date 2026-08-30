@@ -12,7 +12,7 @@ import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons from '../components/ShareButtons';
-import { buildActShareMessage, buildInviteMessage } from '../lib/shareMessage';
+import { buildActShareMessage, buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
 import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
@@ -585,7 +585,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  const shareToX = () => shareToApp('X', 'twitter://post', 'https://twitter.com/intent/tweet');
+  const shareToX = () => shareToApp(
+    'X',
+    `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+  );
 
   const shareImage = async (uri) => {
     let Sharing = null;
@@ -623,6 +627,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       if (!uri) {
         Alert.alert('Could not prepare the picture', 'Please try again.');
         return;
@@ -644,12 +652,16 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
         'Share to TikTok',
         saved
-          ? 'Your act picture is saved to your Photos.\n\nTikTok will open — tap ➕ → Upload and pick the saved photo.'
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
           : 'Could not save the picture.\n\nTikTok will open anyway — you can add a photo yourself.',
         [
           { text: 'Open TikTok', onPress: async () => {
@@ -715,6 +727,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // The caption for the post. Instagram, TikTok and Facebook accept no
+      // prefilled text from another app, so the clipboard is the only route -
+      // the person pastes it into the composer. X gets it via its intent.
+      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
       // Best path: Facebook's own ShareDialog opens the composer with the
       // picture already attached - no clipboard, no hunting through Photos.
       // Real builds only; the SDK is not linked in Expo Go, where it returns
@@ -728,7 +744,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?" and pick the newest photo (your act).'
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then paste the caption.'
           : 'Could not save the picture.\n\nFacebook will open anyway — you can add a photo yourself.',
         [
           { text: 'Open Facebook', onPress: async () => {

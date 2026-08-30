@@ -137,8 +137,11 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', gap: 24, marginTop: 28 },
   qrWrap: { alignItems: 'center', marginLeft: 8 },
   qrBox: { backgroundColor: '#ffffff', padding: 14, borderRadius: 18 },
-  scanLabel: { color: C.text, fontSize: 26, fontWeight: '700', marginTop: 10 },
-  howTo: { color: C.accent, fontSize: 28, fontWeight: '700', textAlign: 'center', marginTop: 24, lineHeight: 38 },
+  scanLabel: { color: C.text, fontSize: 34, fontWeight: '800', marginTop: 12 },
+  // The join instruction is the point of the card for anyone receiving it,
+  // so it is sized to be read at a glance in a message thread, not squinted
+  // at. quoteCard has flexShrink: 1, so the story gives up room for this.
+  howTo: { color: C.accent, fontSize: 40, fontWeight: '800', textAlign: 'center', marginTop: 28, lineHeight: 52 },
   logo: { width: 64, height: 64, marginRight: 4 },
   brand: { color: C.text, fontSize: 38, fontWeight: '800' },
   hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },

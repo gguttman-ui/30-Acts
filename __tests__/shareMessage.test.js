@@ -4,6 +4,7 @@
 import {
   buildActShareMessage,
   buildInviteMessage,
+  buildSocialMessage,
   buildJoinSteps,
   channelHasQr,
   APP_HASHTAG,
@@ -157,5 +158,46 @@ describe('buildInviteMessage', () => {
 
   test('reads as paragraphs, not one run-on block', () => {
     expect(buildInviteMessage({ inviteUrl }).split('\n\n').length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('buildSocialMessage', () => {
+  const inviteUrl = 'https://alrpa.app.link/wpZcPtFSh5b';
+
+  test('carries the hashtag — a post without it is invisible', () => {
+    expect(buildSocialMessage({ inviteUrl })).toContain(APP_HASHTAG);
+  });
+
+  test('says what the challenge is and invites people in', () => {
+    const m = buildSocialMessage({ inviteUrl });
+    expect(m).toContain('one kind act a day');
+    expect(m).toContain('Join me');
+    expect(m).toContain('kinder place');
+  });
+
+  test('carries the referral link', () => {
+    expect(buildSocialMessage({ inviteUrl })).toContain(inviteUrl);
+  });
+
+  test('addressed to a room, not to one person', () => {
+    // The Text/Email copy is written to someone you know; a post is not.
+    expect(buildSocialMessage({ inviteUrl })).not.toContain("I'd love you to join me");
+  });
+
+  test('with no link it does not promise one', () => {
+    const m = buildSocialMessage({});
+    expect(m).not.toContain('tap the link');
+    expect(m).toContain('Scan the code');
+    expect(m).toContain(APP_HASHTAG);
+  });
+
+  test('no undefined or null leaks in', () => {
+    for (const args of [{}, { inviteUrl: '' }, undefined]) {
+      expect(buildSocialMessage(args)).not.toMatch(/undefined|null/);
+    }
+  });
+
+  test('differs from the one-to-one invitation', () => {
+    expect(buildSocialMessage({ inviteUrl })).not.toBe(buildInviteMessage({ inviteUrl }));
   });
 });
