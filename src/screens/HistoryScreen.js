@@ -8,7 +8,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { FontAwesome6 } from '@expo/vector-icons';
-import ShareButtons from '../components/ShareButtons';
+import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import Constants from 'expo-constants';
 import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
@@ -558,55 +558,34 @@ return () => { cancelled = true; };
     } finally { setSharing(false); }
   };
 
-  // TikTok, via the iOS share sheet - the same route as X.
-  //
-  // The old flow saved the card to Photos and opened tiktok://, leaving the user
-  // to hunt for the newest photo. The share sheet hands TikTok's share extension
-  // the file directly, so the composer opens with the card already as the cover.
-  //
-  // The caption is a different matter: TikTok gives no third-party app a way to
-  // write into "Add a catchy title". We pass `message` in case their extension
-  // picks it up, and put it on the clipboard either way so it is one paste, not
-  // retyping.
+  // TikTok: save the card to Photos and open TikTok. Their composer picks it up
+  // as the cover. TikTok is NOT reliably offered in the system share sheet, so
+  // this direct route is the one that works. The caption cannot be written into
+  // "Add a catchy title" by any third-party app, so it goes on the clipboard.
   const shareToTikTok = async () => {
     if (sharing) return;
     setSharing(true);
-
-    const capped = (promise, ms) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('TikTok share timed out')), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
-      const uri = await capped(localShareUri(), 15000).catch(() => null);
-      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
-
-      // Caption on the clipboard so it is always available to paste.
+      const uri = await localShareUri();
       try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
-
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare && !isExpoGo) {
-        await capped(RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          failOnCancel: false,
-        }), 60000);
-        return;
-      }
-
-      await shareImage(uri);
+      let saved = null;
+      if (uri) saved = await saveToCameraRoll(uri);
+      Alert.alert(
+        'Share to TikTok',
+        saved
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nTikTok will open — tap ➕ → Upload, pick the saved photo, then paste the caption.'
+          : 'Could not save the picture.\n\nTikTok will open anyway — you can add a photo yourself.',
+        [
+          { text: 'Open TikTok', onPress: async () => {
+            try { await Linking.openURL('tiktok://'); }
+            catch { try { await Linking.openURL('https://www.tiktok.com/'); } catch {} }
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
-      if (e?.message !== 'User did not share') {
-        console.warn('TikTok share failed:', e && e.message);
-        Alert.alert('Could not open the share sheet', 'Please try again.');
-      }
-    } finally {
-      setSharing(false);
-    }
+      if (e?.message !== 'User did not share') console.warn('TikTok share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // One share route for every social app: the system sheet. See the long note in
@@ -792,9 +771,15 @@ return () => { cancelled = true; };
 
             <Text style={s.shareHeader}>Share this Act</Text>
             <ShareButtons
-                onShare={handleShareAll}
+              social={buildSocialButtons({
+                onTikTok:    shareToTikTok,
+                onInstagram: shareToInstagram,
+                onX:         shareToX,
+                onFacebook:  shareToFacebook,
+              })}
               onText={handleShareText}
               onEmail={handleShareEmail}
+              onMore={handleShareAll}
               disabled={sharing}
             />
 </Card>

@@ -10,7 +10,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { Btn, ScreenHeader } from '../components';
-import ShareButtons from '../components/ShareButtons';
+import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
@@ -430,9 +430,15 @@ export default function CertificateScreen({ navigation }) {
         </View>
 
         <ShareButtons
-          onShare={handleShareAll}
+          social={buildSocialButtons({
+            onTikTok:    shareToTikTok,
+            onInstagram: shareToInstagram,
+            onX:         shareToX,
+            onFacebook:  shareToFacebook,
+          })}
           onText={handleShareText}
           onEmail={handleShareEmail}
+          onMore={handleShareAll}
           disabled={sharing}
         />
         <Text style={s.note}>

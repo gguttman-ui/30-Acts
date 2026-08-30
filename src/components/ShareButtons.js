@@ -6,32 +6,37 @@
 //
 //   Spread the kindness — invite someone to join!
 //
-//        [        ↗️  Share        ]
-//        [ 💬 Text ]   [ 📧 Email ]
+//     (TT)   (IG)   (X)   (FB)
+//   [ 💬 Text ] [ 📧 Email ] [ ↗️ More ]
 //
-// WHY ONE "SHARE" BUTTON INSTEAD OF FOUR BRAND CIRCLES
+// EACH PLATFORM USES A DIFFERENT ROUTE, BECAUSE EACH ONE ALLOWS SOMETHING
+// DIFFERENT. Verified on device, not assumed:
 //
-// The row used to have Instagram / Facebook / TikTok / X circles. It looked
-// good and mostly did not work, because iOS gives a third-party app no reliable
-// way to push a picture AND a caption into those composers:
+//   TikTok    — card saved to Photos, TikTok opened. Their composer takes it as
+//               the cover. TikTok is NOT reliably offered in the system share
+//               sheet, so the direct route is the one that works.
+//   Instagram — Stories deep link with the image, falling back to the share
+//               sheet. Instagram has no text API at all, so the picture arrives
+//               and the caption is pasted. That is the ceiling, not a bug.
+//   X         — the system share sheet. X's URL scheme carries text only and
+//               never media, so a direct link cannot attach the card. The share
+//               extension can, and does.
+//   Facebook  — the Facebook SDK's ShareDialog, which opens the composer with
+//               the picture already attached. Facebook's share EXTENSION does
+//               not reliably accept the image from the system sheet, so the SDK
+//               is the route that works.
 //
-//   Instagram — no text API at all; Stories deep link takes an image only.
-//   TikTok    — no text API; cannot write into "Add a catchy title".
-//   X         — twitter://post carries text only, never media. react-native-
-//               share's TWITTER target rides the same scheme, so it cannot
-//               attach a picture either, and it could hang.
-//   Facebook  — refuses prefilled text from other apps, by policy.
+// The caption goes on the clipboard for TikTok, Instagram and Facebook: none of
+// them accept prefilled text from another app (Facebook refuses it by policy,
+// the other two have no text API), so pasting is the only way it reaches a
+// composer.
 //
-// What DOES work for all of them is the system share sheet: it hands the file
-// to whichever app's share extension the person picks. So there is one button
-// that opens it. The person chooses Instagram, X, TikTok, WhatsApp, anything —
-// including apps we never wrote code for.
-//
-// Do NOT re-add per-platform buttons without a working direct path to point
-// them at. A branded button that opens a generic sheet is a button that lies.
+// Do NOT "simplify" these into one path. Each one is here because the others
+// were tried on a real device and failed.
 // ─────────────────────────────────────────────────────────────────────────────
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { C } from '../constants';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -41,33 +46,47 @@ const sf = (n) => Math.round(n * fontScale);
 
 export const SHARE_PROMPT = 'Spread the kindness — invite someone to join!';
 
+// Order is deliberate: TikTok, Instagram, X, Facebook.
+export const buildSocialButtons = ({ onTikTok, onInstagram, onX, onFacebook }) => [
+  { name: 'TikTok',    faIcon: 'tiktok',    onPress: onTikTok,    brand: '#25F4EE' },
+  { name: 'Instagram', faIcon: 'instagram', onPress: onInstagram, brand: '#E4405F' },
+  { name: 'X',         faIcon: 'x-twitter', onPress: onX,         brand: '#FFFFFF' },
+  { name: 'Facebook',  faIcon: 'facebook',  onPress: onFacebook,  brand: '#1877F2' },
+];
+
 export default function ShareButtons({
-  onShare,
+  social,
   onText,
   onEmail,
+  onMore,
   disabled = false,
   prompt = SHARE_PROMPT,
-  shareLabel = 'Share',
   style,
 }) {
   return (
     <View style={[s.wrap, style]}>
       {prompt ? <Text style={s.sharePrompt}>{prompt}</Text> : null}
 
-      <TouchableOpacity
-        style={s.primaryBtn}
-        onPress={onShare}
-        disabled={disabled}
-        accessibilityLabel="Share to Instagram, Facebook, TikTok, X or anywhere else"
-        activeOpacity={0.8}
-      >
-        <Text style={s.primaryIcon}>↗️</Text>
-        <Text style={s.primaryLabel}>{shareLabel}</Text>
-      </TouchableOpacity>
+      <Text style={s.socialHeading}>Share Social Media</Text>
 
-      <Text style={s.hint}>
-        Instagram, Facebook, TikTok, X and more
-      </Text>
+      <View style={s.socialRow}>
+        {(social || []).map((b) => (
+          <View key={b.name} style={s.socialCol}>
+            <TouchableOpacity
+              accessibilityLabel={`Share to ${b.name}`}
+              style={[s.socialBtn, { borderColor: b.brand + '66' }]}
+              onPress={b.onPress}
+              disabled={disabled}
+              activeOpacity={0.7}
+            >
+              {b.img
+                ? <Image source={b.img} style={s.socialImg} resizeMode="contain" />
+                : <FontAwesome6 name={b.faIcon} size={28} color={b.brand} />}
+            </TouchableOpacity>
+            <Text style={s.socialName}>{b.name}</Text>
+          </View>
+        ))}
+      </View>
 
       <View style={s.shareRow}>
         <TouchableOpacity
@@ -91,6 +110,17 @@ export default function ShareButtons({
           <Text style={s.shareBtnIcon}>📧</Text>
           <Text style={s.shareBtnLabel}>Email</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={s.shareBtn}
+          onPress={onMore}
+          disabled={disabled}
+          accessibilityLabel="More share options"
+          activeOpacity={0.7}
+        >
+          <Text style={s.shareBtnIcon}>↗️</Text>
+          <Text style={s.shareBtnLabel}>More</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -103,17 +133,23 @@ const s = StyleSheet.create({
     color: C.sub, fontSize: sf(13), textAlign: 'center', marginBottom: 14,
   },
 
-  primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: C.primary, borderRadius: 14,
-    paddingVertical: 16, width: '100%',
+  socialHeading: {
+    color: C.text, fontSize: sf(13), fontWeight: '800',
+    textAlign: 'center', marginBottom: 12,
   },
-  primaryIcon:  { fontSize: sf(20) },
-  primaryLabel: { color: '#06210f', fontSize: sf(17), fontWeight: '800' },
 
-  hint: {
-    color: C.muted, fontSize: sf(11.5), textAlign: 'center',
-    marginTop: 8, marginBottom: 16,
+  socialRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 18,
+  },
+  socialCol: { alignItems: 'center' },
+  socialBtn: {
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 2, backgroundColor: C.card2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  socialImg:  { width: 28, height: 28 },
+  socialName: {
+    color: C.muted, fontSize: sf(10.5), fontWeight: '700', marginTop: 6,
   },
 
   shareRow: {
