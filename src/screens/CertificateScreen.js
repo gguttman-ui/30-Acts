@@ -264,55 +264,41 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
-  // X: the share sheet with Apple's own activities stripped out. X only takes
-  // picture AND caption through its share extension, which lives in the sheet;
-  // twitter://post carries text only. Excluding AirDrop/Messages/Mail/Copy/Save/
-  // Assign keeps X inside the visible row instead of off to the right.
-  const X_EXCLUDED = [
-    'com.apple.UIKit.activity.AirDrop',
-    'com.apple.UIKit.activity.Message',
-    'com.apple.UIKit.activity.Mail',
-    'com.apple.UIKit.activity.CopyToPasteboard',
-    'com.apple.UIKit.activity.SaveToCameraRoll',
-    'com.apple.UIKit.activity.AssignToContact',
-    'com.apple.UIKit.activity.Print',
-    'com.apple.UIKit.activity.AddToReadingList',
-    'com.apple.UIKit.activity.OpenInIBooks',
-    'com.apple.UIKit.activity.MarkupAsPDF',
-  ];
-
+  // X: open X directly with the caption prefilled; the certificate goes on the
+  // clipboard and the user pastes it. One tap, one paste - the same bargain as
+  // the other three buttons. Every direct-media route was tried and failed; see
+  // the note in MyStoryScreen.js.
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
-      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
-
-      try {
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-        await Clipboard.setImageAsync(base64);
-      } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
-
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          excludedActivityTypes: X_EXCLUDED,
-          failOnCancel: false,
-        });
-        return;
+      let copiedImage = false;
+      if (uri) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          await Clipboard.setImageAsync(base64);
+          copiedImage = true;
+        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
       }
 
-      let Sharing = null;
-      try { Sharing = require('expo-sharing'); } catch {}
-      if (Sharing && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
-      }
+      const caption = buildSocialMessage({ inviteUrl });
+      Alert.alert(
+        'Share to X',
+        copiedImage
+          ? 'Your certificate is copied and your caption is ready.\n\nX will open — touch and hold in the post, tap Paste to add the picture, then tap Post.'
+          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
+        [
+          { text: 'Open X', onPress: () => openOrFallback(
+            `twitter://post?message=${encodeURIComponent(caption)}`,
+            `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
+            'X',
+          ) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
-      const msg = (e && e.message) || '';
-      if (!/did not share|cancel|dismiss/i.test(msg)) console.warn('X share failed:', msg);
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
     } finally { setSharing(false); }
   };
 

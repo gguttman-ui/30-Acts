@@ -454,60 +454,57 @@ return () => { cancelled = true; };
   // media. The problem was that AirDrop, Messages, Mail, Copy, Save Image and
   // Assign to Contact pushed X off the visible row, so it had to be hunted for.
   // Excluding those leaves the app extensions, and X lands in view.
-  const X_EXCLUDED = [
-    'com.apple.UIKit.activity.AirDrop',
-    'com.apple.UIKit.activity.Message',
-    'com.apple.UIKit.activity.Mail',
-    'com.apple.UIKit.activity.CopyToPasteboard',
-    'com.apple.UIKit.activity.SaveToCameraRoll',
-    'com.apple.UIKit.activity.AssignToContact',
-    'com.apple.UIKit.activity.Print',
-    'com.apple.UIKit.activity.AddToReadingList',
-    'com.apple.UIKit.activity.OpenInIBooks',
-    'com.apple.UIKit.activity.MarkupAsPDF',
-  ];
-
+  // X: open X directly with the caption prefilled; the picture goes on the
+  // clipboard and the user pastes it. ONE tap, ONE paste - the same bargain as
+  // the other three buttons (they arrive with the picture and you paste the
+  // caption; X arrives with the caption and you paste the picture).
+  //
+  // Everything else was tried on a real device and failed:
+  //   twitter://post with media      - the scheme carries text only, never media
+  //   react-native-share TWITTER     - rides the same scheme; also hung
+  //   system share sheet             - X's extension DOES take both, but iOS
+  //                                    decides where X sits in that row and an
+  //                                    app cannot reorder it or open a named
+  //                                    extension. X sat off-screen.
+  //   sheet with Apple types excluded - freed six slots, and iOS filled them
+  //                                    with Freeform/Notes/Reminders instead.
+  // Do not spend another afternoon on this. The paste is the floor.
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
-
-    const capped = (promise, ms) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('X share timed out')), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
-      const uri = await capped(localShareUri(), 15000).catch(() => null);
-      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
-
-      // Picture on the clipboard as a backstop, in case the extension is picked
-      // that does not take it.
-      try {
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-        await Clipboard.setImageAsync(base64);
-      } catch (e) { console.warn('Copy picture to clipboard failed:', e && e.message); }
-
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare && !isExpoGo) {
-        await capped(RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          excludedActivityTypes: X_EXCLUDED,
-          failOnCancel: false,
-        }), 120000);
-        return;
+      const uri = await localShareUri();
+      let copiedImage = false;
+      if (uri) {
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          await Clipboard.setImageAsync(base64);
+          copiedImage = true;
+        } catch (e) {
+          console.warn('Copy picture to clipboard failed:', e && e.message);
+        }
       }
-      await shareImage(uri);
+
+      const caption = buildSocialMessage({ inviteUrl });
+      Alert.alert(
+        'Share to X',
+        copiedImage
+          ? 'Your act picture is copied and your caption is ready.\n\nX will open — touch and hold in the post, tap Paste to add the picture, then tap Post.'
+          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
+        [
+          { text: 'Open X', onPress: async () => {
+            await openOrFallback(
+              `twitter://post?message=${encodeURIComponent(caption)}`,
+              `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
+              'X',
+            );
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } catch (e) {
-      const msg = (e && e.message) || '';
-      if (!/did not share|cancel|dismiss/i.test(msg)) console.warn('X share failed:', msg);
-    } finally {
-      setSharing(false);
-    }
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
   };
 
   // Facebook: save the card to Photos, copy the caption, open Facebook's normal
