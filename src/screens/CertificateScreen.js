@@ -236,6 +236,18 @@ export default function CertificateScreen({ navigation }) {
     setSharing(true);
     try {
       const uri = await certImageUri();
+
+      // X cannot take a picture through its deep link - twitter://post carries
+      // text only. shareSingle hands X the file AND the caption. Real builds
+      // only; otherwise fall through to the link plus a clipboard paste.
+      if (uri && !isExpoGo) {
+        const sent = await shareSingleTo('TWITTER', {
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+        });
+        if (sent) return;
+      }
+
       if (uri) {
         try {
           const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });

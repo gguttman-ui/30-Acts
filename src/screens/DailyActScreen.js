@@ -745,11 +745,38 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  const shareToX = () => shareToApp(
-    'X',
-    `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-    `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
-  );
+  // X cannot take a picture through its deep link - twitter://post carries text
+  // only, which is why the composer opened with the caption and no image. So try
+  // react-native-share's TWITTER target first: that hands X the file AND the
+  // text, same idea as Facebook's ShareDialog. Real builds only; in Expo Go it
+  // returns false and we fall back to the deep link plus clipboard paste.
+  const shareToX = async () => {
+    if (sharing) return;
+    const uri = await localShareUri();
+    if (uri && !isExpoGo) {
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare?.Social?.TWITTER) {
+        setSharing(true);
+        try {
+          await RNShare.shareSingle({
+            social: RNShare.Social.TWITTER,
+            url: uri,
+            message: buildSocialMessage({ inviteUrl }),
+          });
+          return;
+        } catch (e) {
+          if (e?.message === 'User did not share') return;
+          console.warn('X shareSingle failed, falling back:', e && e.message);
+        } finally { setSharing(false); }
+      }
+    }
+    return shareToApp(
+      'X',
+      `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,
+    );
+  };
 
   // True when running inside Expo Go, where native modules like the Facebook
   // SDK aren't linked — we must not touch them or the app red-screens.
