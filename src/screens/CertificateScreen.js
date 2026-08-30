@@ -264,41 +264,55 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
-  // X: open the app directly with the caption prefilled, certificate on the
-  // clipboard to paste. The share sheet's X extension takes both, but iOS
-  // decides where X sits in that row and an app cannot reorder it - making
-  // someone scroll to find X is not a working button.
+  // X: the share sheet with Apple's own activities stripped out. X only takes
+  // picture AND caption through its share extension, which lives in the sheet;
+  // twitter://post carries text only. Excluding AirDrop/Messages/Mail/Copy/Save/
+  // Assign keeps X inside the visible row instead of off to the right.
+  const X_EXCLUDED = [
+    'com.apple.UIKit.activity.AirDrop',
+    'com.apple.UIKit.activity.Message',
+    'com.apple.UIKit.activity.Mail',
+    'com.apple.UIKit.activity.CopyToPasteboard',
+    'com.apple.UIKit.activity.SaveToCameraRoll',
+    'com.apple.UIKit.activity.AssignToContact',
+    'com.apple.UIKit.activity.Print',
+    'com.apple.UIKit.activity.AddToReadingList',
+    'com.apple.UIKit.activity.OpenInIBooks',
+    'com.apple.UIKit.activity.MarkupAsPDF',
+  ];
+
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
-      let copiedImage = false;
-      if (uri) {
-        try {
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-          await Clipboard.setImageAsync(base64);
-          copiedImage = true;
-        } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
+      if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
+
+      try {
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        await Clipboard.setImageAsync(base64);
+      } catch (e) { console.warn('Copy certificate to clipboard failed:', e && e.message); }
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          excludedActivityTypes: X_EXCLUDED,
+          failOnCancel: false,
+        });
+        return;
       }
 
-      const caption = buildSocialMessage({ inviteUrl });
-      Alert.alert(
-        'Share to X',
-        copiedImage
-          ? 'Your certificate is copied.\n\nX will open with your caption ready — touch and hold in the post and tap Paste to add the picture.'
-          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
-        [
-          { text: 'Open X', onPress: () => openOrFallback(
-            `twitter://post?message=${encodeURIComponent(caption)}`,
-            `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
-            'X',
-          ) },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      let Sharing = null;
+      try { Sharing = require('expo-sharing'); } catch {}
+      if (Sharing && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your certificate' });
+      }
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+      const msg = (e && e.message) || '';
+      if (!/did not share|cancel|dismiss/i.test(msg)) console.warn('X share failed:', msg);
     } finally { setSharing(false); }
   };
 
@@ -334,14 +348,17 @@ export default function CertificateScreen({ navigation }) {
       // prefilled text from another app, so the clipboard is the only route -
       // the person pastes it into the composer. X gets it via its intent.
       try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      // Facebook's own ShareDialog opens the composer with the picture already
+      // attached - confirmed working on device. The save-to-Photos flow below is
+      // the fallback for Expo Go or a phone without the Facebook app.
       if (uri && (await tryFacebookShareDialog(uri))) return;
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then paste the caption.'
-          : 'Facebook will open — start a post.',
+          ? 'Your certificate is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then touch and hold in the text box and tap Paste.'
+          : 'Your caption is copied.\n\nFacebook will open — start a post and paste it.',
         [
           { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
           { text: 'Cancel', style: 'cancel' },

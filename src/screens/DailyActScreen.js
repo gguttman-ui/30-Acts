@@ -745,50 +745,67 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } finally { setSharing(false); }
   };
 
-  // X: open the app directly with the caption prefilled, picture on the
-  // clipboard to paste. Same shape as TikTok/Instagram/Facebook - the app opens,
-  // one paste finishes it.
+  // X: the share sheet, with Apple's own activities stripped out.
   //
-  // Why not the share sheet: X's extension DOES take both picture and caption,
-  // but iOS decides where X sits in that app row and an app cannot reorder it or
-  // open a specific extension. Making someone scroll to find X is not a working
-  // button. twitter://post carries the caption reliably; the picture cannot ride
-  // a URL scheme, hence the paste.
+  // X will only take the picture AND the caption through its share extension,
+  // which only exists inside the sheet - twitter://post carries text and never
+  // media. The problem was that AirDrop, Messages, Mail, Copy, Save Image and
+  // Assign to Contact pushed X off the visible row, so it had to be hunted for.
+  // Excluding those leaves the app extensions, and X lands in view.
+  const X_EXCLUDED = [
+    'com.apple.UIKit.activity.AirDrop',
+    'com.apple.UIKit.activity.Message',
+    'com.apple.UIKit.activity.Mail',
+    'com.apple.UIKit.activity.CopyToPasteboard',
+    'com.apple.UIKit.activity.SaveToCameraRoll',
+    'com.apple.UIKit.activity.AssignToContact',
+    'com.apple.UIKit.activity.Print',
+    'com.apple.UIKit.activity.AddToReadingList',
+    'com.apple.UIKit.activity.OpenInIBooks',
+    'com.apple.UIKit.activity.MarkupAsPDF',
+  ];
+
   const shareToX = async () => {
     if (sharing) return;
     setSharing(true);
+
+    const capped = (promise, ms) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('X share timed out')), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    };
+
     try {
-      const uri = await localShareUri();
-      let copiedImage = false;
-      if (uri) {
-        try {
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-          await Clipboard.setImageAsync(base64);
-          copiedImage = true;
-        } catch (e) {
-          console.warn('Copy picture to clipboard failed:', e && e.message);
-        }
+      const uri = await capped(localShareUri(), 15000).catch(() => null);
+      if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+
+      // Picture on the clipboard as a backstop, in case the extension is picked
+      // that does not take it.
+      try {
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        await Clipboard.setImageAsync(base64);
+      } catch (e) { console.warn('Copy picture to clipboard failed:', e && e.message); }
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await capped(RNShare.open({
+          url: uri,
+          message: buildSocialMessage({ inviteUrl }),
+          excludedActivityTypes: X_EXCLUDED,
+          failOnCancel: false,
+        }), 120000);
+        return;
       }
-
-      const caption = buildSocialMessage({ inviteUrl });
-      const appUrl = `twitter://post?message=${encodeURIComponent(caption)}`;
-      const webUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
-
-      Alert.alert(
-        'Share to X',
-        copiedImage
-          ? 'Your act picture is copied.\n\nX will open with your caption ready — touch and hold in the post and tap Paste to add the picture.'
-          : 'X will open with your caption ready. Could not prepare the picture — you can add one yourself.',
-        [
-          { text: 'Open X', onPress: async () => {
-            await openOrFallback(appUrl, webUrl, 'X');
-          } },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      await shareImage(uri);
     } catch (e) {
-      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
-    } finally { setSharing(false); }
+      const msg = (e && e.message) || '';
+      if (!/did not share|cancel|dismiss/i.test(msg)) console.warn('X share failed:', msg);
+    } finally {
+      setSharing(false);
+    }
   };
 
   // True when running inside Expo Go, where native modules like the Facebook
@@ -840,35 +857,44 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     }
   };
 
-  // Facebook can't be opened straight into a photo composer from another app
-  // (its deep link lands on a link-share sheet, not "Add media"), and its
-  // composer won't paste an image. So — like TikTok — we SAVE the act picture to
-  // Photos + copy the caption, and the user makes the post in their own Facebook.
+  // Facebook: save the card to Photos, copy the caption, open Facebook's normal
+  // composer. Same shape as TikTok.
+  //
+  // The SDK's ShareDialog DOES attach the picture automatically and is still
+  // below as a fallback - but its photo sheet does not reliably give a caption
+  // field, so there was nowhere to paste. Facebook refuses prefilled text from
+  // other apps by policy, so a composer you can actually type in is worth more
+  // than the picture arriving by itself.
   const shareToFacebook = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await localShareUri();
-      // The caption for the post. Instagram, TikTok and Facebook accept no
-      // prefilled text from another app, so the clipboard is the only route -
-      // the person pastes it into the composer. X gets it via its intent.
       try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
-      // Best path: Facebook's own ShareDialog opens the composer with the
-      // picture already attached - no clipboard, no hunting through Photos.
-      // Real builds only; the SDK is not linked in Expo Go, where it returns
-      // false and we fall through.
+
+      // Facebook's own ShareDialog opens the composer with the picture already
+      // attached - confirmed working on device. The save-to-Photos flow below is
+      // the fallback for Expo Go or a phone without the Facebook app.
       if (uri && (await tryFacebookShareDialog(uri))) {
         return;
       }
+
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
+
       Alert.alert(
         'Share to Facebook',
         saved
-          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷) next to "What\'s on your mind?", pick the newest photo, then paste the caption.'
-          : 'Facebook will open — start a post.',
+          ? 'Your act picture is saved to your Photos and the caption is copied.\n\nFacebook will open — tap the photo icon (📷), pick the newest photo, then touch and hold in the text box and tap Paste.'
+          : 'Your caption is copied.\n\nFacebook will open — start a post and paste it.',
         [
-          { text: 'Open Facebook', onPress: () => openOrFallback(`fb://share?link=${encodeURIComponent(APP_URL)}`, `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, 'Facebook') },
+          { text: 'Open Facebook', onPress: async () => {
+            await openOrFallback(
+              `fb://share?link=${encodeURIComponent(APP_URL)}`,
+              `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`,
+              'Facebook',
+            );
+          } },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
