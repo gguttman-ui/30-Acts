@@ -448,31 +448,55 @@ return () => { cancelled = true; };
   };
 
   // X cannot take a picture through its deep link - twitter://post carries text
-  // only, which is why the composer opened with the caption and no image. So try
-  // react-native-share's TWITTER target first: that hands X the file AND the
-  // text, same idea as Facebook's ShareDialog. Real builds only; in Expo Go it
-  // returns false and we fall back to the deep link plus clipboard paste.
+  // only. shareSingle CAN hand X the file plus the caption, so try that first.
+  //
+  // But it is bounded by a timeout. The same call for Social.EMAIL once opened
+  // nothing and never resolved, which left `sharing` true and the button dead to
+  // every later tap. Any native call we await here gets a ceiling, and the
+  // fallback below (deep link + picture on the clipboard) is the proven path.
   const shareToX = async () => {
     if (sharing) return;
-    const uri = await localShareUri();
-    if (uri && !isExpoGo) {
-      let RNShare = null;
-      try { RNShare = require('react-native-share').default; } catch {}
-      if (RNShare?.Social?.TWITTER) {
-        setSharing(true);
-        try {
-          await RNShare.shareSingle({
-            social: RNShare.Social.TWITTER,
-            url: uri,
-            message: buildSocialMessage({ inviteUrl }),
-          });
-          return;
-        } catch (e) {
-          if (e?.message === 'User did not share') return;
-          console.warn('X shareSingle failed, falling back:', e && e.message);
-        } finally { setSharing(false); }
+
+    const capped = (promise, ms) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('X share timed out')), ms);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    };
+
+    let sent = false;
+    setSharing(true);
+    try {
+      const uri = await capped(localShareUri(), 15000).catch(() => null);
+
+      if (uri && !isExpoGo) {
+        let RNShare = null;
+        try { RNShare = require('react-native-share').default; } catch {}
+        if (RNShare?.Social?.TWITTER) {
+          try {
+            await capped(RNShare.shareSingle({
+              social: RNShare.Social.TWITTER,
+              url: uri,
+              message: buildSocialMessage({ inviteUrl }),
+            }), 20000);
+            sent = true;
+          } catch (e) {
+            if (e?.message === 'User did not share') { sent = true; }
+            else console.warn('X shareSingle failed, falling back:', e && e.message);
+          }
+        }
       }
+    } catch (e) {
+      console.warn('X share failed:', e && e.message);
+    } finally {
+      setSharing(false);
     }
+
+    if (sent) return;
+
+    // Fallback: open X with the caption prefilled and the picture on the
+    // clipboard for the user to paste.
     return shareToApp(
       'X',
       `twitter://post?message=${encodeURIComponent(buildSocialMessage({ inviteUrl }))}`,

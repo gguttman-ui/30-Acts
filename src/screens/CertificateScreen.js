@@ -238,13 +238,19 @@ export default function CertificateScreen({ navigation }) {
       const uri = await certImageUri();
 
       // X cannot take a picture through its deep link - twitter://post carries
-      // text only. shareSingle hands X the file AND the caption. Real builds
-      // only; otherwise fall through to the link plus a clipboard paste.
+      // text only. shareSingle hands X the file AND the caption, but it is
+      // bounded: the same call for Social.EMAIL once never resolved and left the
+      // button dead. The clipboard route below is the proven fallback.
       if (uri && !isExpoGo) {
-        const sent = await shareSingleTo('TWITTER', {
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
+        let timer;
+        const timeout = new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('X share timed out')), 20000);
         });
+        const sent = await Promise.race([
+          shareSingleTo('TWITTER', { url: uri, message: buildSocialMessage({ inviteUrl }) }),
+          timeout,
+        ]).catch((e) => { console.warn('X share:', e && e.message); return false; })
+          .finally(() => clearTimeout(timer));
         if (sent) return;
       }
 
