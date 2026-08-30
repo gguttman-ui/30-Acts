@@ -117,6 +117,31 @@ describe('buildShareEmailHtml', () => {
   test('has alt text', () => {
     expect(buildShareEmailHtml({ imageUrl })).toContain('alt=');
   });
+
+  test('renders the invitation above the picture, as paragraphs', () => {
+    const message = "I'm doing 30 Acts of Kindness.\n\nJoin me.";
+    const html = buildShareEmailHtml({ imageUrl, inviteUrl, message });
+    expect(html).toContain('<p');
+    expect(html.indexOf('<p')).toBeLessThan(html.indexOf('<img'));
+    expect(html).toContain('30 Acts of Kindness');
+    expect(html).toContain('Join me.');
+  });
+
+  test('does not print the raw link twice', () => {
+    const message = `Join me.\n\n${inviteUrl}`;
+    const html = buildShareEmailHtml({ imageUrl, inviteUrl, message });
+    expect(html.split(inviteUrl).length - 1).toBe(2); // href plus link text
+  });
+
+  test('escapes markup inside the invitation', () => {
+    const html = buildShareEmailHtml({ imageUrl, message: '<b>hi</b>' });
+    expect(html).toContain('&lt;b&gt;hi&lt;/b&gt;');
+  });
+
+  test('no message still renders the picture', () => {
+    const html = buildShareEmailHtml({ imageUrl });
+    expect(html).toContain('<img');
+  });
 });
 
 describe('uploadShareCard', () => {

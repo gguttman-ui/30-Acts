@@ -84,3 +84,26 @@ export function buildActShareMessage({
     linkPart
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The invitation that goes out with a Text or Email share.
+//
+// Social shares stay picture-only — the card speaks for itself there. Text and
+// email are different: they are sent to one person you know, and they deserve a
+// line saying why. They also need the tappable link, because a reader looking
+// at the card ON their phone cannot scan a QR code off their own screen.
+// ─────────────────────────────────────────────────────────────────────────────
+export function buildInviteMessage({ inviteUrl = '' } = {}) {
+  const opening = "I'm doing 30 Acts of Kindness — one kind act a day.";
+
+  const body = inviteUrl
+    ? "I'm sharing this because I'd love you to join me. Scan the code in the "
+      + "picture, or tap the link below, and we'll make the world a kinder "
+      + 'place together.'
+    : "I'm sharing this because I'd love you to join me. Scan the code in the "
+      + "picture and we'll make the world a kinder place together.";
+
+  const link = inviteUrl ? `\n\n${inviteUrl}` : '';
+
+  return `${opening}\n\n${body}${link}`;
+}

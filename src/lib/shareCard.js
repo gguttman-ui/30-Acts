@@ -81,17 +81,30 @@ export function escapeHtml(value) {
  * so the HTML around it stays out of the way: the picture, and a tappable link
  * for anyone who cannot scan a QR code from the screen they are reading on.
  */
-export function buildShareEmailHtml({ imageUrl, inviteUrl } = {}) {
+export function buildShareEmailHtml({ imageUrl, inviteUrl, message } = {}) {
   if (!imageUrl) return '';
 
   const img = escapeHtml(imageUrl);
+  const font = '15px/1.5 -apple-system,Helvetica,Arial,sans-serif';
+
+  // The invitation, one <p> per paragraph so it reads like a written note
+  // rather than a wall of text.
+  const intro = message
+    ? String(message)
+        .split(/\n{2,}/)
+        .filter((para) => para.trim() && !para.includes(inviteUrl || '\u0000'))
+        .map((para) => `<p style="margin:0 0 12px;font:${font}">${escapeHtml(para.trim())}</p>`)
+        .join('')
+    : '';
+
   const link = inviteUrl
-    ? `<p style="margin:16px 0 0;font:15px -apple-system,Helvetica,Arial,sans-serif">` +
+    ? `<p style="margin:16px 0 0;font:${font}">` +
       `<a href="${escapeHtml(inviteUrl)}">${escapeHtml(inviteUrl)}</a></p>`
     : '';
 
   return (
     `<div style="margin:0;padding:0">` +
+    intro +
     `<img src="${img}" alt="My 30 Acts of Kindness card" ` +
     `style="display:block;width:100%;max-width:600px;height:auto;border:0" ` +
     `width="600" />` +

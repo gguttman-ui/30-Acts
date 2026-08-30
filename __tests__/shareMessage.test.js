@@ -3,6 +3,7 @@
 // scan one anyway.
 import {
   buildActShareMessage,
+  buildInviteMessage,
   buildJoinSteps,
   channelHasQr,
   APP_HASHTAG,
@@ -115,5 +116,46 @@ describe('buildActShareMessage', () => {
     expect(m.trimEnd()).toBe(m.trimEnd());
     expect(m).not.toContain('undefined');
     expect(m).not.toContain('null');
+  });
+});
+
+describe('buildInviteMessage', () => {
+  const inviteUrl = 'https://alrpa.app.link/wpZcPtFSh5b';
+
+  test('says what the challenge is', () => {
+    expect(buildInviteMessage({ inviteUrl })).toContain('one kind act a day');
+  });
+
+  test('says WHY it is being sent — this is the point of the message', () => {
+    const m = buildInviteMessage({ inviteUrl });
+    expect(m).toContain("I'd love you to join me");
+    expect(m).toContain('kinder place');
+  });
+
+  test('points at both the QR code and the link', () => {
+    const m = buildInviteMessage({ inviteUrl });
+    expect(m).toContain('Scan the code');
+    expect(m).toContain('tap the link below');
+  });
+
+  test('carries the referral link — without it the join is not attributed', () => {
+    expect(buildInviteMessage({ inviteUrl })).toContain(inviteUrl);
+  });
+
+  test('with no link it does not promise one', () => {
+    const m = buildInviteMessage({});
+    expect(m).not.toContain('tap the link below');
+    expect(m).toContain('Scan the code');
+  });
+
+  test('no undefined or null leaks into the text', () => {
+    for (const args of [{}, { inviteUrl: '' }, undefined]) {
+      const m = buildInviteMessage(args);
+      expect(m).not.toMatch(/undefined|null/);
+    }
+  });
+
+  test('reads as paragraphs, not one run-on block', () => {
+    expect(buildInviteMessage({ inviteUrl }).split('\n\n').length).toBeGreaterThanOrEqual(3);
   });
 });

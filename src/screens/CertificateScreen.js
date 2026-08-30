@@ -14,6 +14,7 @@ import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
+import { buildInviteMessage } from '../lib/shareMessage';
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
 const APP_URL = 'https://30ActsofKindness.org';
@@ -126,7 +127,7 @@ export default function CertificateScreen({ navigation }) {
 
   // Every method sends the certificate picture and nothing else. The
   // certificate itself carries the QR code and the line explaining it.
-  const shareCertImage = async (subject) => {
+  const shareCertImage = async (subject, withInvite = false) => {
     if (sharing) return;
     setSharing(true);
     try {
@@ -136,7 +137,12 @@ export default function CertificateScreen({ navigation }) {
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({ url: uri, ...(subject ? { subject } : {}), failOnCancel: false });
+        await RNShare.open({
+          url: uri,
+          ...(subject ? { subject } : {}),
+          ...(withInvite ? { message: buildInviteMessage({ inviteUrl }) } : {}),
+          failOnCancel: false,
+        });
         return;
       }
 
@@ -152,8 +158,8 @@ export default function CertificateScreen({ navigation }) {
     } finally { setSharing(false); }
   };
 
-  const handleShareText  = () => shareCertImage();
-  const handleShareEmail = () => shareCertImage('My 30 Acts of Kindness Certificate');
+  const handleShareText  = () => shareCertImage(undefined, true);
+  const handleShareEmail = () => shareCertImage('My 30 Acts of Kindness Certificate', true);
   const handleShareOther = () => shareCertImage();
 
   const certRef = useRef(null);
@@ -237,11 +243,35 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
+  // Facebook's own ShareDialog opens the composer with the picture already
+  // attached. Real builds only - the SDK is not linked in Expo Go, where this
+  // returns false and the save-to-Photos fallback runs instead.
+  const tryFacebookShareDialog = async (localUri) => {
+    if (!localUri || isExpoGo) return false;
+    let fbsdk = null;
+    try { fbsdk = require('react-native-fbsdk-next'); } catch { return false; }
+    const ShareDialog = fbsdk?.ShareDialog;
+    if (!ShareDialog) return false;
+    try {
+      const content = {
+        contentType: 'photo',
+        photos: [{ imageUrl: localUri, userGenerated: true }],
+      };
+      if (!(await ShareDialog.canShow(content))) return false;
+      await ShareDialog.show(content);
+      return true;
+    } catch (e) {
+      console.warn('FB ShareDialog unavailable, falling back:', e && e.message);
+      return false;
+    }
+  };
+
   const shareToFacebook = async () => {
     if (sharing) return;
     setSharing(true);
     try {
       const uri = await certImageUri();
+      if (uri && (await tryFacebookShareDialog(uri))) return;
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(

@@ -13,6 +13,7 @@ import Constants from 'expo-constants';
 import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
 import { generateInviteLink } from '../lib/branch';
+import { buildInviteMessage } from '../lib/shareMessage';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Badge, ScreenHeader, Card } from '../components';
 import {
@@ -322,6 +323,16 @@ return () => { cancelled = true; };
     try {
       const uri = await localShareUri();
       if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (RNShare && !isExpoGo) {
+        await RNShare.open({
+          url: uri,
+          message: buildInviteMessage({ inviteUrl }),
+          failOnCancel: false,
+        });
+        return;
+      }
       await shareImage(uri);
     } catch (e) {
       if (e?.message !== 'User did not share') console.warn('Text share failed:', e && e.message);
@@ -340,6 +351,7 @@ return () => { cancelled = true; };
       if (RNShare && !isExpoGo) {
         await RNShare.open({
           url: uri,
+          message: buildInviteMessage({ inviteUrl }),
           subject: `Day ${day?.dayNumber} of 30 Acts of Kindness`,
           failOnCancel: false,
         });
@@ -446,6 +458,13 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // Best path: Facebook's own ShareDialog opens the composer with the
+      // picture already attached - no clipboard, no hunting through Photos.
+      // Real builds only; the SDK is not linked in Expo Go, where it returns
+      // false and we fall through.
+      if (uri && (await tryFacebookShareDialog(uri))) {
+        return;
+      }
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(

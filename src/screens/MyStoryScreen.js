@@ -12,7 +12,7 @@ import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons from '../components/ShareButtons';
-import { buildActShareMessage } from '../lib/shareMessage';
+import { buildActShareMessage, buildInviteMessage } from '../lib/shareMessage';
 import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
@@ -364,6 +364,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
       const res = await RNShare.open({
         url: uri,
+        message: buildInviteMessage({ inviteUrl }),
         failOnCancel: false,
       });
       // v12 reports {success}. Older builds return nothing - treat that as sent.
@@ -437,7 +438,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           if (publicUrl) {
             const result = await MailComposer.composeAsync({
               subject: subjectText,
-              body: buildShareEmailHtml({ imageUrl: publicUrl, inviteUrl }),
+              body: buildShareEmailHtml({
+                imageUrl: publicUrl,
+                inviteUrl,
+                message: buildInviteMessage({ inviteUrl }),
+              }),
               isHtml: true,
             });
             if (result?.status !== 'cancelled') goToCalendar();
@@ -450,7 +455,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (uri && RNShare && !isExpoGo) {
-        const res = await RNShare.open({ url: uri, subject: subjectText, failOnCancel: false });
+        const res = await RNShare.open({
+          url: uri,
+          subject: subjectText,
+          message: buildInviteMessage({ inviteUrl }),
+          failOnCancel: false,
+        });
         if (res?.success !== false) goToCalendar();
         return;
       }
@@ -705,6 +715,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
+      // Best path: Facebook's own ShareDialog opens the composer with the
+      // picture already attached - no clipboard, no hunting through Photos.
+      // Real builds only; the SDK is not linked in Expo Go, where it returns
+      // false and we fall through.
+      if (uri && (await tryFacebookShareDialog(uri))) {
+        goToCalendar();
+        return;
+      }
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
