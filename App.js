@@ -31,8 +31,18 @@ Sentry.init({
   // Enable Logs
   enableLogs: true,
 
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
+  // Session Replay.
+  //
+  // replaysSessionSampleRate records a percentage of ALL sessions, whether or
+  // not anything went wrong. At 0.1 it quietly ate 40 of the plan's 50 monthly
+  // replays during testing while the error count sat at zero — every one of
+  // them a recording of nothing happening. It is 0 until there are real users
+  // whose ordinary behaviour is worth watching.
+  //
+  // replaysOnErrorSampleRate is the one that earns its keep: 100% of sessions
+  // that actually throw get a replay, so a crash report arrives with the taps
+  // that led to it. Leave this at 1.
+  replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1,
   integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 

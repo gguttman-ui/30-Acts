@@ -70,7 +70,7 @@ export default function RecognitionScreen({ navigation }) {
           <Text style={s.cardEmoji}>📿</Text>
           <Text style={s.cardTitle}>Send me a bracelet</Text>
           <Text style={s.cardBody}>
-            A kindness bracelet mailed to you. Just covers $4.95 shipping &amp; handling.
+            A kindness bracelet mailed to you. Just covers $6.95 shipping &amp; handling.
           </Text>
         </TouchableOpacity>
 

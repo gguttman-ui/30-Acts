@@ -422,7 +422,11 @@ export const ACT_PROMPTS = [
 ];
 
 // ── Donation info ─────────────────────────────────────────────────────────────
-export const DONATIONS = [
+//
+// Anything marked `hidden: true` is kept here with its notes intact but is NOT
+// shown to anyone — DONATIONS below is the filtered list every screen reads, so
+// hiding a method takes one line and restoring it takes deleting that line.
+const ALL_DONATIONS = [
   {
     id: 'paypal',
     label: 'PayPal',
@@ -431,8 +435,14 @@ export const DONATIONS = [
     value: '30 Acts of Kindness, NFP',
     cta: 'Donate with PayPal',
     action: 'open',
-    url: 'https://www.paypal.com/qrcodes/managed/ea84696b-5280-41cd-b68c-f94d11ce4b92?utm_source=payandgetpaid',
-    hint: 'Opens PayPal. Enter your amount there. Pay by card or bank.',
+    // PayPal Giving Fund charity page (charity 5977398). Replaced the managed
+    // QR-code link on 2026-08-31: PayPal takes NO transaction fee on this
+    // route, so the whole gift reaches the nonprofit. Tested on the website
+    // first, then brought here. Do NOT revert to a
+    // paypal.com/qrcodes/managed/... link — that one costs a percentage of
+    // every donation. Guarded by __tests__/donations.test.js.
+    url: 'https://www.paypal.com/us/fundraiser/charity/5977398',
+    hint: 'Opens PayPal. Enter your amount there. Pay by card or bank. 100% reaches us — PayPal takes no fee.',
   },
   {
     id: 'venmo',
@@ -440,17 +450,44 @@ export const DONATIONS = [
     icon: '💚',
     color: '#3D95CE',
     value: '@Actsofkindness30',
-    handle: 'Actsofkindness30',
     cta: 'Donate with Venmo',
     action: 'open',
-    // Venmo's web profile is login-walled and renders as a blank white page in
-    // mobile Safari, so send donors straight into the Venmo app's pay sheet.
-    // Linking.openURL (unlike canOpenURL) does not need the scheme whitelisted
-    // in Info.plist, so this works over-the-air; the https URL below is the
-    // fallback for a phone with no Venmo app installed.
-    deepLink: 'venmo://paycharge?txn=pay&recipients=Actsofkindness30',
+    // HIDDEN 2026-09-02 — remove this one line to bring Venmo back.
+    //
+    // Donating to this charity from inside the Venmo app works. Every route
+    // from OUR app fails with "You can't donate to this charity right now",
+    // including after the paycharge fix below. Five support calls and an
+    // escalation over several weeks produced no movement, and the app cannot
+    // ship a donate button that hands people an error. PayPal (fee-free) and
+    // Zelle both work, so nothing is lost but the option.
+    //
+    // Bring it back when Venmo confirms the charity can accept a donation
+    // opened from a third-party app — and re-test on a real device before
+    // trusting it.
+    hidden: true,
+    // Opens the CHARITY PROFILE, where the person taps Donate.
+    //
+    // It used to open venmo://paycharge?txn=pay&recipients=... with the amount
+    // and note pre-filled, which was much nicer — and did not work. paycharge
+    // is Venmo's PERSON-TO-PERSON rail, and a charity profile refuses a P2P
+    // payment: the sheet resolves the charity by name, then fails with "You
+    // can't donate to this charity right now. Check back soon."
+    //
+    // Diagnosed on device 2026-09-02 by changing three variables at once —
+    // credit card vs Venmo balance, $6.95 vs $1.00, bracelet screen vs donate
+    // screen — and getting a byte-identical failure every time, while donating
+    // to the same charity from inside the Venmo app worked perfectly. Weeks
+    // were lost to Venmo support on this because it looks like an account
+    // problem and is not: the account is fine, the rail was wrong.
+    //
+    // Do NOT reintroduce paycharge for the amount pre-fill. A pre-filled
+    // amount on a payment that cannot complete is worth nothing.
+    // Linking.openURL (unlike canOpenURL) needs no Info.plist entry, so this
+    // works over the air; the https URL is the fallback for a phone with no
+    // Venmo app installed.
+    deepLink: 'venmo://users/Actsofkindness30',
     url: 'https://venmo.com/u/Actsofkindness30',
-    hint: 'Opens Venmo. Enter your amount in the app.',
+    hint: 'Opens your Venmo charity profile — tap Donate there and enter your amount.',
   },
   {
     id: 'zelle',
@@ -463,6 +500,9 @@ export const DONATIONS = [
     hint: 'Tap to copy, then send to this email via Zelle in your bank app.',
   },
 ];
+
+/** The methods actually offered. Screens must read this, never ALL_DONATIONS. */
+export const DONATIONS = ALL_DONATIONS.filter((d) => !d.hidden);
 
 // ── Local-date helper ────────────────────────────────────────────────────────
 function _localDateStr(d) {

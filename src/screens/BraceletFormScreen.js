@@ -31,9 +31,21 @@ export default function BraceletFormScreen({ navigation, route }) {
   const [zip, setZip]         = useState('');
   const [saving, setSaving]   = useState(false);
 
-  // Prefill everything we already know (name, city, state, ZIP) so the user
-  // doesn't re-enter data collected at signup. ZIP/city/state live in the
-  // account metadata; name lives on the profile.
+  // Prefill the address.
+  //
+  // THE BUG (reported by David, 2026-09-02): "my address does not pull
+  // through". It never could. This only ever read the NAME from the profile
+  // and city/state/ZIP from signup metadata — the street was not prefilled
+  // from anywhere, and a previously entered shipping address was never read
+  // back at all. Someone ordering a second time retyped the lot.
+  //
+  // It also relied on user_metadata.city/.zip, which are only written on the
+  // reminder step at signup. Anyone who skipped that step, or who signed up
+  // before that code existed, had nothing to pull through even for the city.
+  //
+  // So: the last order the person actually placed wins, because it is the one
+  // they typed and posted a bracelet to. Profile and signup metadata fill any
+  // gaps behind it.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -41,21 +53,39 @@ export default function BraceletFormScreen({ navigation, route }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.id) return;
         const meta = user.user_metadata || {};
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, state')
-          .eq('id', user.id)
-          .maybeSingle();
+
+        const [{ data: profile }, { data: lastOrder }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('first_name, last_name, state')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('recognition_orders')
+            .select('ship_name, ship_street1, ship_street2, ship_city, ship_state, ship_zip, created_at')
+            .eq('user_id', user.id)
+            .not('ship_street1', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
         if (cancelled) return;
-        const full = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
-        if (full) setName(full);
-        // Prefer the profile's state, fall back to signup metadata.
-        const st = profile?.state || meta.state;
-        if (st) setState(st);
-        if (meta.city) setCity(meta.city);
-        if (meta.zip)  setZip(String(meta.zip));
+
+        const profileName = [profile?.first_name, profile?.last_name]
+          .filter(Boolean).join(' ').trim();
+
+        // Each field takes the first source that actually has something.
+        const pick = (...values) => values.find((v) => v != null && String(v).trim()) || '';
+
+        setName(pick(lastOrder?.ship_name, profileName));
+        setStreet1(pick(lastOrder?.ship_street1));
+        setStreet2(pick(lastOrder?.ship_street2));
+        setCity(pick(lastOrder?.ship_city, meta.city));
+        setState(pick(lastOrder?.ship_state, profile?.state, meta.state));
+        setZip(pick(lastOrder?.ship_zip, meta.zip));
       } catch (e) {
-        // Non-fatal: user can type everything in.
+        // Non-fatal: the person can type everything in.
+        console.warn('Address prefill failed:', e && e.message);
       }
     })();
     return () => { cancelled = true; };

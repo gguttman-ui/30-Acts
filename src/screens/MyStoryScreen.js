@@ -13,6 +13,11 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { buildActShareMessage, buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
+import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
+import { copyImageToClipboard } from '../lib/shareClipboard';
+import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
+import { nextStorySeed, applyStorySeed } from '../lib/storySeed';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
@@ -43,6 +48,7 @@ const STORY_MIN = 10;
 // quote box gets the full card height (capped at 11 lines at 44px), so ~300
 // chars fits cleanly without clipping.
 const STORY_MAX = 300;
+
 const { width: SCREEN_W } = Dimensions.get('window');
 const FONT_BASE_W = 390;
 const fontScale = Math.min(Math.max(SCREEN_W / FONT_BASE_W, 0.85), 1.1);
@@ -239,6 +245,19 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   }, [initiallyCompleted]);
 
   // ── Speech-to-text ────────────────────────────────────────────────────────
+  //
+  // REVERTED 2026-09-02 to exactly what shipped before that date.
+  //
+  // David reported the mic dying after several act deletions. Three attempts to
+  // fix it that day — a stop/abort lifecycle, a blur/focus teardown, and
+  // bounding every await — each left it worse, and the third broke the FIRST
+  // use of the mic, which had always worked. All three were reasoned from the
+  // code rather than from the device, and none was ever confirmed.
+  //
+  // This is the known-good baseline. The original bug is real and still
+  // unfixed: see the backlog. Do not change this again without a way to
+  // reproduce it and watch it fail.
+  //
   // Append the live transcript to whatever was in the box when we started,
   // clamped to the character cap.
   useSpeechEvent('result', (event) => {
@@ -305,16 +324,35 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     };
   }, []);
 
-  // If the user taps "Browse acts" while this screen is already open, ChooseAct
-  // navigates back here with a new preselectedAct. useState only seeds on first
-  // mount, so watch for the picked act and fill the story with its title
-  // (unless the user has already written something of their own).
+  // ChooseAct navigates BACK to this screen, and React Navigation reuses the
+  // instance already on the stack: route.params updates, useState does not
+  // re-run. Anything the picker hands back therefore has to be applied here or
+  // it is silently dropped.
+  //
+  // TWO things arrive that way, and only the first used to be handled:
+  //   preselectedAct — an act chosen from the list.
+  //   draftStory     — the words typed into the picker's Search box before
+  //                    tapping "+ Create a New Act". A tester typed "Did dishes
+  //                    to help a friend", got no matches, tapped Create a New
+  //                    Act and landed on an empty box. Reported 2026-08-31.
+  //
+  // seedRef remembers what WE last put in the box, which is the only way to
+  // tell our own suggestion apart from something the person wrote. Without it
+  // the choice is clobber-always or clobber-never, and both are wrong.
+  // Rules and their tests: src/lib/storySeed.js.
+  const seedRef = useRef(initialStory);
   React.useEffect(() => {
-    const act = route?.params?.preselectedAct;
-    if (!act?.title) return;
-    setCompletedTitle(act.title);
-    setStory((prev) => (prev && prev.trim().length >= 3 ? prev : `${act.title}. `));
-  }, [route?.params?.preselectedAct]);
+    const act  = route?.params?.preselectedAct;
+    const seed = nextStorySeed({
+      actTitle:   act?.title,
+      draftStory: route?.params?.draftStory,
+      maxLength:  STORY_MAX,
+    });
+    if (!seed) return;
+    if (act?.title) setCompletedTitle(act.title);
+    setStory((prev) => applyStorySeed({ current: prev, seed, lastSeed: seedRef.current }));
+    seedRef.current = seed;
+  }, [route?.params?.preselectedAct, route?.params?.draftStory]);
 
   // ── Share message + media ────────────────────────────────────────────────
 
@@ -337,6 +375,18 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   // Which channel this caption goes out on decides whether it may mention the
   // QR code. Only an image share carries one (StoryCard embeds it); SMS and
   // email are plain text. See src/lib/shareMessage.js and its tests.
+  // ── What every share says ─────────────────────────────────────────────────
+  // Two things on every channel: the act being shared, and an invitation to
+  // join. Defined once here so all seven buttons on this screen say the same
+  // thing - the drift between screens is exactly what ShareButtons.js was
+  // created to end, and captions drift the same way markup does.
+  // See src/lib/shareMessage.js for the wording and why social is capped.
+  const socialCaption = () =>
+    buildSocialMessage({ dayNumber, actTitle: completedTitle, story: completedStory, inviteUrl });
+
+  const inviteCaption = () =>
+    buildInviteMessage({ dayNumber, actTitle: completedTitle, story: completedStory, inviteUrl });
+
   const buildShareMessage = (channel = 'image') =>
     buildActShareMessage({
       dayNumber,
@@ -362,10 +412,19 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       try { RNShare = require('react-native-share').default; } catch {}
       if (!RNShare) return false;
 
-      const res = await RNShare.open({
-        url: uri,
-        message: buildInviteMessage({ inviteUrl }),
-        failOnCancel: false,
+      const res = await withTimeout(
+        RNShare.open({
+          url: uri,
+          message: inviteCaption(),
+          failOnCancel: false,
+        }),
+        SHARE_SHEET_TIMEOUT_MS,
+        'share sheet timed out',
+      ).catch((e) => {
+        console.warn('Share sheet:', e && e.message);
+        // Must read as a FAILURE: the caller checks res?.success to
+        // decide whether to fall back. null would look like success.
+        return { success: false };
       });
       // v12 reports {success}. Older builds return nothing - treat that as sent.
       return res?.success !== false;
@@ -400,14 +459,6 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     const subjectText = completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`;
 
-    const cap = (promise, ms, label) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(label)), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
       const uri = await localShareUri();
 
@@ -418,13 +469,13 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
         let mailAvailable = false;
         if (MailComposer?.isAvailableAsync) {
-          mailAvailable = await cap(
+          mailAvailable = await withTimeout(
             MailComposer.isAvailableAsync(), 5000, 'mail check timed out',
           ).catch(() => false);
         }
 
         if (mailAvailable) {
-          const publicUrl = await cap(
+          const publicUrl = await withTimeout(
             uploadShareCard({
               supabase,
               readBase64: (u) => FileSystem.readAsStringAsync(u, { encoding: 'base64' }),
@@ -441,7 +492,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               body: buildShareEmailHtml({
                 imageUrl: publicUrl,
                 inviteUrl,
-                message: buildInviteMessage({ inviteUrl }),
+                message: inviteCaption(),
               }),
               isHtml: true,
             });
@@ -455,11 +506,20 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (uri && RNShare && !isExpoGo) {
-        const res = await RNShare.open({
-          url: uri,
-          subject: subjectText,
-          message: buildInviteMessage({ inviteUrl }),
-          failOnCancel: false,
+        const res = await withTimeout(
+          RNShare.open({
+            url: uri,
+            subject: subjectText,
+            message: inviteCaption(),
+            failOnCancel: false,
+          }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => {
+          console.warn('Share sheet:', e && e.message);
+          // Must read as a FAILURE: the caller checks res?.success to
+          // decide whether to fall back. null would look like success.
+          return { success: false };
         });
         if (res?.success !== false) goToCalendar();
         return;
@@ -585,17 +645,58 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     } finally { setSharing(false); }
   };
 
-  // X: the system share sheet - identical to the More button.
+  // X: save the card to Photos, then open X's composer with the caption already
+  // written. Same shape as TikTok, and deliberately so.
   //
-  // This is the ONLY route that gets the picture into X. Confirmed on device:
-  // picking X from the share sheet hands the file to X's SHARE EXTENSION, which
-  // takes the picture and the caption together. twitter://post is a URL SCHEME,
-  // a different door into the same app, and it carries text only - never media.
-  // That difference is why More worked and this button did not.
+  // WHY NOT THE SHARE SHEET, which this used to be. Picking X out of the iOS
+  // sheet hands X's SHARE EXTENSION the real file, so the picture and the
+  // caption both arrive - genuinely the best result of any platform, and it was
+  // the route here until 2026-08-31. It was replaced because iOS alone decides
+  // the order of the apps in that sheet: on a phone where X is not in the first
+  // few slots you must swipe the app row to find it, and Apple exposes no way
+  // to pin an app or to open a named share extension. That swipe cannot be
+  // removed, and most people will not make it. Tested on device: X sat behind
+  // AirDrop, Messages, Mail and Facebook and never appeared without a swipe.
   //
-  // Yes, it means choosing X from the sheet. There is no way to open a named
-  // share extension directly; Apple does not expose it.
-  const shareToX = () => handleShareAll();
+  // twitter://post is a URL SCHEME - a different door into the same app. It
+  // carries text only and can NEVER attach media, which is exactly why the
+  // picture goes to Photos first and is attached in the composer by hand.
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const caption = socialCaption();
+      const uri = await localShareUri();
+
+      // Two routes for the picture, because the compose URL carries none.
+      // Photos always; the clipboard as well when it will take a file - the
+      // caption no longer needs the clipboard, because the intent prefills it.
+      const savedToPhotos    = uri ? Boolean(await saveToCameraRoll(uri)) : false;
+      const imageOnClipboard = uri ? await copyImageToClipboard(uri) : false;
+
+      // Only fall back to putting the caption on the clipboard if the picture
+      // is not there - one of them has to give way, and the caption is the one
+      // already arriving by another route.
+      if (!imageOnClipboard) {
+        try { await Clipboard.setStringAsync(caption); } catch {}
+      }
+
+      const { appUrl, webUrl } = buildXIntentUrls({ caption });
+      Alert.alert(
+        'Share to X',
+        buildXShareAlert({ imageOnClipboard, savedToPhotos }),
+        [
+          { text: 'Open X', onPress: async () => {
+            await openOrFallback(appUrl, webUrl, 'X');
+            goToCalendar();
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   const shareImage = async (uri) => {
     let Sharing = null;
@@ -636,7 +737,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       // The caption for the post. Instagram, TikTok and Facebook accept no
       // prefilled text from another app, so the clipboard is the only route -
       // the person pastes it into the composer. X gets it via its intent.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       if (!uri) {
         Alert.alert('Could not prepare the picture', 'Please try again.');
         return;
@@ -658,7 +759,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
@@ -734,7 +835,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setSharing(true);
     try {
       const uri = await localShareUri();
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       // Facebook's own ShareDialog opens the composer with the picture already
       // attached - confirmed working on device. The save-to-Photos flow below is
@@ -776,30 +877,22 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     if (sharing) return;
     setSharing(true);
 
-    const capped = (promise, ms) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('share timed out')), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
-      const uri = await capped(localShareUri(), 15000).catch(() => null);
+      const uri = await withTimeout(localShareUri(), 15000).catch(() => null);
       if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
 
       // Caption on the clipboard too: Instagram and TikTok cannot receive text
       // from another app, so pasting is the only way it reaches the composer.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await capped(RNShare.open({
+        await withTimeout(RNShare.open({
           url: uri,
-          message: buildSocialMessage({ inviteUrl }),
+          message: socialCaption(),
           failOnCancel: false,
-        }), 120000);
+        }), SHARE_SHEET_TIMEOUT_MS, 'share sheet timed out');
         return;
       }
       await shareImage(uri);
@@ -848,6 +941,28 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
     setSaving(true);
     try {
+      // Screen what the person wrote BEFORE it is saved.
+      //
+      // This screen had no filter at all until 2026-09-02, which mattered more
+      // than it looks: DailyActScreen has always screened its text, but My
+      // Story is where people actually write now. The main user-authored field
+      // in the app was going into the database unchecked.
+      //
+      // Bounded and fails OPEN — a flaky connection must never block someone
+      // from recording a genuine act. See src/lib/moderation.js.
+      const textToCheck = [completedTitle, story].filter(Boolean).join(' ');
+      if (textToCheck.trim()) {
+        const blocked = await withTimeout(
+          isContentBlocked(textToCheck), 15000, 'moderation check timed out',
+        ).catch((e) => { console.warn('moderation check skipped:', e && e.message); return false; });
+
+        if (blocked) {
+          Alert.alert('Content Not Allowed', BLOCKED_MESSAGE);
+          setSaving(false);
+          return;
+        }
+      }
+
       const today   = todayStr();
       const isToday = targetDay.scheduledDate === today;
 

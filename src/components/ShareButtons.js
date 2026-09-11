@@ -18,9 +18,17 @@
 //   Instagram — Stories deep link with the image, falling back to the share
 //               sheet. Instagram has no text API at all, so the picture arrives
 //               and the caption is pasted. That is the ceiling, not a bug.
-//   X         — the system share sheet. X's URL scheme carries text only and
-//               never media, so a direct link cannot attach the card. The share
-//               extension can, and does.
+//   X         — card saved to Photos, then X's composer opened with the caption
+//               already written (twitter://post, falling back to the x.com
+//               intent link). The URL scheme carries text only and never media,
+//               which is why the picture travels via Photos.
+//               This WAS the system share sheet, which does carry both halves
+//               at once — but iOS alone decides the order of the apps in that
+//               sheet, and where X is not in the first few slots there is no
+//               way to reach it without swiping the row. Apple exposes no way
+//               to pin an app or to open a named share extension. Changed
+//               2026-08-31, after X sat behind AirDrop, Messages, Mail and
+//               Facebook on a real device.
 //   Facebook  — the Facebook SDK's ShareDialog, which opens the composer with
 //               the picture already attached. Facebook's share EXTENSION does
 //               not reliably accept the image from the system sheet, so the SDK
@@ -29,7 +37,9 @@
 // The caption goes on the clipboard for TikTok, Instagram and Facebook: none of
 // them accept prefilled text from another app (Facebook refuses it by policy,
 // the other two have no text API), so pasting is the only way it reaches a
-// composer.
+// composer. X is the exception — its compose intent takes the text — but the
+// clipboard is set there too, so a failed prefill still leaves something to
+// paste.
 //
 // Do NOT "simplify" these into one path. Each one is here because the others
 // were tried on a real device and failed.

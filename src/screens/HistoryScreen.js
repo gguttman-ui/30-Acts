@@ -14,6 +14,9 @@ import { captureRef } from 'react-native-view-shot';
 import StoryCard from '../components/StoryCard';
 import { generateInviteLink } from '../lib/branch';
 import { buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
+import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
+import { copyImageToClipboard } from '../lib/shareClipboard';
+import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Badge, ScreenHeader, Card } from '../components';
 import {
@@ -309,6 +312,18 @@ return () => { cancelled = true; };
     })();
   }, [day?.dayNumber, day?.status]);
 
+  // ── What every share says ─────────────────────────────────────────────────
+  // Two things on every channel: the act being shared, and an invitation to
+  // join. Defined once here so all seven buttons on this screen say the same
+  // thing - the drift between screens is exactly what ShareButtons.js was
+  // created to end, and captions drift the same way markup does.
+  // See src/lib/shareMessage.js for the wording and why social is capped.
+  const socialCaption = () =>
+    buildSocialMessage({ dayNumber: day?.dayNumber, actTitle: day?.title, story, inviteUrl });
+
+  const inviteCaption = () =>
+    buildInviteMessage({ dayNumber: day?.dayNumber, actTitle: day?.title, story, inviteUrl });
+
   const buildShareMessage = () => {
     const storyPart = story.trim()
       ? `\n\nHere's what I did:\n"${story.trim()}"`
@@ -326,11 +341,15 @@ return () => { cancelled = true; };
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildInviteMessage({ inviteUrl }),
-          failOnCancel: false,
-        });
+        await withTimeout(
+          RNShare.open({
+            url: uri,
+            message: inviteCaption(),
+            failOnCancel: false,
+          }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => { console.warn('Share sheet:', e && e.message); return null; });
         return;
       }
       await shareImage(uri);
@@ -349,12 +368,16 @@ return () => { cancelled = true; };
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildInviteMessage({ inviteUrl }),
-          subject: `Day ${day?.dayNumber} of 30 Acts of Kindness`,
-          failOnCancel: false,
-        });
+        await withTimeout(
+          RNShare.open({
+            url: uri,
+            message: inviteCaption(),
+            subject: `Day ${day?.dayNumber} of 30 Acts of Kindness`,
+            failOnCancel: false,
+          }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => { console.warn('Share sheet:', e && e.message); return null; });
         return;
       }
       await shareImage(uri);
@@ -447,17 +470,57 @@ return () => { cancelled = true; };
     } finally { setSharing(false); }
   };
 
-  // X: the system share sheet - identical to the More button.
+  // X: save the card to Photos, then open X's composer with the caption already
+  // written. Same shape as TikTok, and deliberately so.
   //
-  // This is the ONLY route that gets the picture into X. Confirmed on device:
-  // picking X from the share sheet hands the file to X's SHARE EXTENSION, which
-  // takes the picture and the caption together. twitter://post is a URL SCHEME,
-  // a different door into the same app, and it carries text only - never media.
-  // That difference is why More worked and this button did not.
+  // WHY NOT THE SHARE SHEET, which this used to be. Picking X out of the iOS
+  // sheet hands X's SHARE EXTENSION the real file, so the picture and the
+  // caption both arrive - genuinely the best result of any platform, and it was
+  // the route here until 2026-08-31. It was replaced because iOS alone decides
+  // the order of the apps in that sheet: on a phone where X is not in the first
+  // few slots you must swipe the app row to find it, and Apple exposes no way
+  // to pin an app or to open a named share extension. That swipe cannot be
+  // removed, and most people will not make it. Tested on device: X sat behind
+  // AirDrop, Messages, Mail and Facebook and never appeared without a swipe.
   //
-  // Yes, it means choosing X from the sheet. There is no way to open a named
-  // share extension directly; Apple does not expose it.
-  const shareToX = () => handleShareAll();
+  // twitter://post is a URL SCHEME - a different door into the same app. It
+  // carries text only and can NEVER attach media, which is exactly why the
+  // picture goes to Photos first and is attached in the composer by hand.
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const caption = socialCaption();
+      const uri = await localShareUri();
+
+      // Two routes for the picture, because the compose URL carries none.
+      // Photos always; the clipboard as well when it will take a file - the
+      // caption no longer needs the clipboard, because the intent prefills it.
+      const savedToPhotos    = uri ? Boolean(await saveToCameraRoll(uri)) : false;
+      const imageOnClipboard = uri ? await copyImageToClipboard(uri) : false;
+
+      // Only fall back to putting the caption on the clipboard if the picture
+      // is not there - one of them has to give way, and the caption is the one
+      // already arriving by another route.
+      if (!imageOnClipboard) {
+        try { await Clipboard.setStringAsync(caption); } catch {}
+      }
+
+      const { appUrl, webUrl } = buildXIntentUrls({ caption });
+      Alert.alert(
+        'Share to X',
+        buildXShareAlert({ imageOnClipboard, savedToPhotos }),
+        [
+          { text: 'Open X', onPress: async () => {
+            await openOrFallback(appUrl, webUrl, 'X');
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   // Facebook: save the card to Photos, copy the caption, open Facebook's normal
   // composer. Same shape as TikTok.
@@ -472,7 +535,7 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       // Facebook's own ShareDialog opens the composer with the picture already
       // attached - confirmed working on device. The save-to-Photos flow below is
@@ -513,7 +576,7 @@ return () => { cancelled = true; };
       // The caption for the post. Instagram, TikTok and Facebook accept no
       // prefilled text from another app, so the clipboard is the only route -
       // the person pastes it into the composer. X gets it via its intent.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       if (!uri) {
         Alert.alert(
           "Couldn't prepare an image",
@@ -540,7 +603,7 @@ return () => { cancelled = true; };
     setSharing(true);
     try {
       const uri = await localShareUri();
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       let saved = null;
       if (uri) saved = await saveToCameraRoll(uri);
       Alert.alert(
@@ -568,30 +631,22 @@ return () => { cancelled = true; };
     if (sharing) return;
     setSharing(true);
 
-    const capped = (promise, ms) => {
-      let timer;
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('share timed out')), ms);
-      });
-      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-    };
-
     try {
-      const uri = await capped(localShareUri(), 15000).catch(() => null);
+      const uri = await withTimeout(localShareUri(), 15000).catch(() => null);
       if (!uri) { Alert.alert('Could not prepare the picture', 'Please try again.'); return; }
 
       // Caption on the clipboard too: Instagram and TikTok cannot receive text
       // from another app, so pasting is the only way it reaches the composer.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await capped(RNShare.open({
+        await withTimeout(RNShare.open({
           url: uri,
-          message: buildSocialMessage({ inviteUrl }),
+          message: socialCaption(),
           failOnCancel: false,
-        }), 120000);
+        }), SHARE_SHEET_TIMEOUT_MS, 'share sheet timed out');
         return;
       }
       await shareImage(uri);

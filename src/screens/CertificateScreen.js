@@ -15,6 +15,10 @@ import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 import { generateInviteLink } from '../lib/branch';
 import { buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
+import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
+import { copyImageToClipboard } from '../lib/shareClipboard';
+import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
+import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6762151038';
 const APP_URL = 'https://30ActsofKindness.org';
@@ -119,6 +123,16 @@ export default function CertificateScreen({ navigation }) {
   // Same share flow as sharing an Act: a Text / Email / More row that sends a
   // message with the person's personal invite link (identical mechanics to
   // MyStoryScreen). An extra "Share as image" button keeps the visual cert.
+  // ── What every share says ─────────────────────────────────────────────────
+  // Two things on every channel: the act being shared, and an invitation to
+  // join. Defined once here so all seven buttons on this screen say the same
+  // thing - the drift between screens is exactly what ShareButtons.js was
+  // created to end, and captions drift the same way markup does.
+  // See src/lib/shareMessage.js for the wording and why social is capped.
+  const socialCaption = () => buildSocialMessage({ completedAll: true, inviteUrl });
+
+  const inviteCaption = () => buildInviteMessage({ completedAll: true, inviteUrl });
+
   const buildShareMessage = () => {
     const who = name && name !== 'A Kind Person' ? `${name} ` : '';
     const linkPart = inviteUrl ? `\n\nMy invite link (grows my kindness tree 🌳):\n${inviteUrl}` : '';
@@ -137,12 +151,19 @@ export default function CertificateScreen({ navigation }) {
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          ...(subject ? { subject } : {}),
-          ...(withInvite ? { message: buildInviteMessage({ inviteUrl }) } : {}),
-          failOnCancel: false,
-        });
+        // Bounded: an RNShare.open that never settles leaves `sharing` true and
+        // kills every share button on this screen. See the note above
+        // handleShareText.
+        await withTimeout(
+          RNShare.open({
+            url: uri,
+            ...(subject ? { subject } : {}),
+            ...(withInvite ? { message: inviteCaption() } : {}),
+            failOnCancel: false,
+          }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => { console.warn('Certificate share sheet:', e && e.message); });
         return;
       }
 
@@ -167,16 +188,18 @@ export default function CertificateScreen({ navigation }) {
       const uri = await certImageUri();
       if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
 
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          failOnCancel: false,
-        });
+        // Bounded — see the note above handleShareText. An unsettled promise
+        // here leaves `sharing` true and kills the whole share row.
+        await withTimeout(
+          RNShare.open({ url: uri, message: socialCaption(), failOnCancel: false }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => { console.warn('Certificate share sheet:', e && e.message); });
         return;
       }
 
@@ -191,8 +214,171 @@ export default function CertificateScreen({ navigation }) {
     } finally { setSharing(false); }
   };
 
-  const handleShareText  = () => shareCertImage(undefined, true);
-  const handleShareEmail = () => shareCertImage('My 30 Acts of Kindness Certificate', true);
+  // ── Text and Email ────────────────────────────────────────────────────────
+  //
+  // These used to be one line each, both calling shareCertImage, which opened
+  // the generic iOS share sheet and nothing else. Text was fine that way — the
+  // sheet hands Messages the certificate and it attaches. EMAIL was not: it
+  // opened the same generic sheet with a subject line bolted on, so it never
+  // reached Mail and the certificate never rendered inside a message the way it
+  // does on the other three screens. Reported by Gary on 2026-09-01, after
+  // completing a real 30 days; Text worked, Email did not.
+  //
+  // Email now mirrors MyStoryScreen: Mail composer with the certificate hosted
+  // and shown inline, falling back to the sheet and then to mailto.
+  //
+  // Every await here is also bounded. That was NOT the cause of this report —
+  // Text working proves `sharing` was not stuck — but an unsettled RNShare.open
+  // has already killed Email once on MyStoryScreen, and the failure mode is a
+  // share row that goes dead to taps with nothing on screen to explain it.
+  // Cheap insurance against a bug that is very hard to recognise from a report.
+  const SUBJECT = 'My 30 Acts of Kindness Certificate';
+
+  // The inline-email path uploads to a bucket that stores image/jpeg, so the
+  // certificate is captured as a JPEG for that one route. Everywhere else keeps
+  // the PNG, which is sharper for a document full of text.
+  const certJpegUri = async () => {
+    try {
+      await captureRef(certRef, { format: 'jpg', quality: 0.92 }); // warm-up pass
+      return await captureRef(certRef, { format: 'jpg', quality: 0.92 });
+    } catch (e) {
+      console.warn('Certificate JPEG capture failed:', e && e.message);
+      return null;
+    }
+  };
+
+  const handleShareText = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await withTimeout(certImageUri(), CAPTURE_TIMEOUT_MS, 'certificate capture timed out')
+        .catch((e) => { console.warn('Text share:', e && e.message); return null; });
+
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+
+      if (uri && RNShare && !isExpoGo) {
+        const res = await withTimeout(
+          RNShare.open({ url: uri, message: inviteCaption(), failOnCancel: false }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => {
+          console.warn('Text share sheet:', e && e.message);
+          // Must read as a FAILURE: the caller checks res?.success to decide
+          // whether to fall back to sms:. null would look like success.
+          return { success: false };
+        });
+        if (res?.success !== false) { goHome(); return; }
+      }
+
+      // No picture to send, so the caption must not promise one: buildShareMessage
+      // points at the App Store instead of a QR code in an image.
+      const msg = encodeURIComponent(buildShareMessage());
+      const url = Platform.OS === 'ios' ? `sms:&body=${msg}` : `sms:?body=${msg}`;
+      await Linking.openURL(url);
+    } catch (e) {
+      if (e?.message !== 'User did not share') {
+        console.warn('Certificate text share failed:', e && e.message);
+        Alert.alert('Could not open Messages', 'Try More to share your certificate instead.');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // Email shows the certificate INSIDE the message rather than attaching it.
+  // An <img> needs a real URL — email clients strip data: URIs — so the JPEG is
+  // uploaded to the public act-media bucket first and the HTML points at it.
+  // Three fallbacks, because any step can fail on a given device:
+  //   1. Upload + Mail composer with an HTML body -> certificate renders inline
+  //   2. Share sheet with the file attached       -> certificate as attachment
+  //   3. Plain mailto:                            -> text only, no QR promise
+  const handleShareEmail = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      // 1. Inline.
+      const jpegUri = await withTimeout(certJpegUri(), CAPTURE_TIMEOUT_MS, 'certificate capture timed out')
+        .catch(() => null);
+
+      if (jpegUri) {
+        let MailComposer = null;
+        try { MailComposer = require('expo-mail-composer'); } catch {}
+
+        let mailAvailable = false;
+        if (MailComposer?.isAvailableAsync) {
+          mailAvailable = await withTimeout(
+            MailComposer.isAvailableAsync(), 5000, 'mail check timed out',
+          ).catch(() => false);
+        }
+
+        if (mailAvailable) {
+          const publicUrl = await withTimeout(
+            uploadShareCard({
+              supabase,
+              readBase64: (u) => FileSystem.readAsStringAsync(u, { encoding: 'base64' }),
+              uri: jpegUri,
+            }),
+            30000,
+            'certificate upload timed out',
+          ).catch((e) => { console.warn('Certificate upload skipped:', e && e.message); return null; });
+
+          if (publicUrl) {
+            const result = await MailComposer.composeAsync({
+              subject: SUBJECT,
+              body: buildShareEmailHtml({
+                imageUrl: publicUrl,
+                inviteUrl,
+                message: inviteCaption(),
+              }),
+              isHtml: true,
+            });
+            if (result?.status !== 'cancelled') goHome();
+            return;
+          }
+        }
+      }
+
+      // 2. Share sheet, certificate attached.
+      const uri = jpegUri || await withTimeout(certImageUri(), CAPTURE_TIMEOUT_MS, 'capture timed out').catch(() => null);
+      let RNShare = null;
+      try { RNShare = require('react-native-share').default; } catch {}
+      if (uri && RNShare && !isExpoGo) {
+        const res = await withTimeout(
+          RNShare.open({ url: uri, subject: SUBJECT, message: inviteCaption(), failOnCancel: false }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => {
+          console.warn('Email share sheet:', e && e.message);
+          // Must read as a FAILURE — see the note on the Text route.
+          return { success: false };
+        });
+        if (res?.success !== false) { goHome(); return; }
+      }
+
+      // 3. Plain mailto — text only, so the caption drops its QR line.
+      const subject = encodeURIComponent(SUBJECT);
+      const body    = encodeURIComponent(buildShareMessage());
+      const mailto  = `mailto:?subject=${subject}&body=${body}`;
+      const canOpen = await Linking.canOpenURL(mailto).catch(() => false);
+      if (!canOpen) {
+        Alert.alert(
+          'No email app set up',
+          'This iPhone has no Mail account configured. Add one in Settings → Mail, or use More to share.',
+        );
+        return;
+      }
+      await Linking.openURL(mailto);
+    } catch (e) {
+      if (e?.message !== 'User did not share') {
+        console.warn('Certificate email share failed:', e && e.message);
+        Alert.alert('Could not open email', 'Try More to share your certificate instead.');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const handleShareOther = () => shareCertImage();
 
   const certRef = useRef(null);
@@ -251,7 +437,7 @@ export default function CertificateScreen({ navigation }) {
       // The caption for the post. Instagram, TikTok and Facebook accept no
       // prefilled text from another app, so the clipboard is the only route -
       // the person pastes it into the composer. X gets it via its intent.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       if (!uri) { Alert.alert('Could not prepare the image', 'Please try again.'); return; }
       const ok = await shareSingleTo('INSTAGRAM_STORIES', { appId: FB_APP_ID, backgroundImage: uri });
       if (!ok) {
@@ -264,17 +450,57 @@ export default function CertificateScreen({ navigation }) {
     finally { setSharing(false); }
   };
 
-  // X: the system share sheet - identical to the More button.
+  // X: save the certificate to Photos, then open X's composer with the caption
+  // already written. Same shape as the other screens, and deliberately so.
   //
-  // This is the ONLY route that gets the picture into X. Confirmed on device:
-  // picking X from the share sheet hands the file to X's SHARE EXTENSION, which
-  // takes the picture and the caption together. twitter://post is a URL SCHEME,
-  // a different door into the same app, and it carries text only - never media.
-  // That difference is why More worked and this button did not.
+  // WHY NOT THE SHARE SHEET, which this used to be. Picking X out of the iOS
+  // sheet hands X's SHARE EXTENSION the real file, so the picture and the
+  // caption both arrive - genuinely the best result of any platform, and it was
+  // the route here until 2026-08-31. It was replaced because iOS alone decides
+  // the order of the apps in that sheet: on a phone where X is not in the first
+  // few slots you must swipe the app row to find it, and Apple exposes no way
+  // to pin an app or to open a named share extension. That swipe cannot be
+  // removed, and most people will not make it. Tested on device: X sat behind
+  // AirDrop, Messages, Mail and Facebook and never appeared without a swipe.
   //
-  // Yes, it means choosing X from the sheet. There is no way to open a named
-  // share extension directly; Apple does not expose it.
-  const shareToX = () => handleShareAll();
+  // twitter://post is a URL SCHEME - a different door into the same app. It
+  // carries text only and can NEVER attach media, which is exactly why the
+  // certificate goes to Photos first and is attached in the composer by hand.
+  const shareToX = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const caption = socialCaption();
+      const uri = await certImageUri();
+
+      // Two routes for the picture, because the compose URL carries none.
+      // Photos always; the clipboard as well when it will take a file - the
+      // caption no longer needs the clipboard, because the intent prefills it.
+      const savedToPhotos    = uri ? Boolean(await saveToCameraRoll(uri)) : false;
+      const imageOnClipboard = uri ? await copyImageToClipboard(uri) : false;
+
+      // Only fall back to putting the caption on the clipboard if the picture
+      // is not there - one of them has to give way, and the caption is the one
+      // already arriving by another route.
+      if (!imageOnClipboard) {
+        try { await Clipboard.setStringAsync(caption); } catch {}
+      }
+
+      const { appUrl, webUrl } = buildXIntentUrls({ caption });
+      Alert.alert(
+        'Share to X',
+        buildXShareAlert({ imageOnClipboard, savedToPhotos }),
+        [
+          { text: 'Open X', onPress: async () => {
+            await openOrFallback(appUrl, webUrl, 'X');
+          } },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (e) {
+      if (e?.message !== 'User did not share') console.warn('X share failed:', e && e.message);
+    } finally { setSharing(false); }
+  };
 
   // Facebook's own ShareDialog opens the composer with the picture already
   // attached. Real builds only - the SDK is not linked in Expo Go, where this
@@ -307,7 +533,7 @@ export default function CertificateScreen({ navigation }) {
       // The caption for the post. Instagram, TikTok and Facebook accept no
       // prefilled text from another app, so the clipboard is the only route -
       // the person pastes it into the composer. X gets it via its intent.
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
       // Facebook's own ShareDialog opens the composer with the picture already
       // attached - confirmed working on device. The save-to-Photos flow below is
       // the fallback for Expo Go or a phone without the Facebook app.
@@ -338,16 +564,18 @@ export default function CertificateScreen({ navigation }) {
       const uri = await certImageUri();
       if (!uri) { Alert.alert('Could not prepare the certificate', 'Please try again.'); return; }
 
-      try { await Clipboard.setStringAsync(buildSocialMessage({ inviteUrl })); } catch {}
+      try { await Clipboard.setStringAsync(socialCaption()); } catch {}
 
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
-        await RNShare.open({
-          url: uri,
-          message: buildSocialMessage({ inviteUrl }),
-          failOnCancel: false,
-        });
+        // Bounded — see the note above handleShareText. An unsettled promise
+        // here leaves `sharing` true and kills the whole share row.
+        await withTimeout(
+          RNShare.open({ url: uri, message: socialCaption(), failOnCancel: false }),
+          SHARE_SHEET_TIMEOUT_MS,
+          'share sheet timed out',
+        ).catch((e) => { console.warn('Certificate share sheet:', e && e.message); });
         return;
       }
 

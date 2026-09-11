@@ -12,6 +12,7 @@ import {
 } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 const KB_DONE_ID = 'createActKbDone';
 
@@ -97,6 +98,17 @@ export default function CreateNewActScreen({ navigation, route, user, onComplete
     setSaving(true);
     try {
       const trimmedTitle = title.trim();
+
+      // A title the person invents, so it gets the same screening as a story.
+      // It also lands in the admin review queue via submitted_for_review, and
+      // nobody should have to read abuse in order to reject it.
+      const blocked = await isContentBlocked(trimmedTitle)
+        .catch((e) => { console.warn('moderation check skipped:', e && e.message); return false; });
+      if (blocked) {
+        Alert.alert('Content Not Allowed', BLOCKED_MESSAGE);
+        setSaving(false);
+        return;
+      }
       // Convert bucket selections to numeric midpoints for storage.
       // null when user didn't pick a bucket (time/cost are optional).
       const tMins  = timeBucketId ? TIME_MIDPOINT_BY_ID[timeBucketId] : null;
@@ -523,4 +535,4 @@ dropdownBtn: {
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

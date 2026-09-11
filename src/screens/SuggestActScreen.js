@@ -5,6 +5,7 @@ import {
 import { AppInput, Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
+import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 // User-facing "Suggest an Act" form. Opened from the 💡 Suggest tab. Writes a
 // lightweight suggestion (just a description) to public.act_suggestions with
@@ -20,6 +21,17 @@ export default function SuggestActScreen({ navigation }) {
     if (!canSave) return;
     setSaving(true);
     try {
+      // Suggestions go into a queue a person at 30 Acts reads. Screening here
+      // is not about protecting other users — no one else ever sees this — it
+      // is so a reviewer is not made to read abuse in order to reject it.
+      const blocked = await isContentBlocked(description.trim())
+        .catch((e) => { console.warn('moderation check skipped:', e && e.message); return false; });
+      if (blocked) {
+        Alert.alert('Content Not Allowed', BLOCKED_MESSAGE);
+        setSaving(false);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       const email = user?.email || null;
       const phone = email && email.endsWith('@phone.30acts.app')

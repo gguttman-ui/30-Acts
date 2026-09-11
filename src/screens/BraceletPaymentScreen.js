@@ -9,7 +9,6 @@ import { supabase } from '../lib/supabase';
 
 const SHIP_AMOUNT_NUM = '6.95';
 const SHIP_AMOUNT     = `$${SHIP_AMOUNT_NUM}`;
-const SHIP_NOTE       = 'Kindness bracelet shipping';
 
 // $6.95 bracelet-shipping payment. PayPal / Venmo / Zelle are handle-based, so
 // there's no automatic confirmation: the user sends the money and taps
@@ -33,53 +32,48 @@ export default function BraceletPaymentScreen({ navigation, route }) {
       }
       return;
     }
-    // Venmo's web profile is login-walled and renders as a blank white page in
-    // Safari. Open the app's pay sheet instead, with the shipping amount and a
-    // note already filled in so the donor can't send the wrong figure. Falls
-    // back to the web URL when the app isn't installed.
-    const deepLink = d.handle
-      ? `venmo://paycharge?txn=pay&recipients=${d.handle}`
-        + `&amount=${SHIP_AMOUNT_NUM}&note=${encodeURIComponent(SHIP_NOTE)}`
-      : d.deepLink;
-
-    if (deepLink) {
-      try {
-        await Linking.openURL(deepLink);
-        return;
-      } catch (e) {
-        // Not installed — fall through to the web URL.
-      }
-    }
-
-    // PayPal's managed QR-code link takes no amount parameter, so PayPal opens
-    // with an empty box and the payer types whatever they like. Until that
-    // account has a PayPal.me handle or a hosted button with a preset amount,
-    // the best we can do is put the figure on the clipboard and say so, so it
-    // is a paste rather than a guess.
-    if (!d.deepLink && !d.handle) {
-      try { await Clipboard.setStringAsync(SHIP_AMOUNT_NUM); } catch {}
-      Alert.alert(
-        `Send ${SHIP_AMOUNT} in ${d.label}`,
-        `${d.label} cannot pre-fill the amount, so ${SHIP_AMOUNT_NUM} is copied to your clipboard.\n\n`
-        + `${d.label} will open — paste it into the amount box, and put your name in the note so we can match your payment.`,
-        [
-          { text: `Open ${d.label}`, onPress: async () => {
-            try { await Linking.openURL(d.url); }
-            catch (e) {
-              Alert.alert(d.label, `We couldn't open ${d.label}. Send ${SHIP_AMOUNT} to:\n\n${d.value}`);
+    // NO DONATION ROUTE WE HAVE CAN PRE-FILL THE AMOUNT.
+    //
+    //   PayPal — the Giving Fund charity URL takes no amount parameter.
+    //   Venmo  — the charity profile's Donate flow takes no amount either.
+    //
+    // Venmo's venmo://paycharge deep link DOES take &amount= and &note=, and
+    // that is exactly why it was used here. It does not work: paycharge is
+    // Venmo's PERSON-TO-PERSON rail, and a charity profile refuses a P2P
+    // payment. The sheet resolves the charity by name, shows the amount and
+    // the note, and then fails with "You can't donate to this charity right
+    // now. Check back soon."
+    //
+    // Diagnosed on device 2026-09-02: three variables changed at once —
+    // credit card vs Venmo balance, $6.95 vs $1.00, this screen vs the donate
+    // screen — byte-identical failure every time, while donating to the same
+    // charity from inside the Venmo app worked. The account was never the
+    // problem; the rail was. Do not reintroduce paycharge for the pre-fill —
+    // a pre-filled amount on a payment that cannot complete is worth nothing.
+    //
+    // So every method here does the same thing: copy the figure, say so, and
+    // open the app at a place where the payment can actually be made.
+    try { await Clipboard.setStringAsync(SHIP_AMOUNT_NUM); } catch {}
+    Alert.alert(
+      `Send ${SHIP_AMOUNT} in ${d.label}`,
+      `${d.label} cannot pre-fill the amount, so ${SHIP_AMOUNT_NUM} is copied to your clipboard.\n\n`
+      + `${d.label} will open — paste it into the amount box, and put your name in the note so we can match your payment.`,
+      [
+        { text: `Open ${d.label}`, onPress: async () => {
+          // The app first, the web page only if the app is not installed.
+          if (d.deepLink) {
+            try { await Linking.openURL(d.deepLink); return; } catch (e) {
+              console.warn(`${d.label} app link failed, trying the web page:`, e && e.message);
             }
-          } },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-      return;
-    }
-
-    try {
-      await Linking.openURL(d.url);
-    } catch (e) {
-      Alert.alert(d.label, `We couldn't open ${d.label}. Send ${SHIP_AMOUNT} to:\n\n${d.value}`);
-    }
+          }
+          try { await Linking.openURL(d.url); }
+          catch (e) {
+            Alert.alert(d.label, `We couldn't open ${d.label}. Send ${SHIP_AMOUNT} to:\n\n${d.value}`);
+          }
+        } },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleSent = async () => {

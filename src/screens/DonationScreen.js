@@ -4,6 +4,31 @@ import * as Clipboard from 'expo-clipboard';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C, DONATIONS } from '../constants';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COPY RULE FOR THIS SCREEN — read before editing any user-facing string here.
+//
+// App Review REJECTED 1.0 build 97 on 2026-09-09 under guideline 3.1.1
+// (Business: Payments - In-App Purchase). The hero subtitle then read:
+//
+//     "Your donation helps us spread kindness worldwide and keep this app
+//      free for everyone."
+//
+// The reviewer read "keep this app free" as donations funding app development,
+// which WOULD require In-App Purchase. It does not: donations go to
+// 30 ACTS OF KINDNESS NFP, a 501(c)(3), and nothing in the app is unlocked,
+// granted, or improved by donating.
+//
+// What keeps this screen compliant, under guideline 3.2.2(iv):
+//   1. The copy talks about the CHARITABLE MISSION only. Never say or imply
+//      that a gift supports the app, its development, its running costs, or
+//      keeping it free. That single clause cost a review cycle.
+//   2. Every method opens OUTSIDE the app (Safari, or the donor's own bank
+//      app). Nothing takes a payment in-app.
+//   3. The 501(c)(3) name and EIN stay visible on the screen.
+//
+// Guarded by __tests__/donations.test.js.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function DonationScreen({ navigation }) {
   const [copiedId, setCopiedId] = useState(null);
 
@@ -55,7 +80,8 @@ export default function DonationScreen({ navigation }) {
           <Text style={s.heroEmoji}>💚</Text>
           <Text style={s.heroTitle}>Make a Difference</Text>
           <Text style={s.heroSub}>
-            Your donation helps us spread kindness worldwide and keep this app free for everyone.
+            Your donation supports the charitable mission of our 501(c)(3)
+            nonprofit, spreading kindness in communities everywhere.
           </Text>
         </View>
 
