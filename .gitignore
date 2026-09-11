@@ -30,3 +30,13 @@ dist/
 # local edit backups
 *.bak
 *.bak[0-9]
+
+# Database backups and restore scripts - NEVER commit.
+# These carry real users' phone numbers and the personal stories they wrote
+# about their acts. acts-backup.json and restore-completions.sql were pushed
+# to this PUBLIC repo on 2026-09-11 (one test phone number, no keys) before
+# this rule existed. After launch the same files would contain live user data.
+acts-backup.json
+restore-completions.sql
+*-backup.json
+restore-completions*.sql
