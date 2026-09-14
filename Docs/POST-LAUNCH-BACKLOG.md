@@ -6,7 +6,8 @@ Work that is deliberately deferred until after the app is live. Nothing here
 blocks submission. Add to it as things come up.
 
 > **Not on this list:** items that block App Store submission. Those live in the
-> current handoff doc. As of 2026-09-02 that is the CO-1 $15 fee (due ~9/16).
+> current handoff doc. As of 2026-09-13 nothing here blocks: the CO-1 was
+> submitted with its $15 payment on 2026-08-15 and is under review.
 > Two long-standing blockers closed: real SMS delivery was tested end to end and
 > works, and the Venmo failure turned out to be our deep link, not the charity
 > account — see item 12.
@@ -19,6 +20,10 @@ blocks submission. Add to it as things come up.
 > **The Desktop copy of this file was stale** — it had stopped at item 8 on
 > 30 August. `Docs\POST-LAUNCH-BACKLOG.md` is the real one; the Desktop copy is
 > a mirror and was overwritten from this file on 6 September.
+
+> **Synced 2026-09-14.** The repo copy in `Docs\` was missing the "Decisions
+> made 2026-09-08" block under item 2; the Desktop copy had it. Both copies are
+> now identical and both carry items 23 and 24.
 
 ---
 
@@ -74,6 +79,73 @@ be compared against what App Store Connect shows.
 the `preview` EAS channel pointed at staging and `production` at the live
 project. The riskiest single mistake is a staging `pg_cron` job still pointed at
 the production function URL.
+
+**State as of 2026-09-08:** `30-acts-staging` exists — ref
+`rhalruwxylggkrebyesf`, Free tier, West US (Oregon), in the **gmail** org
+alongside production. It is empty. Work stopped at the schema dump, which needs a
+production database password reset. PostgreSQL 17 client tools are installed on
+the laptop. Full resume steps are in HANDOFF20260903.md.
+
+### Decisions made 2026-09-08
+
+**No Twilio credentials in staging.** Twilio's test credentials were considered
+and rejected — they only accept specific magic numbers and reject everything
+else, so they produce errors rather than a usable test path. Instead:
+
+- **The primary control is the data:** staging contains only `555-010-xxxx`
+  numbers, which are not dialable. Nothing can be delivered to a real person
+  regardless of configuration.
+- **The backup control is the secret:** leave the Twilio auth token UNSET in the
+  staging Edge Function secrets, so `send-reminders` fails loudly instead of
+  sending. Nothing to manage, nothing to leak, no monthly cost.
+
+**Schema changes go to STAGING FIRST, then production.** Not the other way
+round. If production leads and staging catches up, staging is a mirror that
+tells you nothing.
+
+Each change becomes a numbered file in `supabase/migrations/`, applied to
+staging, verified, then applied to production. **This is the real fix behind
+this whole item.** Every schema change so far has been typed by hand into the
+Supabase SQL editor, which is why `supabase\prod-schema.sql` is 0 bytes, why
+nobody has a current table list, and why `get_tree_stats()` exists only inside
+the live database where it cannot be read or reviewed. A staging database
+without migration discipline drifts out of sync within a fortnight and is worse
+than no staging at all, because it invites false confidence.
+
+**Seeding staging from production is fine, table by table.** An earlier handoff
+said "do not copy user data"; that was about one specific danger — real phone
+numbers in a database with reminder cron jobs — not a technical limit.
+
+```powershell
+pg_dump --data-only --table=public.acts_of_kindness -d $prodconn -f acts.sql
+```
+
+Run the file in staging. Small tables can go through the dashboard's CSV export
+and import instead. Watch foreign-key order when loading — profiles before
+completions — or use `--disable-triggers`.
+
+Two rules make it safe:
+
+- **Reference data copies freely** — the acts catalogue, `app_metrics`. No
+  personal data, no risk.
+- **User-shaped data gets scrubbed on arrival.** Load with cron jobs DISABLED,
+  immediately rewrite every phone into the `555-010-xxxx` range and blank the
+  emails, notes and shipping addresses, then enable cron. Never the other order.
+
+**NEVER copy the `waitlist` table to staging.** Real phone numbers and real
+email addresses, and no test value whatsoever.
+
+The first seed, done right after the launch data wipe, is trivially safe because
+production will hold almost nothing. It is the seeds six months from now, when
+production holds real stories, where the scrub step earns its place.
+
+**Environment variables.** `eas.json` gets the staging URL and anon key on the
+`preview` profile, the live ones on `production`. These are baked in at build
+time, so this needs a new `eas build` — the same build that fixes the Sentry
+environment tagging (see item 11's second occurrence).
+
+**Free-tier staging pauses after about a week of inactivity.** Expected, not a
+fault. It needs a click to wake.
 
 **Do it when:** real users exist and testing against production stops being
 acceptable. That is roughly the day after launch.
@@ -692,6 +764,58 @@ transition.
 carries a personal invite QR long-term. In the meantime the launch checklist
 offers two interim options: accept it, or point the website QR at a separate
 organisation account rather than a personal one.
+
+---
+
+## 23. The streak does not close at day 30
+
+**Found 2026-09-12**, in David's dashboard screenshots after a completed run.
+
+A run of Jul 27 to Aug 25 shows correctly as a completed 30-day streak. The days
+that follow, Aug 26 to Sep 2, then appear as **STREAK - LAP 2** with tiles
+numbered **31 to 38**, on a board that runs on to slot 60. The header reads
+**Best streak - 38**.
+
+That last number is the tell. The engine is still counting Jul 27 through Sep 2
+as one unbroken 38-day run, so this is not a labelling problem with a cosmetic
+fix.
+
+**What it should do**, per the decision of late August: completing day 30 closes
+that streak. Aug 26 starts a NEW streak, shown as day **1** on a fresh 30-slot
+board on its own page. Best streak should read 30, with a separate 8-day streak
+recorded alongside it.
+
+**Where it lives:** the counting in `src/lib/streak.js`, and the grid built by
+`buildGridFromStreak`. The 31-to-38 numbering and the 60-slot board are what the
+grid does downstream of the count, so fix the count first.
+
+**Watch out:** `findMostRecentStreak` returns all completions in calendar order,
+and Restart Challenge is the only mechanism that wipes history. Whatever closes
+a streak at 30 must not break either of those. Tests first, per the working
+rule on this project.
+
+**Do it when:** after Apple approves the pending 1.0. It is a code change and
+therefore a new build, and nothing goes near the binary under review.
+
+---
+
+## 24. The current-streak board pre-labels unearned tiles with future dates
+
+**Found 2026-09-12**, in the same set of screenshots.
+
+On the current streak page, day 1 is today and every remaining tile carries the
+calendar date it would fall on - Sep 13, Sep 14, and so on out to Oct 5. The
+board therefore reads as a schedule of 30 fixed appointments rather than 30 days
+to be earned.
+
+Miss a day and every one of those printed dates is wrong, which is a poor
+message to hand someone who has just broken a streak.
+
+**The fix:** show the date on a tile once the day is earned, and leave unearned
+tiles as plain numbers.
+
+**Do it when:** after Apple approves the pending 1.0. Small, and it pairs
+naturally with item 23 since both are in the same grid code.
 
 ---
 
