@@ -819,6 +819,51 @@ naturally with item 23 since both are in the same grid code.
 
 ---
 
+## 25. The HELP auto-reply is Twilio's stock text and identifies nothing
+
+**Found 2026-09-14**, from a screenshot of a real reminder on a real phone.
+
+The reminder itself reads:
+
+> 30 Acts of Kindness: don't forget today's act of kindness! Reply STOP to end,
+> HELP for help.
+
+Replying **HELP** returns:
+
+> Reply STOP to unsubscribe. Msg&Data Rates May Apply.
+
+That is Twilio's default Advanced Opt-Out response. It does not name the
+program, does not say who is texting, and gives no way to reach a human. A
+recipient who has forgotten signing up learns nothing from it, and the message
+arrives from a bare 833 number with no sender name attached.
+
+**Why it matters beyond politeness:** carrier and CTIA expectations for a HELP
+reply are that it identifies the program, states message frequency, notes that
+message and data rates apply, gives a support contact, and repeats the STOP
+instruction. Toll-free verification is assessed partly on opt-in and opt-out
+handling, and this number's verification was already rejected once earlier in
+the project.
+
+**The fix:** set custom HELP, STOP and START responses on the toll-free number
+in the Twilio Console, under Messaging - Services - Opt-Out Management
+(Advanced Opt-Out). Something close to:
+
+> 30 Acts of Kindness (30ActsofKindness.org): daily reminder to do one kind act.
+> Msg frequency varies. Msg & data rates may apply. Reply STOP to cancel.
+> Help: <a real, monitored inbox>
+
+Use an address that someone actually reads. Keep it under 160 characters so it
+arrives as one segment.
+
+**No app build required.** This is a console setting on the Twilio side, not
+code, so it does not touch the binary under review and could be done at any
+time.
+
+**Do it when:** after go-live, per Gary. Worth doing before the launch emails go
+out, though, since that is when the first real strangers start receiving these.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
