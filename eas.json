@@ -11,7 +11,7 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true", "EXPO_PUBLIC_SUPABASE_URL": "https://rhalruwxylggkrebyesf.supabase.co", "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_whYqt4BClhIuHziqHbl-0A_NtA44idG" },
       "channel": "preview"
     },
     "production": {
