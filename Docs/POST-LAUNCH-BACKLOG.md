@@ -864,6 +864,33 @@ out, though, since that is when the first real strangers start receiving these.
 
 ---
 
+## 26. Staging and production cannot coexist on one phone
+
+Both builds ship with the bundle identifier `org.30actsofkindness.app`, so iOS
+treats them as the same app. Installing the staging preview build removes the
+production TestFlight build, and installing production removes staging. Every
+switch between environments is a delete-and-reinstall.
+
+**The fix:** give staging its own bundle identifier, for example
+`org.30actsofkindness.app.staging`, set per EAS build profile. EAS registers
+the App ID and provisioning profile itself. Give it a distinct display name and
+icon too, or the two are indistinguishable on the home screen.
+
+**What it buys:** separate storage, so a staging session can never leak into
+production, and instant switching instead of a reinstall.
+
+**Why it waits:** the referral chain runs through deep links - Branch, the
+`?ref=` parameter, expo-linking. Two apps on one device claiming the same URL
+scheme is resolved unpredictably by iOS, so splitting the bundle identifier
+also means splitting the URL scheme. The referral chain is the one flow
+TestFlight cannot test and that still has to be verified by hand on the store
+build (the Part D test). Changing how deep links resolve before that test has
+passed would undermine it.
+
+**Do it when:** after launch, and after Part D has passed on the store build.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
