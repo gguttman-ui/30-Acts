@@ -891,6 +891,51 @@ passed would undermine it.
 
 ---
 
+## 27. Reminders keep sending to people who have stopped using the app
+
+A participant who signs up, does a few days and then drifts away keeps receiving
+two texts a day for the remainder of their run. Nobody benefits. It costs real
+money - roughly a cent and a half per message - and worse, it is exactly the
+pattern that produces STOP replies and spam complaints, which is what carrier
+reputation is judged on.
+
+**The fix:** in `send-reminders`, skip anyone whose last completion is more than
+10 days old, and clear their reminder slots so the state is explicit rather than
+silently suppressed.
+
+**Decide when implementing:**
+- Off permanently, or paused until they next open the app?
+- Send one final courtesy text ("reminders paused - open the app to restart")?
+  That is one message instead of twenty, and it reads as considerate rather than
+  abandoning them.
+- Does "activity" mean a completion, or any app open? A completion is the only
+  one currently recorded server-side.
+
+**Do it when:** after launch, once there is real drop-off data to size the
+window against. Ten days is a guess until then.
+
+---
+
+## 28. Reduce reminders from two a day to one
+
+Two texts a day is the current design and it is the single largest running cost
+in the project: 60 messages over a 30-day run, about 80 cents per participant.
+One a day halves it, and may well read as less naggy.
+
+**Decide when implementing:**
+- Remove the second slot from the reminder card entirely, or keep it as an
+  option that defaults to off? The card currently requires reminder 1 before
+  reminder 2 can be set, so removing the second slot is the simpler change.
+- **This has dependencies outside the app.** The HELP auto-reply says "up to 2
+  texts/day" and the toll-free verification was approved against a stated volume.
+  Both need updating if the frequency changes, or the program description no
+  longer matches what is actually sent.
+
+**Do it when:** after launch, ideally alongside item 27 so the SMS copy and the
+toll-free registration are revised once rather than twice.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
