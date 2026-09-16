@@ -17,6 +17,11 @@ import { supabase } from './supabase';
 // Dashboard view's model. Nothing here mutates data -- it is pure derivation
 // from the completions table, so no migration is required.
 
+const MAX_RUN_LEN = 30; // A streak ENDS at day 30 (decided August 2026). Act 31
+                        // does not extend it -- it begins a new streak at day 1.
+                        // Without this cap "Best streak" reports 38 for a 38-day
+                        // stretch, and the header counts past 30.
+
 const GAP_ENDS_RUN = 2; // ANY missed day ends a streak (dayDiff >= 2 = a gap).
                         // A streak is only truly-consecutive days, so the
                         // "This streak" count matches what the user counts.
@@ -89,7 +94,7 @@ export function splitIntoRuns(completions, todayDate = localDateStr(new Date()))
   for (let i = 1; i < rows.length; i++) {
     const prevDate = rowLocalDate(rows[i - 1]);
     const thisDate = rowLocalDate(rows[i]);
-    if (dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN) {
+    if (current.length >= MAX_RUN_LEN || dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN) {
       runs.push(current);
       current = [rows[i]];
     } else {
@@ -235,4 +240,4 @@ export async function lifetimeCompletionCount(phone) {
     console.warn('lifetimeCompletionCount failed:', e.message);
     return null;
   }
-}
+}
