@@ -108,5 +108,9 @@ Deno.serve(async (req) => {
     // reply, send it anyway — the DB write is best-effort.
   }
 
-  return twiml(reply);
+  // 2026-09-16: Twilio Advanced Opt-Out is now ON for Messaging Service "30 Actss",
+  // so Twilio answers STOP/START/HELP itself. Replying here as well sent two texts
+  // per keyword. The reply strings above are kept for the day it is switched off.
+  if (reply) console.log('reply suppressed, Twilio Advanced Opt-Out handled:', word);
+  return twiml();
 });
