@@ -88,7 +88,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.2 Information We Collect',
-    body: 'Information you provide:\n• Name or display name\n• Email address\n• Password or login credentials\n• State, city, timezone, and profile details\n• Act entries, titles, stories, comments, and feedback\n• Uploaded photos, videos, and other content\n• Mailing information for bracelets or recognition items, if applicable\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
+    body: 'Information you provide:\n• Mobile phone number\n• Name or display name\n• ZIP code, and the state, city, and timezone derived from it\n• Act entries, titles, stories, comments, and feedback\n• Mailing information for bracelets or recognition items, if applicable\n\nWe do not collect or store a password. Signing in uses your mobile number and a one-time code sent by text.\n\nIf you share an act by text or email, the message is composed in your own messaging or mail app. We do not collect the recipient’s phone number or email address.\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
   },
   {
     heading: '2.3 How We Use Information',
@@ -104,7 +104,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.5 Sharing of Information',
-    body: 'We may share personal information with hosting, storage, and infrastructure providers; analytics and crash-reporting tools; moderation and fraud-prevention vendors; email, notification, and customer support providers; payment or donation processors; legal authorities where required by law; and professional advisors.\n\nWe do not sell personal information.',
+    body: 'We may share personal information with the service providers that operate the app on our behalf, including Supabase (database, authentication, and file hosting), Twilio (text message delivery), Sentry (crash and performance diagnostics), Branch Metrics (invitation links and referral attribution), and PayPal (donations).\n\nWe may also share information with legal authorities where required by law, and with our professional advisors.\n\nWe do not sell personal information.',
   },
   {
     heading: '2.6 Public Features',
