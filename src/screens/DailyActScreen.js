@@ -2164,27 +2164,7 @@ challengeBadge: {
   },
   fullImageCloseText: { color: '#fff', fontSize: sf(13), fontWeight: '700' },
 
-  shareDivider: {
-    borderTopWidth: 1, borderTopColor: C.border,
-    marginTop: 16, paddingTop: 16, width: '100%', alignItems: 'center',
-  },
-  sharePrompt: { color: C.sub, fontSize: sf(13), textAlign: 'center', marginBottom: 14 },
 
-  socialRow: {
-    flexDirection: 'row', gap: 8, marginBottom: 12, width: '100%',
-  },
-  socialBtn: {
-    flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1.5,
-    paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center',
-  },
-
-  shareRow: { flexDirection: 'row', gap: 12, marginBottom: 16, width: '100%' },
-  shareBtn: {
-    flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1,
-    borderColor: C.border, paddingVertical: 12, alignItems: 'center', gap: 4,
-  },
-  shareBtnIcon:  { fontSize: sf(24) },
-  shareBtnLabel: { color: C.text, fontSize: sf(12), fontWeight: '700' },
   skipShare: { marginTop: 4 },
   skipShareText: { color: C.muted, fontSize: sf(12) },
 

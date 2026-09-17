@@ -916,7 +916,6 @@ const s = StyleSheet.create({
   storyLabel: { color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: 6 },
   storyText: { color: C.text, fontSize: 14, lineHeight: 20 },
   shareHeader: { color: C.text, fontSize: 16, fontWeight: '800', marginBottom: 4 },
-  sharePrompt: { color: C.sub, fontSize: 13, marginBottom: 14, lineHeight: 18 },
 
   mediaWrap: { marginBottom: 12 },
   mediaImage: {
@@ -1001,22 +1000,6 @@ videoBox: {
   },
   fullImageCloseText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
-  // Social row: icon-only buttons (labels removed, icon size bumped)
-  socialRow: {
-    flexDirection: 'row', gap: 8, marginBottom: 12,
-  },
-  socialBtn: {
-    flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1.5,
-    paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center',
-  },
-
-  shareRow: { flexDirection: 'row', gap: 12 },
-  shareBtn: {
-    flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1,
-    borderColor: C.border, paddingVertical: 12, alignItems: 'center', gap: 4,
-  },
-shareBtnIcon:  { fontSize: 24 },
-  shareBtnLabel: { color: C.text, fontSize: 12, fontWeight: '700' },
 
   deleteBtn: {
     flexDirection: 'row',

@@ -1335,22 +1335,6 @@ const s = StyleSheet.create({
   },
   successTitle: { color: C.text, fontSize: sf(22), fontWeight: '800', marginTop: 8 },
   successSub:   { color: C.sub, fontSize: sf(14), textAlign: 'center', marginTop: 4 },
-  shareDivider: { marginTop: 20, width: '100%' },
-  sharePrompt:  { color: C.sub, fontSize: sf(13), textAlign: 'center', marginBottom: 14 },
-  socialRow: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 18 },
-  socialBtn: {
-    width: 56, height: 56, borderRadius: 28,
-    borderWidth: 2, backgroundColor: C.card2,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  shareRow: { flexDirection: 'row', gap: 12, marginBottom: 16, width: '100%' },
-  shareBtn: {
-    flex: 1, backgroundColor: C.card2, borderRadius: 12,
-    borderWidth: 1, borderColor: C.border,
-    paddingVertical: 14, alignItems: 'center',
-  },
-  shareBtnIcon:  { fontSize: sf(24) },
-  shareBtnLabel: { color: C.text, fontSize: sf(12), fontWeight: '700', marginTop: 4 },
   skipShare: { marginTop: 12, paddingVertical: 10, alignItems: 'center' },
   skipShareText: { color: C.primary, fontSize: sf(18), fontWeight: '800' },
 
