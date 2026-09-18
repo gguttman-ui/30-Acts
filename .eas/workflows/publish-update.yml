@@ -1,8 +1,23 @@
 name: Publish production update
 
+# MANUAL ONLY - deliberately, and do not add a push trigger back.
+#
+# This publishes an over-the-air update to the `production` channel, which the
+# App Store build reads with NO review and NO gate. It reaches every real user
+# within two app launches.
+#
+# Until 18 Sep 2026 this ran on every push to `main`. A docs-only commit
+# ("Docs: add backlog item 25, Twilio HELP...") published a production OTA on
+# 14 Sep 2026. Editing a markdown file should not ship code to users.
+#
+# To publish deliberately, prefer the CLI so the update carries a real message:
+#
+#   npx eas update --branch production --environment production --message "what changed"
+#
+# Running this workflow by hand from the EAS dashboard also works, but the
+# message below is fixed - edit it first so the update group is identifiable.
+
 on:
-  push:
-    branches: ['main']
   workflow_dispatch: {}
 
 jobs:
@@ -11,5 +26,5 @@ jobs:
     type: update
     params:
       branch: production
-      message: OTA - grid fit, tile glyph, Phone label wrap
+      message: Manual production OTA
       platform: all
