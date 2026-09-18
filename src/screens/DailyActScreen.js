@@ -28,15 +28,7 @@ import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds, getActiveSponsors } from '../lib/streak';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
-// Supabase REST/Edge-function calls below use these directly. EAS builds do
-// NOT receive the gitignored .env, so fall back to the public project URL +
-// anon key (same values as src/lib/supabase.js) so moderation and Day-30
-// notifications keep working in TestFlight / App Store builds.
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-// Publishable key, matching lib/supabase.js. The old legacy anon JWT that
-// used to sit here is DISABLED -- any build without EXPO_PUBLIC_SUPABASE_ANON_KEY
-// set (e.g. the preview profile) silently failed every call below.
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 
 const STORY_MIN = 10;
 const STORY_MAX = 200;

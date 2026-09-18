@@ -7,20 +7,7 @@ import {
 import { Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 
-// Same hardcoded fallbacks as lib/supabase.js. EXPO_PUBLIC_* vars are only
-// inlined when they're set in the environment at bundle-build time, and they
-// aren't during `eas update` — so without these fallbacks the raw REST fetches
-// below hit `undefined/rest/v1/...` and fail with "Network request failed".
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
-
-import { supabase } from '../lib/supabase';
-
-const REST_HEADERS = {
-  'apikey':        SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type':  'application/json',
-};
+import { supabase, SUPABASE_URL, REST_HEADERS } from '../lib/supabase';
 
 const KEYBOARD_ACCESSORY_ID = 'adminKeyboardAccessory';
 

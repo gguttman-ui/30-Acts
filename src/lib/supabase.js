@@ -2,8 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
+// The project URL / key / headers live in a pure module so that unit tests can
+// import them without pulling in AsyncStorage. Re-exported here so existing
+// `from '../lib/supabase'` imports keep working.
+export {
+  SUPABASE_URL, SUPABASE_ANON_KEY, REST_HEADERS, PROJECT_REF, DB_ENVIRONMENT,
+} from './supabaseEnv';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseEnv';
 
 const storage = Platform.OS === 'web' ? {
   getItem:    (key)        => Promise.resolve(window.localStorage.getItem(key)),

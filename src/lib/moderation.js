@@ -1,8 +1,4 @@
-// supabase.js keeps these module-local, so mirror them here using the SAME
-// publishable key it uses. Do NOT paste the old legacy anon JWT -- it is
-// disabled, and any call made with it fails.
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseEnv';
 
 // -- Content moderation ----------------------------------------------------
 // Lifted out of DailyActScreen so it can guard EVERY user-authored field,

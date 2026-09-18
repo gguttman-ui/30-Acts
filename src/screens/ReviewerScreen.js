@@ -6,17 +6,7 @@ import {
 import { Card, ScreenHeader } from '../components';
 import { C, ACT_CATEGORIES } from '../constants';
 
-// Same hardcoded fallbacks as lib/supabase.js — EXPO_PUBLIC_* vars aren't
-// inlined during `eas update`, so without these the raw REST fetches below hit
-// `undefined/rest/v1/...` and fail with "Network request failed".
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      || 'https://mtfyekdxtkdiaqbgaoza.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9';
-
-const REST_HEADERS = {
-  'apikey':        SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type':  'application/json',
-};
+import { SUPABASE_URL, SUPABASE_ANON_KEY, REST_HEADERS } from '../lib/supabase';
 
 const APPROVED_MSG = "Great work making the World a Kinder place";
 const REJECTED_MSG = "We have reviewed your act and is not within our guidelines and will be deleted. Please perform an Act today that will bring happiness to someone else";

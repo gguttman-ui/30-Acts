@@ -17,6 +17,7 @@ import { generateInviteLink } from '../lib/branch';
 import { loadRuns, lapCount, actsInLap } from '../lib/runs';
 import QRCode from 'react-native-qrcode-svg';
 import * as Updates from 'expo-updates';
+import { DB_ENVIRONMENT, PROJECT_REF } from '../lib/supabase';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -1061,12 +1062,20 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   onPress={() => setShowDeleteConfirm(true)}
   style={{ marginBottom: 24 }}
 />
-        {/* Which JS bundle is actually running. "embedded" means no
-            over-the-air update has been applied and the phone is still on the
-            code that shipped inside the build. */}
+        {/* Which JS bundle is actually running, and which database it is
+            talking to. "embedded" means no over-the-air update has been applied
+            and the phone is still on the code that shipped inside the build.
+            The db value is read off the Supabase URL the app actually holds, not
+            off the build channel - on 16 Sep 2026 those two disagreed and
+            nothing on screen said so. If the channel reads preview and the db
+            reads production (or the reverse), that is the bug, not a display
+            quirk. */}
         <Text style={s.buildStamp}>
           v{Updates.runtimeVersion || '1.0.0'} {'\u00b7'} {Updates.channel || 'dev'} {'\u00b7'} update{' '}
           {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'}
+        </Text>
+        <Text style={s.buildStampDb}>
+          db {'\u00b7'} {DB_ENVIRONMENT === 'other' ? PROJECT_REF : DB_ENVIRONMENT}
         </Text>
       </ScrollView>
 <Modal visible={showAgeBrackets} animationType="slide" presentationStyle="pageSheet">
@@ -1207,6 +1216,10 @@ const s = StyleSheet.create({
   buildStamp: {
     color: C.muted, fontSize: 11, textAlign: 'center',
     marginTop: 18, marginBottom: 6, letterSpacing: 0.4,
+  },
+  buildStampDb: {
+    color: C.muted, fontSize: 11, textAlign: 'center',
+    marginTop: 0, marginBottom: 6, letterSpacing: 0.4,
   },
   reminderHint: {
     color: C.muted, fontSize: 11, fontStyle: 'italic',
