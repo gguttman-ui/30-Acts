@@ -785,6 +785,8 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           onChangeText={handlePhoneChange}
           placeholder="(555) 555-5555"
           keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+          autoComplete="tel"
           maxLength={14}
           error={errors.phone}
           inputAccessoryViewID={KB_DONE_ID}
@@ -799,10 +801,10 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <AppInput label="First Name" value={fn} onChangeText={setFn} placeholder="Jane" error={errors.fn} />
+                <AppInput label="First Name" value={fn} onChangeText={setFn} placeholder="Jane" error={errors.fn} textContentType="givenName" autoComplete="given-name" />
               </View>
               <View style={{ flex: 1 }}>
-                <AppInput label="Last Name" value={ln} onChangeText={setLn} placeholder="Doe" error={errors.ln} />
+                <AppInput label="Last Name" value={ln} onChangeText={setLn} placeholder="Doe" error={errors.ln} textContentType="familyName" autoComplete="family-name" />
               </View>
             </View>
 
@@ -812,6 +814,8 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
               onChangeText={(t) => setZip(t.replace(/[^\d]/g, '').slice(0, 5))}
               placeholder="62704"
               keyboardType="number-pad"
+              textContentType="postalCode"
+              autoComplete="postal-code"
               maxLength={5}
               error={errors.zip}
               inputAccessoryViewID={KB_DONE_ID}

@@ -43,7 +43,12 @@ export function Btn({ label, onPress, variant = 'primary', disabled, loading, st
 // A caller can still pass its own inputAccessoryViewID to opt out and
 // manage the accessory itself.
 let _appInputAccessoryCounter = 0;
-export function AppInput({ label, value, onChangeText, placeholder, secureTextEntry, error, multiline, maxLength, editable = true, keyboardType, autoCapitalize, inputAccessoryViewID }) {
+// textContentType / autoComplete are what let iOS offer a saved value above the
+// keyboard (the phone number from the Contacts "me" card, a name, a ZIP). They
+// are inert without them - the props must be forwarded, not just passed in.
+// iOS cannot give an app its own phone number; offering it to fill is as close
+// as it gets. See backlog item 35.
+export function AppInput({ label, value, onChangeText, placeholder, secureTextEntry, error, multiline, maxLength, editable = true, keyboardType, autoCapitalize, inputAccessoryViewID, textContentType, autoComplete }) {
   const idRef = React.useRef(null);
   if (idRef.current === null) {
     idRef.current = inputAccessoryViewID || `appinput-done-${++_appInputAccessoryCounter}`;
@@ -65,6 +70,8 @@ export function AppInput({ label, value, onChangeText, placeholder, secureTextEn
         editable={editable}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        textContentType={textContentType}
+        autoComplete={autoComplete}
         inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
         style={[
           styles.input,
