@@ -46,6 +46,26 @@ Sentry.init({
   replaysOnErrorSampleRate: 1,
   integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
+  // App hang tracking OFF - 18 Sep 2026, backlog item 11.
+  //
+  // It reported REACT-NATIVE-6 ("App hanging between 85.4 and 86.2 seconds")
+  // and REACT-NATIVE-7 (the OS watchdog terminating the app). Both were false
+  // positives, and the session replay proved it: the screen was
+  // MFMailComposeInternalViewController - Apple's mail compose sheet, which
+  // comes up when someone taps Email to share an act. The tester spent a minute
+  // and a half writing an email. While a system view controller owns the screen
+  // the detector sees our main thread as blocked, so ordinary use of a core
+  // feature logs a hang.
+  //
+  // This would only get worse with real users: every email slower than a couple
+  // of seconds is an event, and the plan's event quota is finite.
+  //
+  // The cost of turning it off: a genuine freeze severe enough for iOS to kill
+  // the app is no longer reported as a hang. Accepted - crashes and JS errors
+  // are unaffected, and both hangs on record were the mail sheet. If real hang
+  // data is ever wanted, profiling is the better tool than this detector.
+  enableAppHangTracking: false,
+
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });

@@ -85,3 +85,62 @@ The `appId` is set for iOS (`org.30actsofkindness.app`); for Android use
 2. `maestro test .maestro/` — signup + login happy paths pass on a simulator.
 3. Walk the manual spreadsheet (`30Acts-Test-Script.xlsx`) for the SMS, Day 30,
    and accessibility items that can't be automated.
+
+---
+
+## Pending verification — batch committed 18 September 2026
+
+These changes are committed and on the `preview` channel but have **not** been
+through a device pass. Work through them next time the staging build is on a
+phone. Nothing here needs a new build - all of it is JavaScript and rides an
+`eas update --branch preview --environment preview`.
+
+### Item 30 - one source for the Supabase project
+
+1. **Settings, bottom of the screen.** Two lines now, not one:
+   `v1.0.0 - preview - update <id>` and `db - staging`. The second is read off
+   the Supabase URL the app is holding, not the build channel. On a staging
+   build it must say `staging`. If it ever says `production` on a preview
+   build, stop - that is the 16 Sep bug and it is live again.
+2. **Admin screen, every tab** - completions, users, admins, reviewers, groups,
+   ZIPs, stats. These went from building their own REST headers to importing
+   them. A broken import shows as empty lists or "Network request failed",
+   not a crash.
+3. **Reviewer screen** - the completions list populates.
+4. **Log an act, then check staging:**
+   `select count(*) from completions;` before and after. The number moves.
+   That is the only proof that survives a confident-looking UI.
+
+### Item 35 - iOS autofill on the sign-up fields
+
+5. Sign out, then tap the **Mobile Number** field. iOS should offer your number
+   in the bar above the keyboard, for one tap. Needs a phone number on the
+   Contacts "me" card - without one nothing is offered, which is correct
+   behaviour and not a failure.
+6. New-user path: **First Name**, **Last Name** and **ZIP** should offer
+   saved values the same way.
+7. The SMS code field already autofilled before this change - confirm it
+   still does.
+
+### Item 11 - Sentry app hang tracking off
+
+8. Share an act by **Email** and leave the mail sheet open for two minutes,
+   then cancel. No "App Hang" issue should appear in Sentry afterwards.
+   Before this change that reliably produced one.
+9. Confirm ordinary error reporting still works - anything that throws should
+   still arrive in Sentry with a replay attached.
+
+### Regressions to watch from the 17 Sep cleanup
+
+10. **Share row layout** on My Story, History and Certificate. Item 4 removed
+    style blocks from those screens; the Text / Email / More buttons should
+    look exactly as before. A button that has lost its box or gone full-width
+    is the tell.
+11. **Legal - Privacy Policy**, sections 2.2 and 2.5. Should read "Mobile phone
+    number", must NOT mention a password or photos and videos, and 2.5 should
+    name Supabase, Twilio, Sentry, Branch Metrics and PayPal.
+
+### Already verified on device, no need to repeat
+
+- Backlog 23 and 24 - the dashboard lap/streak fix and unearned tile dates.
+- `db - staging` appearing at all (update `01a0b5ac`, 18 Sep).
