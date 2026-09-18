@@ -40,3 +40,6 @@ acts-backup.json
 restore-completions.sql
 *-backup.json
 restore-completions*.sql
+
+config-baseline.json
+config-check.json
