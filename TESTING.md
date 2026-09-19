@@ -144,3 +144,59 @@ phone. Nothing here needs a new build - all of it is JavaScript and rides an
 
 - Backlog 23 and 24 - the dashboard lap/streak fix and unearned tile dates.
 - `db - staging` appearing at all (update `01a0b5ac`, 18 Sep).
+
+---
+
+## Getting a build onto a phone (19 September 2026, item 26)
+
+Staging and production are now separate apps and live on the same phone at the
+same time. Nothing needs deleting to switch between them any more.
+
+| | Production | Staging |
+|---|---|---|
+| Home screen | **30 Acts** | **30 Acts Stg** (red STAGING band) |
+| Bundle id | `org.30actsofkindness.app` | `org.30actsofkindness.app.staging` |
+| App Store Connect | 6762151038 | 6813974376 |
+| Update channel | `production` | `preview` |
+| Database | `mtfyekdxtkdiaqbgaoza` | `rhalruwxylggkrebyesf` |
+
+### JS-only change - no build needed
+
+```
+eas update --branch preview --environment preview
+```
+
+Reaches every staging tester in seconds. This is the normal path.
+
+### Native change - new build and submit
+
+```
+eas build  --profile staging --platform ios
+eas submit --profile staging --platform ios --latest
+```
+
+Apple processes it for 10-20 minutes, then it appears in TestFlight for the
+`Staging` internal group. No Beta App Review for internal testers.
+
+### Adding a tester
+
+1. App Store Connect - **Users and Access** - the person must be a user on the
+   account, and their **Apps** list must include *30 Acts of Kindness Staging*.
+   An existing user who only has production checked will NOT appear in the
+   tester picker. That is the usual reason someone is "missing".
+2. Staging app - **TestFlight** - **Staging** group - **+** - add them.
+
+### First install on a phone
+
+Open **TestFlight** on the phone, pull to refresh, tap INSTALL. If it is not
+listed, profile icon - **Redeem** - enter the code from the invite email.
+
+**If Redeem spins forever:** the phone still has an older ad-hoc build of the
+same bundle id. Delete the **30 Acts Stg** icon, then redeem again.
+
+### Check before trusting anything
+
+Settings, bottom of the screen. The Stg app must read `db - staging` and the
+production app `db - production`. The build log resolves EAS's *production*
+environment for store builds and the build-profile env overrides it, so the
+on-device stamp is the proof, not the log.
