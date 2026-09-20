@@ -23,8 +23,7 @@
       ],
       "infoPlist": {
         "CFBundleDisplayName": "30 Acts",
-        "NSCameraUsageDescription": "Used to take photos/videos as proof of your kind acts.",
-        "NSPhotoLibraryUsageDescription": "Used to attach photos/videos as proof of your kind acts.",
+        "NSPhotoLibraryUsageDescription": "Used to save the image of your act to your photo library when you share it to Instagram or TikTok.",
         "NSPhotoLibraryAddUsageDescription": "Used to save photos to your camera roll when sharing acts to Instagram or TikTok.",
         "NSFaceIDUsageDescription": "Used to lock the app with Face ID so only you can open it.",
         "ITSAppUsesNonExemptEncryption": false,
@@ -60,13 +59,6 @@
     },
     "plugins": [
       "expo-secure-store",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Attach a photo as proof of your kind act.",
-          "cameraPermission": "Take a photo as proof of your kind act."
-        }
-      ],
       [
         "expo-media-library",
         {
