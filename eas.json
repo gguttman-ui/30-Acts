@@ -25,6 +25,10 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://mtfyekdxtkdiaqbgaoza.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_7Yy5NBm4XmpO1syrdjT62A_4stDanF9"
+      },
       "ios": {
         "credentialsSource": "remote"
       }

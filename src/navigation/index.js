@@ -58,6 +58,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
       user={user}
       challenge={days}
       onStartChallenge={onStartChallenge}
+      onRestart={onRestart}
       navigate={(dest) => {
         if (dest === 'logout') onLogout();
       }}
@@ -167,7 +168,27 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
                 />
               )}
             </Stack.Screen>
-            <Stack.Screen name="CreateSponsor" component={CreateSponsorScreen} />
+            {/* CreateSponsor is reached from Settings > "Sponsor a New Group"
+                and from MySponsors. It renders no header of its own, and the
+                stack hides headers by default, so it used to be a dead end:
+                a user who opened it by accident had no way back. Its two views
+                (the form, and the post-create QR screen) want different titles,
+                so the bar carries the back arrow only. Same shape as
+                SponsorDetail below. */}
+            <Stack.Screen
+              name="CreateSponsor"
+              component={CreateSponsorScreen}
+              options={({ navigation }) => ({
+                headerShown: true,
+                title: '',
+                headerBackTitle: 'Back',
+                headerLeft: () => (
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingLeft: 12 }}>
+                    <Text style={{ color: '#0a0', fontSize: 16 }}>← Back</Text>
+                  </TouchableOpacity>
+                ),
+              })}
+            />
             <Stack.Screen name="MySponsors" component={MySponsorsScreen} />
             <Stack.Screen name="JoinSponsor" component={JoinSponsorScreen} />
             <Stack.Screen name="CreateNewAct">

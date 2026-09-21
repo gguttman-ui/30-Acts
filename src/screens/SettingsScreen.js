@@ -66,7 +66,7 @@ function KeyboardDoneBar() {
   );
 }
 
-export default function SettingsScreen({ user, challenge, onStartChallenge, navigation, navigate, route }) {
+export default function SettingsScreen({ user, challenge, onStartChallenge, onRestart, navigation, navigate, route }) {
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName,  setLastName]  = useState(user?.lastName  || '');
   const [contactEmail, setContactEmail] = useState('');
@@ -351,13 +351,18 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, navi
   }, [user?.email, challenge]);
   const completedCount = streakActs != null ? streakActs : windowCompleted;
 
+  // Restart must call onRestart (App.handleRestart), which writes the
+  // last_restart_at marker on the profile that loadGridReadOnly filters by.
+  // It used to call onStartChallenge, which is only `await reloadDays()` — so
+  // the confirm dialog appeared, nothing was written, and the old streak came
+  // straight back. Ghenno reported it; verified in staging 2026-09-20.
   const handleRestart = () => {
     Alert.alert(
       'Restart?',
       "We'll keep your most recent unbroken streak of completed days and drop the rest. If you have no completed days, you'll start fresh from Day 1.",
       [
         { text: 'Keep everything', style: 'cancel' },
-        { text: 'Yes, restart', style: 'destructive', onPress: onStartChallenge },
+        { text: 'Yes, restart', style: 'destructive', onPress: onRestart },
       ]
     );
   };
