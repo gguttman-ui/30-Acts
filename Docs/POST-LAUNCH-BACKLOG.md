@@ -27,7 +27,30 @@ blocks submission. Add to it as things come up.
 
 ---
 
+> **Two files, one backlog — read this first.**
+>
+> The live working list is **`Desktop\30-acts-backlog.xlsx`**, items 1-50. It
+> carries the current *status*, *priority* and *timing* for every item, and it is
+> where new items are added.
+>
+> **This file is the long-form record.** For items 1-28 it holds far more
+> reasoning than the spreadsheet cells do — typically five to ten times the text,
+> including the "Decide when implementing" and "Do it when" notes. That is why it
+> was not simply regenerated from the spreadsheet.
+>
+> The two had forked: this file stopped at item 28 on 16 September, while the
+> spreadsheet ran to item 45. They were reconciled on **20 September 2026** —
+> every item now appears in both, and each item below carries a status line taken
+> from the spreadsheet.
+>
+> When they disagree, the spreadsheet wins on *status and priority*; this file
+> wins on *reasoning*.
+
+---
+
 ## 1. Automate the App Store download count
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 3 · effort M
 
 **Why it waits:** the App Store Connect API returns nothing until the app is
 live and has real downloads. Building it now means writing an integration that
@@ -67,6 +90,8 @@ be compared against what App Store Connect shows.
 ---
 
 ## 2. Separate Supabase staging database
+
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
 
 **Why it waits:** it only matters once production holds real user data.
 
@@ -154,6 +179,8 @@ acceptable. That is roughly the day after launch.
 
 ## 3. Delete the dead ShareRow component
 
+> **Status (spreadsheet, 20 Sep 2026):** **Done 17 Sep** · timing Completed · effort S
+
 `src/components/ShareRow.js` (written ~July 31) is imported by nothing. It is an
 older, worse share implementation that was superseded by
 `src/components/ShareButtons.js` on August 29.
@@ -167,6 +194,8 @@ and nobody wants to look back at the old one.
 ---
 
 ## 4. Tidy the leftover share styles
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 17 Sep** · timing Completed · effort S
 
 Now that all six share call sites render from `ShareButtons.js`, the per-screen
 `socialRow` / `socialBtn` / `shareRow` / `shareBtn` / `sharePrompt` style blocks
@@ -190,6 +219,8 @@ reason to revert.
 
 ## 5. Clean up hosted share cards
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Before Release · effort M
+
 Emailing an act now uploads the rendered card to the public `act-media` bucket
 under `share-cards/`, so the picture can render inside the message body — an
 `<img>` needs a real URL, and email clients strip `data:` URIs.
@@ -210,6 +241,8 @@ review.
 ---
 
 ## 6. PayPal donate path — no preset amount
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 2 · effort M
 
 **Updated 2026-08-31.** The link is now the PayPal Giving Fund charity page,
 `paypal.com/us/fundraiser/charity/5977398`, which takes **no transaction fee** —
@@ -250,6 +283,8 @@ payment amounts start needing manual reconciliation.
 
 ## 7. Admin browse redesign
 
+> **Status (spreadsheet, 20 Sep 2026):** **Delete** · timing Completed · priority x · effort M
+
 The Admin screen overhaul was started earlier; the browse redesign was fully
 built but never landed on disk because of file-delivery problems at the time.
 File delivery is no longer an issue — the repo folder is connected directly now,
@@ -258,6 +293,8 @@ so this could be picked back up whenever it is worth the attention.
 ---
 
 ## 8. Confirm Supabase backup retention
+
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
 
 Supabase runs automatic backups, but retention depends on the plan, and
 free-tier retention is short. Worth checking what the project actually keeps
@@ -269,6 +306,8 @@ matter for the staging project in item 2.
 ---
 
 ## 9. Revisit Sentry replay sampling
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 4 · effort S
 
 **Changed 2026-08-31:** `replaysSessionSampleRate` went from `0.1` to `0` in
 `App.js`. At 0.1 Sentry recorded a tenth of *every* session, error or not — that
@@ -300,6 +339,8 @@ promises about diagnostic data.
 
 ## 10. Bound the remaining share-sheet calls — DONE 2026-09-01
 
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
+
 All 14 `RNShare.open` calls across the four share screens are now wrapped in one
 shared helper, `src/lib/withTimeout.js`. The four screens had grown three copies
 of that helper under two different names with different signatures; there is now
@@ -322,6 +363,8 @@ failure that reads as success.
 ---
 
 ## 12. Venmo — no preset amount (and the paycharge trap)
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 5 · effort M
 
 **Fixed 2026-09-02:** the Venmo button opened
 `venmo://paycharge?txn=pay&recipients=...` with the amount and note pre-filled.
@@ -350,6 +393,8 @@ Weigh that against their fees — the current PayPal Giving Fund route is free.
 ---
 
 ## 11. Sentry app-hang alerts are firing on system UI (false positives)
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 18 Sep** · timing Completed · effort S
 
 **Seen 2026-09-01:** issue REACT-NATIVE-6, "App Hang Fully Blocked", two events
 at ~56s and ~86s, release 1.0.0 (96), on an iPhone SE (3rd gen) — a tester's
@@ -410,6 +455,8 @@ theory.
 ---
 
 ## 13. The mic dies after deleting acts — DAVID ONLY, not reproducible on Gary's phone
+
+> **Status (spreadsheet, 20 Sep 2026):** **Parked** · timing Before Release · priority 99 · effort Unknown
 
 **The report (David, 2026-09-02):** delete an act, come back to My Story, tap
 the mic — nothing. The button still shows the microphone (so `listening` is
@@ -479,6 +526,8 @@ it stay closed.
 
 ## 14. Canada — the app is US-only underneath
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 99 · effort L
+
 **Found 2026-09-03, setting App Store availability.** Gary wanted to launch in
 the US and Canada. The app cannot serve Canada as written:
 
@@ -504,6 +553,8 @@ north of the border.
 ---
 
 ## 15. The `moderate-content` Edge Function does not exist
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Just after Release · priority 1 · effort S
 
 **Found 2026-09-04**, while answering Apple's question about which external
 services the app uses.
@@ -537,6 +588,8 @@ either way, but the code should not change while a reviewer is looking at it.
 ---
 
 ## 16. Volume and load testing
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Before Release · priority 1 · effort M
 
 **Added 2026-09-06.**
 
@@ -581,6 +634,8 @@ headroom than any tuning this would find.
 ---
 
 ## 17. Account deletion — the tombstone design
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Before Release · priority 1 · effort L
 
 **Verified 2026-09-04.** `delete_my_account()` works: the auth login goes, the
 profile row goes, and every completion is anonymised — `user_phone` becomes
@@ -678,6 +733,8 @@ bracelet order. This is the highest-priority item on this list.
 
 ## 18. `day_number` is renumbered on restart — shares can read "Day 79"
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Just after Release · priority 2 · effort S to answer
+
 **Raised 2026-08-31, never written down.** Gary's test account shows "Day 79" of
 a thirty-day challenge, because `day_number` is renumbered when a challenge
 restarts. A share reading `Day 47 … 30 days in a row` says something incoherent
@@ -692,6 +749,10 @@ that has been reseeded by hand. If they cannot, close this.
 ---
 
 ## 19. Dead camera permissions in `app.json`
+
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 1 · effort S
+>
+> **Update from the working list:** app.json declares camera and photo-library permissions for a media path no longer reachable in the UI. The strings show in the App Store listing and at first launch. — 20 Sep 2026: app.json edited - NSCameraUsageDescription and the expo-image-picker plugin removed; expo-image-picker stays in package.json so the unreachable screen still resolves at bundle time. NSPhotoLibraryUsageDescription REWORDED but KEPT: it described the dead proof feature, yet the string is still required, because MyStory, History and Certificate call MediaLibrary.requestPermissionsAsync() with no argument, which asks iOS for full photo-library access when saving a share card. Removing it would break share-to-Instagram; that would need those three calls changed to requestPermissionsAsync(true) plus a device test. NOT CLOSED: permission strings are baked into a binary, so this only lands on the next native build - not worth a rebuild and a fresh review cycle before 1 Oct, and photo/video are planned for a future release anyway. VERIFIED DEAD FIRST: nothing navigates to 'DailyAct'. It is registered in the navigator but no screen routes to it; the live flow is MyStory. DailyActScreen.js stays on disk deliberately - photo and video are coming back.
 
 `app.json` declares camera and photo-library-read permissions for the DailyAct
 media path, which is no longer reachable in the UI. The strings show in the App
@@ -708,6 +769,10 @@ actually deleting the dead media path rather than just the key.
 
 ## 20. `version` and `runtimeVersion` discipline in `app.json`
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 2 · effort S
+>
+> **Update from the working list:** runtimeVersion is appVersion, so an OTA reaches every binary on that runtime - including ones built before a native module the update needs. — DECIDED 20 Sep 2026: do NOT change the policy before release. runtimeVersion is {policy: appVersion}, so the runtime version is literally 1.0.0 and every binary with that version accepts the same OTA JavaScript. The hazard is adding a native module, publishing an OTA that uses it, and older binaries crashing on launch with no warning. The robust fix is {policy: fingerprint} (available on SDK 54), where Expo derives the runtime version from the native fingerprint so an OTA can never reach an incompatible binary. But switching changes the runtime version of the next build, which would cut the currently approved binary off from future OTAs and require a rebuild plus another review. Bad trade eleven days out. RULE IN FORCE FROM NOW: bump expo.version whenever anything native changes - a new dependency, a plugin, an Info.plist or permission change. Never publish an OTA that depends on native code the target binary does not have. Move to fingerprint in 1.1.
+
 `app.json` is on version `1.0.0` with `runtimeVersion: appVersion`, so an OTA
 update reaches every binary on that runtime — including binaries built before a
 native module the update depends on. The mail-composer change of 29 August
@@ -723,6 +788,8 @@ caused one confusing round of "the fix didn't work" reports.
 
 ## 21. Text and Email now do nearly the same thing
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 1 · effort S
+
 Since captions were reworked, the Text and Email buttons differ only in the
 subject line and in Email rendering the card inside the message body. Worth
 deciding whether both earn their place in the row, or whether one of them is
@@ -734,6 +801,8 @@ actually tap. Not before — this is a judgement call that guessing will get wro
 ---
 
 ## 22. The referral tag is a raw phone number
+
+> **Status (spreadsheet, 20 Sep 2026):** **Delete** · timing Completed · priority x · effort M
 
 **Found 2026-09-08**, while designing the website QR code.
 
@@ -769,6 +838,8 @@ organisation account rather than a personal one.
 
 ## 23. The streak does not close at day 30
 
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
+
 **Found 2026-09-12**, in David's dashboard screenshots after a completed run.
 
 A run of Jul 27 to Aug 25 shows correctly as a completed 30-day streak. The days
@@ -801,6 +872,8 @@ therefore a new build, and nothing goes near the binary under review.
 
 ## 24. The current-streak board pre-labels unearned tiles with future dates
 
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
+
 **Found 2026-09-12**, in the same set of screenshots.
 
 On the current streak page, day 1 is today and every remaining tile carries the
@@ -820,6 +893,8 @@ naturally with item 23 since both are in the same grid code.
 ---
 
 ## 25. The HELP auto-reply is Twilio's stock text and identifies nothing
+
+> **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
 
 **Found 2026-09-14**, from a screenshot of a real reminder on a real phone.
 
@@ -866,6 +941,8 @@ out, though, since that is when the first real strangers start receiving these.
 
 ## 26. Staging and production cannot coexist on one phone
 
+> **Status (spreadsheet, 20 Sep 2026):** **Done 19 Sep** · timing Completed · effort M
+
 Both builds ship with the bundle identifier `org.30actsofkindness.app`, so iOS
 treats them as the same app. Installing the staging preview build removes the
 production TestFlight build, and installing production removes staging. Every
@@ -893,6 +970,8 @@ passed would undermine it.
 
 ## 27. Reminders keep sending to people who have stopped using the app
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 1 · effort M
+
 A participant who signs up, does a few days and then drifts away keeps receiving
 two texts a day for the remainder of their run. Nobody benefits. It costs real
 money - roughly a cent and a half per message - and worse, it is exactly the
@@ -918,6 +997,8 @@ window against. Ten days is a guess until then.
 
 ## 28. Reduce reminders from two a day to one
 
+> **Status (spreadsheet, 20 Sep 2026):** **Open** · timing After Release · priority 1 · effort M
+
 Two texts a day is the current design and it is the single largest running cost
 in the project: 60 messages over a 30-day run, about 80 cents per participant.
 One a day halves it, and may well read as less naggy.
@@ -933,6 +1014,228 @@ One a day halves it, and may well read as less naggy.
 
 **Do it when:** after launch, ideally alongside item 27 so the SMS copy and the
 toll-free registration are revised once rather than twice.
+
+---
+
+---
+
+## 29. Update Website for App mstore link not waitlist
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Just after Release · priority 1
+
+The website should show a link to the app store and remove waitlist references
+
+**Notes:** Release
+
+---
+
+## 30. Hardcoded production URL and key as fallbacks
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 18 Sep** · timing Completed · effort S
+
+supabase.js, moderation.js, AdminScreen.js, DailyActScreen.js and ReviewerScreen.js each fall back to the PRODUCTION url and anon key when EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY is missing or empty. A staging build with a missing env var therefore writes silently to the live database.
+
+**Notes:** DONE 18 Sep 2026, commit 10382ce. New pure module src/lib/supabaseEnv.js is the only place the EXPO_PUBLIC_SUPABASE_* vars are read; supabase.js re-exports so existing imports still work; the four other files import instead of duplicating. Fallback is now STAGING, not production, and warns. Settings shows a second line, "db - staging" or "db - production", read off the Supabase URL rather than the build channel. Verified on device: update 01a0b5ac showed db - staging. Kept pure so moderation.js tests do not pull in AsyncStorage - the dashboardPages.js lesson again.
+
+---
+
+## 31. Storage bucket limits not set
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing After Release · priority 1 · effort S
+
+The act-media bucket has file_size_limit and allowed_mime_types both null, on production and staging. Any signed-in account can upload a file of any size and any type.
+
+**Notes:** Dashboard setting on both projects, no code change. Low priority now that anonymous upload is closed, but it is free hosting for anyone with an account.
+
+---
+
+## 32. Storage policy cleanup (record, no action)
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 17 Sep** · timing Completed · effort -
+
+Four "demo" policies granted the PUBLIC role SELECT, INSERT, UPDATE and DELETE on the act-media bucket. Anyone holding the anon key - which ships in the app binary, is in eas.json and has been in the GitHub repo - could list, overwrite or delete every act photo and share card. Live from early development until 17 Sep 2026.
+
+**Notes:** All four dropped on production; emailed cards still render because the bucket public flag serves reads without RLS. Staging had no bucket at all - created 17 Sep with authenticated-only INSERT and SELECT from the start. Whether the hole was ever exploited was not investigated.
+
+---
+
+## 33. Website is not under version control
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 18 Sep** · timing Completed · effort S
+
+The four legal pages (privacy, terms, guidelines, moderation) and the rest of the site exist only in public_html on GoDaddy. terms.html has no copy on the laptop at all; privacy.html sits alone in Documents\30 Acts with no index.html or styles.css beside it, so it cannot even be previewed locally.
+
+**Notes:** DONE 18 Sep 2026. public_html pulled down over FTP (cPanel Compress hangs on this account - a full zip ran 12 hours and produced nothing). Repo at Documents\30-Acts-Site, first commit 00f9bc8, 37 files. DEPLOY.md and BACKUP.md in the repo record how it goes back up and why not to edit in cPanel. NOT yet backed up off the laptop - no remote. Found during the import: the staging subdomain is public, indexable, and its donate link is still the old fee-charging PayPal managed-QR URL.
+
+---
+
+## 34. No way to edit an act - add an Update button
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing After Release · effort M
+
+Tapping a completed tile on the dashboard opens MyStory in its finished state. There is no way to correct the title or the wording of the story. The only route is Delete and log it again, which loses the original entry and its timestamp. Add an Update button on the two currently active acts - today and yesterday.
+
+**Notes:** Scope: today and yesterday ONLY - exactly the two acts that can already be deleted and re-added, so Update grants no new power, it just makes an existing capability non-destructive. Older days stay read-only. An edit must not change local_date or day_number - those drive the streak and the board. Anything already shared or emailed keeps the old wording; the share card is a JPEG at a fixed URL and does not update. Also reduces reliance on delete-and-retype, which is the path item 13 (mic dies after deleting acts) shows up on.
+
+---
+
+## 35. Sign-up fields do not use iOS autofill (from Bridget)
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 18 Sep** · timing Completed · effort S
+
+Signing in means typing all ten digits of a phone number by hand. Bridget asked why the app cannot just take the number from the phone. It cannot - iOS gives no app its own number - but it CAN let iOS offer the saved number above the keyboard for one tap, and the app was not asking it to.
+
+**Notes:** DONE 18 Sep 2026. textContentType/autoComplete added to Mobile Number, First Name, Last Name and ZIP. The trap: AppInput in components/index.js destructures a fixed prop list, so the hints were being dropped - adding them at the call sites alone would have changed nothing and looked like iOS simply not offering. AppInput now forwards them. The SMS code field already had oneTimeCode/sms-otp, which is why codes autofill. DO NOT reopen "read the number automatically" - there is no iOS API for it. Caller ID blocking is irrelevant here; it affects outbound calls only. Fails gracefully when there is no Contacts "me" card.
+
+---
+
+## 36. Decide what sits on the production OTA channel before release
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+Pressing Release This Version gives real users the approved binary PLUS whatever update is on the `production` channel at that moment. Today that is the OTA from 14 Sep (commit 12f7fcf), which is neither the code the binary was reviewed with nor current main.
+
+**Notes:** Not a code change - a deliberate decision on release day. Either publish a known-good update to production on purpose, or confirm the channel holds what you intend. Check it in EAS: Over-the-air updates -> Channels -> production.
+
+---
+
+## 37. Production OTAs fired on every push to main (record, no action)
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 18 Sep** · timing Completed · effort -
+
+The EAS workflow .eas/workflows/publish-update.yml ran "on: push: branches: [main]" and published an OTA to the PRODUCTION channel - the one the App Store build reads, with no review and no gate. Live from at least August until 18 Sep 2026. Docs-only commits shipped code to users: "Docs: add backlog item 25", "Docs: add backlog items 23 and 24", "Ignore database backups containing user data".
+
+**Notes:** Fixed 18 Sep 2026, commit 48c0a4e: push trigger removed, workflow_dispatch only. Verified - pushing four days of commits afterwards started no run. The hardcoded update message ("OTA - grid fit, tile glyph, Phone label wrap") was also stale on every one of those updates. Publish deliberately with the CLI so the message is real. Leads to item 36.
+
+---
+
+## 38. Sentry debug symbols (dSYMs) are not uploaded
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+Native frames in Sentry come back as "<unknown>" with a Processing Error flag - seen on REACT-NATIVE-6, build 1.0.0 (96). Without the dSYM, Sentry cannot turn an address into a function name, so every native crash or hang report is a wall of hex and tells you nothing.
+
+**Notes:** This blunts Sentry exactly where it is most valuable - a native crash from a real user would be unreadable. Fix is in the build pipeline: have EAS upload the dSYM to Sentry on each build (sentry-expo / @sentry/react-native postPublish or the EAS build hook). Found 18 Sep while investigating item 11.
+
+---
+
+## 39. is_admin() never returned true - admin RLS policies were dead
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 19 Sep** · timing Completed · effort S
+
+is_admin() joined admins.phone to profiles.phone, but every admins row has phone = null (the Add Admin path writes only the proxy email). The function always returned false, so admin_read_completions and admin_delete_completions never fired. The Admin Review tab showed an admin only their OWN acts - 78 of 233 on staging.
+
+**Notes:** DONE 19 Sep 2026. Rewritten to coalesce(a.phone, split_part(a.email,'@',1)) - not a backfill, because the insert path would reintroduce null on the next admin added. Applied by hand to BOTH projects and recorded in supabase/migrations/20260919_fix_is_admin.sql. Verified: staging Review 78 -> 233, production 17 matching the table. Present since first release; nobody could moderate anyone else's content.
+
+---
+
+## 40. Admin "Review" tab is mislabelled and counts the wrong thing
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing After Release · effort S
+
+The Admin Dashboard tab reads "Review (n)" but lists every completion, not the review queue, and n is the total row count rather than the pending count (233 vs 204). Gary: it should say Completions.
+
+**Notes:** Two small changes in AdminScreen.js line 553: rename the label, and count review_status pending instead of completions.length. Cosmetic - no data involved.
+
+---
+
+## 41. Admin Admins and Reviewers tabs read with the anon key
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · effort S
+
+fetchAdmins and fetchReviewers use REST_HEADERS, which carries the publishable anon key rather than the signed-in session. Those tabs therefore read as the anon role and show whatever RLS grants anonymous - "No reviewers found" on staging. Every other admin list goes through a SECURITY DEFINER RPC.
+
+**Notes:** Found 19 Sep 2026 while chasing item 39. Same class of bug: a direct query where an admin RPC was needed. Not yet confirmed whether the lists are wrong or merely empty.
+
+---
+
+## 42. Downloads tile shows the 999999 placeholder
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+The Admin Growth tile reads 999999, the hand-entered value in app_metrics. Harmless to users (admin-only) but it will be the first number seen on release day.
+
+**Notes:** Set a real value or clear it so the tile shows a dash. Separate from item 1, which is about automating the figure.
+
+---
+
+## 43. No way to trigger a test error for Sentry
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing After Release · priority 1 · effort S
+
+Nothing in the code calls captureException or captureMessage deliberately, so there is no way to confirm error reporting still works after a config change. On 19 Sep check 9 could not be run for exactly this reason: the absence of new Sentry issues does not distinguish "no errors happened" from "errors are not being sent".
+
+**Notes:** Suggested: five taps on the build stamp at the bottom of Settings fires a Sentry.captureMessage. JavaScript only, so it ships with eas update --branch preview and needs no build. Wanted again for item 38 (dSYM upload) and after any future Sentry config change. See TESTING.md, "Why check 9 is not verified".
+
+---
+
+## 44. Production compute was Nano - Disk IO budget being depleted
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 20 Sep** · timing Completed · effort S
+
+Supabase emailed 20 Sep that production was depleting its Disk IO Budget. TWO causes, both real. (1) The instance was t4g.nano - 0.5 GB RAM, 5 MB/s sustained - with a memory commitment of 1.35 GB, so it swapped continuously and swap traffic drained the budget. (2) net._http_response, pg_net's response table, held 72 live rows in 16 MB - roughly 120x bloat. pg_net's own cleanup worker rescans that heap constantly and was consuming 43% of all query time, 1h 2m in 24 hours. Flat since at least 13 Sep, so neither was caused by a recent change.
+
+**Notes:** DONE 20 Sep 2026. (1) Compute Nano -> Small (2 GB, 22 MB/s, 90 conns not 60), +$5.15/month, $9.68 -> $14.83. Database restarted; production app reconnected cleanly. (2) vacuum full net._http_response: 16 MB -> 136 kB. Autovacuum could not be tuned on it - ALTER TABLE fails with 'must be owner', the net schema is not ours - so cron job 14 'vacuum-net-http-response' runs plain vacuum (analyze) hourly at :17, off the reminder job's cadence. net.http_request_queue was clean (0 rows, 40 kB). Staging was clean too (0 rows, 32 kB), which raises a question for item 16: staging may not run the same cron jobs, so load testing there would not be like-for-like. Disk IO fell 46% -> 29% within the hour on a 24h average still carrying pre-fix hours. Confirm it keeps falling over the next day.
+
+---
+
+## 45. service_role secret key sits in plaintext in a cron job command
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+cron.job 7 (send-reminders-5min) embeds the sb_secret_... service_role key directly in its command text, as both the apikey and the Bearer token. Anyone who can read the cron.job table sees it, and that key bypasses RLS entirely.
+
+**Notes:** Found 20 Sep 2026 while investigating Disk IO. Not a public leak - it needs database or dashboard access - but the org has members, and rotating a service_role key after it has spread is far more painful than moving it now. Standard fix is Supabase Vault: store the key there and have the cron command read it, so the secret never appears in cron.job.command. Rotate the key after moving it, on the assumption it may have been seen.
+
+---
+
+## 46. Create Group screen had no back arrow
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 20 Sep** · timing Completed · effort S
+
+CreateSponsor was registered bare under the stack-wide headerShown:false and renders no header of its own, unlike MySponsors and JoinSponsor which both render a ScreenHeader with onBack. Settings > "Sponsor a New Group" therefore opened a screen with no way out - a user who tapped it by accident was stuck, on both the form view and the post-create QR view.
+
+**Notes:** DONE 20 Sep 2026, commit 08e0f93. Fixed at the navigator (headerShown true + headerLeft goBack, the same shape SponsorDetail already used) so one change covers both views. Reported by Ghenno, verified by Gary. Guarded by __tests__/createGroupExit.test.js.
+
+---
+
+## 47. Restart Challenge did nothing
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 20 Sep** · timing Completed · effort S
+
+The Settings Restart confirm dialog called onStartChallenge - which is only 'await reloadDays()' - instead of onRestart, so profiles.last_restart_at was never written. The dialog appeared, "Yes, restart" did a plain re-read, and the old streak came straight back on the next load. onRestart was threaded App.js -> AppNavigator -> MainTabs and handed to HomeScreen, but renderSettings never passed it on and SettingsScreen's props signature did not name it.
+
+**Notes:** DONE 20 Sep 2026, commit 08e0f93. Reported by Ghenno, verified in staging by Gary. Guarded by __tests__/restartWiring.test.js, which asserts every link in the chain because the failure was a silent gap in the middle of it. Restart is the only wipe mechanism in the app.
+
+---
+
+## 48. Production build profile set no Supabase env vars
+
+> **Status (spreadsheet, 20 Sep 2026):** **Done 20 Sep** · timing Completed · effort S
+
+eas.json's preview profile set EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY explicitly; production set neither. EXPO_PUBLIC_* values are inlined from the build profile at bundle time, so a production build got undefined for both and fell through to supabaseEnv.js's fallback - which points at STAGING. Any new production build would have shipped pointed at the staging database with nothing on screen saying so.
+
+**Notes:** DONE 20 Sep 2026, commit 08e0f93. Both profiles now name their database explicitly; the fallback is deliberately left pointing at staging (the harmless direction). Guarded by __tests__/buildEnv.test.js, which pins the project ref rather than the key so a rotation does not break the suite. Build 98 predates supabaseEnv.js (18 Sep) and is unaffected. Two things still unverified - see item 50.
+
+---
+
+## 49. Create Group screen uses a light palette
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing After Release · effort M
+
+CreateSponsorScreen's body is #fff with green #2e7d32 while the rest of the app uses the dark C palette. It is the only screen like this. It is also why item 46 had to be fixed with a native header rather than the shared ScreenHeader - ScreenHeader's title colour is C.text (#e8f5e9), which is invisible on white.
+
+**Notes:** Cosmetic only, no functional impact. Doing it means restyling a 455-line screen; once done, the native header from item 46 can be replaced with the shared ScreenHeader so all three group screens match. Deliberately not touched 11 days before launch.
+
+---
+
+## 50. Verify production Supabase key and EAS server-side production env
+
+> **Status (spreadsheet, 20 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+Two unverified things sitting behind item 48. (1) The production publishable key now written into eas.json came from session notes, not from the repo - the 18 Sep refactor stripped the old hardcoded copies and dist/ was empty, so it could not be checked against anything. (2) 'eas update --environment production' reads env vars from the EAS server-side environment, NOT from eas.json, and nobody has confirmed those are set for production.
+
+**Notes:** (1) Supabase dashboard > production project > Settings > API Keys > publishable; compare to eas.json. A wrong key fails loudly - auth breaks immediately - it does not silently write to the wrong database. (2) npx eas env:list --environment production. Same class of trap as the preview one that cost an afternoon on 16 Sep. Both must be done before any production BUILD or production OTA.
 
 ---
 
