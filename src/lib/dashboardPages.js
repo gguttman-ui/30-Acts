@@ -3,9 +3,10 @@
 // Extracted from DashboardView so it can be unit-tested. Pure -- no React, no
 // network, no device APIs. The screen imports buildPages from here.
 //
-// THE RULE (decided August 2026): a streak ENDS at day 30. Day 31 does not
-// continue it; it begins a new streak numbered from day 1. There is no such
-// thing as "lap 2".
+// THE RULE (22 Sep 2026, reversing the August decision): a streak counts up
+// until it BREAKS. Day 31 continues it and is numbered 31 -- the board simply
+// rolls onto a second 30-slot page ("LAP 2"). Only a missed day ends a streak;
+// starting again afterwards is a NEW streak beginning at day 1.
 
 // Calendar date for a completion row. Mirrors runs.js's rowLocalDate, inlined
 // so this module stays free of the supabase import and can be tested directly.
@@ -67,11 +68,10 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     for (let i = 1; i <= dates.length; i++) {
       if (i === dates.length || dayDiffDays(dates[i - 1], dates[i]) !== 1) {
         if (i - s >= CHALLENGE_LEN) {
-          // Only WHOLE 30-day challenges count. A 38-day block is one completed
-          // challenge (30) plus an 8-day remainder; the remainder is an ordinary
-          // short streak and packs onto the shared page with the others.
-          const whole = Math.floor((i - s) / CHALLENGE_LEN) * CHALLENGE_LEN;
-          for (let k = s; k < s + whole; k++) challengeDates.add(dates[k]);
+          // The WHOLE block belongs to the challenge, remainder included. A
+          // 38-day block is one 38-day streak: page 1 holds days 1-30, page 2
+          // holds 31-38. The remainder is not demoted to a short streak.
+          for (let k = s; k < i; k++) challengeDates.add(dates[k]);
         }
         s = i;
       }
@@ -85,7 +85,9 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
   while (i < dates.length) {
     if (challengeDates.has(dates[i])) {
       let j = i + 1;
-      while (j < dates.length && challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1 && (j - i) < CHALLENGE_LEN) j++;
+      // No 30-day cap on the piece: the challenge runs as long as the
+      // consecutive block does, and the lap loop below pages it 30 at a time.
+      while (j < dates.length && challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1) j++;
       pieces.push({ kind: 'challenge', dates: dates.slice(i, j) });
       i = j;
     } else {
@@ -171,9 +173,9 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
       // Earlier short streaks come first chronologically, so close their shared
       // page before this completed streak claims one of its own.
       flush();
-      // A challenge piece is capped at 30 days, so this is always exactly one
-      // page. Day 31 is NOT a continuation: it fell out of the challenge block
-      // above and arrives here as an ordinary short streak, numbered from 1.
+      // A challenge piece can run past 30 days, so it pages 30 at a time: days
+      // 1-30, then 31-60, then 61-.... Day 31 IS a continuation and is numbered
+      // 31; the second page is labelled LAP 2.
       const ds      = pc.dates;
       const numLaps = Math.ceil(ds.length / CHALLENGE_LEN);
       for (let lap = 0; lap < numLaps; lap++) {
