@@ -746,6 +746,58 @@ that has been reseeded by hand. If they cannot, close this.
 
 **Effort:** ten minutes to answer the question; unknown after that.
 
+### Answered 2026-09-22 — yes, a real user reaches Day 79, and that part is now intended
+
+The question was whether a day number above 30 needs a hand-reseeded account.
+It does not. `buildGridFromStreak` advances the window by **calendar days since
+the first act**, not by acts logged:
+
+```js
+// src/lib/streak.js:101-106
+const daysElapsed  = Math.floor((today - anchorDate) / 86400000);
+const windowIndex  = Math.max(0, Math.floor(daysElapsed / 30));   // 0, 1, 2, ...
+const tierStartDay = windowIndex * 30 + 1;                        // 1, 31, 61, ...
+```
+
+Anyone still using the app 79 days after their first act sees Day 79. No
+reseeding involved. **Per the 22 Sep decision (see item 23), that is now correct
+behaviour, not a defect** — a streak counts up until it breaks, so the display
+side of this item is closed.
+
+**What remains is narrower and real.** `MyStoryScreen.js:1019` stores the
+*displayed* number into the `day_number` column at write time:
+
+```js
+day_number: targetDay.dayNumber,
+```
+
+Restart Challenge moves the anchor (`loadGridReadOnly` filters on
+`last_restart_at`), so the board renumbers from 1 while the old rows keep the
+numbers they were written with. Reads and deletes are already defended against
+this — they key on `local_date` or `completionId`, never `day_number`
+(`MyStoryScreen.js:228`, `992-1001`, `1129`; `App.js:349-357`) — but **one
+display path still trusts the stored value**:
+
+```js
+// MyStoryScreen.js:240
+if (completion?.day_number != null) setDayNumber(completion.day_number);
+```
+
+Re-share an act logged before a restart and the caption prints the old number
+while the board shows the new one. That is the "Day 79" screenshot from 31 Aug.
+
+**The fix:** drop line 240 and let the caption use the grid's `dayNumber`, which
+is already passed in via `route.params.day`. The stored column stays a lifetime
+record; nothing should read it for display.
+
+**Not before release.** Display-only, it is in build 98, and it only bites after
+a Restart Challenge. Priority 2, just after release.
+
+**Still open, and it is a wording call, not a code one:** the caption reads
+`Day 38 of 30 Acts of Kindness`. That line is at HEAD and inside build 98, so it
+ships on 1 October whatever we decide. Options were put to Gary on 22 Sep and
+the decision is outstanding.
+
 ---
 
 ## 19. Dead camera permissions in `app.json`
@@ -836,7 +888,53 @@ organisation account rather than a personal one.
 
 ---
 
-## 23. The streak does not close at day 30
+## 23. The streak does not close at day 30 — REVERSED 22 September 2026
+
+> **Status (22 Sep 2026):** **Reversed and closed.** The August decision was
+> undone; the original behaviour described below as a defect is now the intended
+> behaviour. Commit `6c5b1be`.
+
+### The decision changed, 22 September
+
+Gary's ruling, in his words: *"A streak continues to count days until it breaks.
+If a user starts again later then that is a new streak and starts at 1."*
+
+So day 30 does **not** close a streak. Day 31 continues it and is numbered 31;
+the board rolls onto a second 30-slot page labelled `STREAK · LAP 2`. Only a
+missed day ends a streak, and the next one then begins at day 1. Everything the
+entry below calls a bug — the 31-to-38 tiles, the LAP 2 page, `Best streak · 38`
+— is correct.
+
+**What was unwound.** `bf543bc` (16 Sep) bundled three changes; only the item 23
+behaviour came out.
+
+| | |
+|---|---|
+| `src/lib/runs.js` | `MAX_RUN_LEN = 30` removed. Only a date gap splits a run, so `Best streak` and `This streak` report the true length. |
+| `src/lib/dashboardPages.js` | The whole consecutive block now belongs to the challenge, not just whole multiples of 30, and the challenge piece is no longer cut at 30 days. That makes the lap loop already sitting in the file reachable, so `numLaps` can exceed 1. |
+| kept | The `padBoard` date fix (item 24) and the `buildPages` extraction out of `DashboardView`. Both stay. |
+
+**Build 98 predates `bf543bc`.** Submitted 11 Sep, approved 15 Sep; the cap
+landed 16 Sep. The app Apple approved never had it, so this restores the repo to
+what is shipping on 1 October rather than changing it. Nothing here needs to
+reach users before release.
+
+**Tests.** `__tests__/streakNoCap.test.js` added — five source-level assertions
+that guard against a length cap returning, including the exact text of the
+run-splitting condition. The three `dashboardPages` tests that encoded the old
+rule were rewritten and two added: 38 days now pages as 1-30 then 31-38, 65 days
+as 1-30, 31-60, 61-65, and a separate test proves a real break still starts the
+next streak at 1. **22 suites, 350 tests.**
+
+**Do not reintroduce a length cap in `runs.js`.** It silently split live streaks
+at 30 and renumbered day 31 as day 1, which is what produced the Aug 26 report.
+
+---
+
+### Original entry, 12 September — kept for the record
+
+> The behaviour described below as a defect is the behaviour we now want. Read
+> it as history, not as a specification.
 
 > **Status (spreadsheet, 20 Sep 2026):** completed before 17 September; deliberately excluded from the working list.
 
