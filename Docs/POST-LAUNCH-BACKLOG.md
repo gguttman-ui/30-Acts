@@ -1148,6 +1148,30 @@ The act-media bucket has file_size_limit and allowed_mime_types both null, on pr
 
 **Notes:** Dashboard setting on both projects, no code change. Low priority now that anonymous upload is closed, but it is free hosting for anyone with an account.
 
+### DONE 22 September 2026, on both projects
+
+Moved up from After Release: it was the only open item both doable before
+release and actually exposed at launch.
+
+```sql
+update storage.buckets
+set file_size_limit = 5242880, allowed_mime_types = array['image/jpeg']
+where id = 'act-media';
+```
+
+5 MB, JPEG only. Scoped to what actually uploads today — `shareCard.js` writes
+`image/jpeg`, and the only other upload path (`DailyActScreen`, jpeg or mp4) is
+the dead screen. Verified by `select` on each project.
+
+**Proven end to end on staging before production was touched:** completed an
+act, emailed the share, and the card rendered in Gmail. A mime or size mismatch
+fails the upload from the user's side, so the settings needed a real send, not
+just a matching string.
+
+**Carries a dependency:** bringing photo/video back (item 19) means widening
+`allowed_mime_types` to include `video/mp4` and raising the size cap, or those
+uploads fail. Noted on item 19.
+
 ---
 
 ## 32. Storage policy cleanup (record, no action)

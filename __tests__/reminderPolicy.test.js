@@ -202,3 +202,44 @@ describe('SMS copy stays on one GSM-7 segment', () => {
     expect(texts.SHUTOFF_TEXT).not.toBe(texts.REMINDER_TEXT);
   });
 });
+
+describe('item 52 — the door check is its own secret', () => {
+  // verify_jwt is off, so the apikey comparison is the ONLY access control on
+  // this function. It used to compare against the Supabase admin key, which
+  // meant a key rotation had to change the cron command and the Edge Function
+  // secret in lockstep or every tick 401d.
+
+  test('a separate door secret is read from the environment', () => {
+    expect(FN).toMatch(/Deno\.env\.get\('REMINDERS_DOOR_SECRET'\)/);
+  });
+
+  test('the door secret is not passed to createClient', () => {
+    // The admin client must still be built from the Supabase key. Handing it
+    // DOOR_SECRET would leave the function with no privileges at all.
+    const call = FN.match(/createClient\([\s\S]*?\);/);
+    expect(call).not.toBeNull();
+    expect(call[0]).toContain('SECRET_KEY');
+    expect(call[0]).not.toContain('DOOR_SECRET');
+  });
+
+  test('an unset door secret cannot authorize an empty apikey', () => {
+    // DOOR_SECRET defaults to ''. Without the non-empty guard, a request with
+    // no apikey header would match it and the function would be wide open.
+    expect(FN).toMatch(/DOOR_SECRET !== ''\s*&&\s*matches\(provided, DOOR_SECRET\)/);
+  });
+
+  test('the comparison is constant-time, not ===', () => {
+    const fn = FN.match(/function matches\([\s\S]*?\n\}/);
+    expect(fn).not.toBeNull();
+    expect(fn[0]).toMatch(/\^/);
+    expect(fn[0]).toMatch(/diff === 0/);
+    expect(FN).not.toMatch(/provided !== SECRET_KEY/);
+  });
+
+  test('a failed check still returns 401 and sends nothing', () => {
+    const guard = FN.match(/const authorized =[\s\S]*?\n  \}/);
+    expect(guard).not.toBeNull();
+    expect(guard[0]).toMatch(/if \(!authorized\)/);
+    expect(guard[0]).toMatch(/status: 401/);
+  });
+});

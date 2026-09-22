@@ -2,6 +2,12 @@
 // configured reminder, skipping anyone who already completed today.
 // Quiet hours: 6 AM - 10 PM in user's local timezone.
 //
+// Changed 2026-09-22:
+//   * The access check has its own secret, REMINDERS_DOOR_SECRET, separate
+//     from the Supabase admin key (item 52). NOT YET DEPLOYED — it goes out in
+//     the 1.0.1 window, not before 1 October. See the DOOR_SECRET note below
+//     for the order-independent rollout.
+//
 // Changed 2026-09-21:
 //   * ONE reminder a day (item 28) — the second slot is gone.
 //   * Anyone with no completion for INACTIVE_DAYS gets a single explanation
@@ -19,14 +25,46 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // New-style secret key (sb_secret_...). Replaces the legacy service_role JWT.
-// Used both to authorize the incoming cron request (apikey header) and to
-// initialize the admin Supabase client below.
+// THE ADMIN CREDENTIAL ONLY — see DOOR_SECRET below for the access check.
 const SECRET_KEY = Deno.env.get('REMINDERS_SECRET_KEY')!;
+
+// Item 52: the door check gets its own secret, unrelated to the Supabase key.
+//
+// These were one value. verify_jwt is off for this function, so the apikey
+// comparison in Deno.serve is the ONLY access control — and that same value
+// was also the admin credential. Rotating the Supabase key therefore meant
+// editing the cron command and the Edge Function secret in lockstep; change
+// either alone and every tick 401s instantly. That bit us on 15 Sep and again
+// on 22 Sep.
+//
+// DOOR_SECRET is any random string. It has no privileges: it only proves the
+// caller is our cron job. Rotating the Supabase key no longer touches cron.
+//
+// ROLLOUT — deliberately order-independent, so no tick can be dropped:
+//   1. Deploy this. With REMINDERS_DOOR_SECRET unset it keeps accepting
+//      SECRET_KEY exactly as before, so nothing changes.
+//   2. Add REMINDERS_DOOR_SECRET to the Edge Function secrets (and Vault).
+//      Both values are now accepted; cron still sends the old one and works.
+//   3. Repoint the cron command at the new secret. Verify a tick returns 200.
+//   4. LATER, as its own change: delete the `|| matches(provided, SECRET_KEY)`
+//      below so the admin key stops being a valid password. Until that line is
+//      gone the coupling is loosened, not removed.
+const DOOR_SECRET = Deno.env.get('REMINDERS_DOOR_SECRET') ?? '';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   SECRET_KEY
 );
+
+// Constant-time string compare, so a wrong guess takes the same time to
+// reject however much of it was right. Length is allowed to leak; the content
+// is not.
+function matches(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 const TWILIO_SID   = Deno.env.get('TWILIO_ACCOUNT_SID')!;
 const TWILIO_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')!;
@@ -278,8 +316,14 @@ Deno.serve(async (req) => {
   // secret keys aren't JWTs), so the platform no longer gatekeeps. The cron
   // job sends the secret on the apikey header; reject anything that doesn't
   // match so the function can't be invoked by anyone.
+  //
+  // Accepts the door secret, or the admin key while the rollout finishes.
+  // Step 4 of the DOOR_SECRET note at the top removes the second clause.
   const provided = req.headers.get('apikey') ?? '';
-  if (provided !== SECRET_KEY) {
+  const authorized =
+    (DOOR_SECRET !== '' && matches(provided, DOOR_SECRET)) ||
+    matches(provided, SECRET_KEY);
+  if (!authorized) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
