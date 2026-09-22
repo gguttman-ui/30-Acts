@@ -793,10 +793,13 @@ record; nothing should read it for display.
 **Not before release.** Display-only, it is in build 98, and it only bites after
 a Restart Challenge. Priority 2, just after release.
 
-**Still open, and it is a wording call, not a code one:** the caption reads
-`Day 38 of 30 Acts of Kindness`. That line is at HEAD and inside build 98, so it
-ships on 1 October whatever we decide. Options were put to Gary on 22 Sep and
-the decision is outstanding.
+**The caption wording is decided: leave it.** Gary, 22 Sep, choosing option D of
+four. Past day 30 the caption reads `I just completed Day 38 of the 30 Acts of
+Kindness™!` — mildly odd next to "30 Acts", but honest, seen only by people past
+day 30, and it costs nothing. The alternatives considered were `Day 38 · Lap 2`,
+`38 days in a row of the 30 Acts of Kindness™!`, and `Day 8 of Lap 2`; all three
+were rejected in favour of spending 1.0.1 on items 15 and 51 instead. **No code
+change. Do not "fix" this later without asking.**
 
 ---
 
