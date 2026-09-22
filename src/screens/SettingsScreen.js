@@ -138,18 +138,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   const [reminderHour,    setReminderHour]    = useState(9);
   const [reminderMinute,  setReminderMinute]  = useState(0);
   const [reminderPeriod,  setReminderPeriod]  = useState('AM');
-  const [reminder2Hour,   setReminder2Hour]   = useState(6);
-  const [reminder2Minute, setReminder2Minute] = useState(0);
-  const [reminder2Period, setReminder2Period] = useState('PM');
-  // The SECOND reminder is OPT-IN — off by default, so a person only gets a
-  // second daily text if they deliberately turn it on. When it's off we save the
-  // reminder2_* fields as null on Save, which makes the send-reminders function
-  // skip slot 2 entirely (it only fires a slot whose hour is a number).
-  const [reminder2Enabled, setReminder2Enabled] = useState(false);
+  // The SECOND reminder was removed 2026-09-21 (item 28) — one text a day. Its
+  // state, controls and time effect are gone; handleSave still writes the
+  // reminder2_* fields as null so an account that had one set gets it cleared
+  // on the next save, and send-reminders no longer reads them at all.
+  //
   // Slot 1 has its OWN flag. It used to share `reminderEnabled` with the master
   // switch, so switching reminders on switched slot 1 on at the same instant --
-  // the user never got to choose. Master = "texts allowed at all"; this = "slot
-  // 1 is scheduled". Off by default, like slot 2.
+  // the user never got to choose. Master = "texts allowed at all"; this = "the
+  // reminder is scheduled". Off by default.
   const [reminder1Enabled, setReminder1Enabled] = useState(false);
   // Brief confirmation shown inside the reminder card — most importantly when a
   // reminder is switched OFF, which otherwise changed nothing visible except a
@@ -160,7 +157,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   const [flashSeq, setFlashSeq] = useState(0);
   const metaLoaded = useRef(false);
   const time1Tmr   = useRef(null);
-  const time2Tmr   = useRef(null);
   const fmtTime = (h, m, p) => `${h}:${String(m).padStart(2, '0')} ${p}`;
   const flashReminder = (msg) => {
     flashHolder = { msg, until: Date.now() + FLASH_MS };
@@ -211,14 +207,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       if (meta.reminder_period === 'AM' || meta.reminder_period === 'PM') {
         setReminderPeriod(meta.reminder_period);
       }
-      if (typeof meta.reminder2_hour   === 'number')  setReminder2Hour(meta.reminder2_hour);
-      if (typeof meta.reminder2_minute === 'number')  setReminder2Minute(meta.reminder2_minute);
-      if (meta.reminder2_period === 'AM' || meta.reminder2_period === 'PM') {
-        setReminder2Period(meta.reminder2_period);
-      }
-      // Second reminder is opt-in: default OFF unless the user explicitly enabled it.
-      setReminder2Enabled(meta.reminder_enabled === true && meta.reminder2_enabled === true);
-      // Slot 1 is opt-in too. The fallback covers accounts saved before slot 1
+      // reminder2_* is deliberately not hydrated — the second reminder is gone.
+      // Slot 1 is opt-in. The fallback covers accounts saved before slot 1
       // had its own flag: a stored hour means they had scheduled it, so keep it
       // on rather than silently cancelling their reminder.
       setReminder1Enabled(
@@ -368,14 +358,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   };
 
   // `overrides` lets a caller save an enabled-flag it has only just set. React
-  // state updates are async, so `toggleReminder` flipping reminder2Enabled and
+  // state updates are async, so `toggleReminder` flipping reminder1Enabled and
   // immediately calling handleSave() would otherwise persist the OLD value and
   // the reminder would keep firing after being switched off. Returns true on a
   // successful save so callers know whether to announce it.
   const handleSave = async (overrides = {}) => {
     const rEnabled  = overrides.reminderEnabled  !== undefined ? overrides.reminderEnabled  : reminderEnabled;
     const r1Enabled = overrides.reminder1Enabled !== undefined ? overrides.reminder1Enabled : reminder1Enabled;
-    const r2Enabled = overrides.reminder2Enabled !== undefined ? overrides.reminder2Enabled : reminder2Enabled;
 
     if (contactEmail.trim() && !contactEmail.includes('@')) {
       Alert.alert('Invalid email', 'Enter a valid email or leave it blank.');
@@ -413,8 +402,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       const to24 = (h, p) => (p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12));
       const inWindow = (h, p) => { const hr = to24(h, p); return hr >= 6 && hr < 22; };
       const bad1 = r1Enabled && !inWindow(reminderHour, reminderPeriod);
-      const bad2 = r2Enabled && !inWindow(reminder2Hour, reminder2Period);
-      if (bad1 || bad2) {
+      if (bad1) {
         Alert.alert(
           'Pick a daytime reminder',
           'Reminders can only be sent between 6:00 AM and 9:59 PM. Please choose a time in that range.'
@@ -449,13 +437,14 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
           reminder_hour:    r1Enabled ? reminderHour   : null,
           reminder_minute:  r1Enabled ? reminderMinute : null,
           reminder_period:  r1Enabled ? reminderPeriod : null,
-          // Second reminder only persists real times when opted in; otherwise
-          // null so the sender skips it (and turning it off future-proofs: an
-          // existing 2nd reminder is cleared on the next Save).
-          reminder2_enabled: r2Enabled,
-          reminder2_hour:    r2Enabled ? reminder2Hour   : null,
-          reminder2_minute:  r2Enabled ? reminder2Minute : null,
-          reminder2_period:  r2Enabled ? reminder2Period : null,
+          // The second reminder is gone (item 28). These are still written, as
+          // nulls, so an account that had one scheduled has it cleared the next
+          // time anything saves — otherwise stale reminder2_* values would sit
+          // in metadata forever with no UI left to clear them.
+          reminder2_enabled: false,
+          reminder2_hour:    null,
+          reminder2_minute:  null,
+          reminder2_period:  null,
           reminder_consent_at:      nextConsentAt || null,
           reminder_consent_version: rEnabled ? SMS_CONSENT_VERSION : null,
         },
@@ -497,9 +486,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   // in the same tap (passing the new value through so the async state update
   // can't race the save), announce it, and roll back if the save failed.
   const REMINDER_TARGETS = {
-    master: { label: 'Reminders',       set: setReminderEnabled,  key: 'reminderEnabled'  },
-    first:  { label: 'First reminder',  set: setReminder1Enabled, key: 'reminder1Enabled' },
-    second: { label: 'Second reminder', set: setReminder2Enabled, key: 'reminder2Enabled' },
+    master: { label: 'Reminders', set: setReminderEnabled,  key: 'reminderEnabled'  },
+    first:  { label: 'Reminder',  set: setReminder1Enabled, key: 'reminder1Enabled' },
   };
 
   // The flash fires BEFORE the save, not after it. Announcing only on success
@@ -511,30 +499,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     const t = REMINDER_TARGETS[which];
     if (!t) return;
 
-    // Slot 2 is a SECOND reminder, so it only makes sense on top of a first
-    // one. Refuse to switch it on alone rather than scheduling an afternoon
-    // text with no morning one behind it.
-    if (which === 'second' && next && !reminder1Enabled) {
-      flashReminder('Turn the first reminder on before adding a second');
-      return;
-    }
-
-    // Switching the master OFF clears both slots, and switching slot 1 OFF
-    // clears slot 2 with it. Otherwise switching either back on silently
-    // resumed whatever was scheduled before, so reminders arrived without
-    // anyone choosing a time -- turning one on must start from OFF and wait.
-    const clearSlots = (which === 'master' && !next) || (which === 'first' && !next);
-    const overrides  = { [t.key]: next };
-    if (clearSlots) {
-      overrides.reminder2Enabled = false;
-      if (which === 'master') overrides.reminder1Enabled = false;
-    }
+    // Switching the master OFF also clears the reminder. Otherwise switching it
+    // back on silently resumed whatever was scheduled before, so reminders
+    // arrived without anyone choosing a time -- turning it on must start from
+    // OFF and wait for the user to pick.
+    const overrides = { [t.key]: next };
+    if (which === 'master' && !next) overrides.reminder1Enabled = false;
 
     t.set(next);
-    if (clearSlots) {
-      setReminder2Enabled(false);
-      if (which === 'master') setReminder1Enabled(false);
-    }
+    if (which === 'master' && !next) setReminder1Enabled(false);
     flashReminder(`${t.label} turned ${next ? 'ON' : 'OFF'}`);
 
     const ok = await handleSave(overrides);
@@ -558,14 +531,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
 
   useEffect(
     () => saveTimeSoon(time1Tmr, reminderEnabled && reminder1Enabled, () =>
-      `First reminder set for ${fmtTime(reminderHour, reminderMinute, reminderPeriod)}`),
+      `Reminder set for ${fmtTime(reminderHour, reminderMinute, reminderPeriod)}`),
     [reminderHour, reminderMinute, reminderPeriod]
-  );
-
-  useEffect(
-    () => saveTimeSoon(time2Tmr, reminderEnabled && reminder2Enabled, () =>
-      `Second reminder set for ${fmtTime(reminder2Hour, reminder2Minute, reminder2Period)}`),
-    [reminder2Hour, reminder2Minute, reminder2Period]
   );
 
   const handleGoToChallenge = () => {
@@ -805,7 +772,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={s.toggleTitle}>Text me a daily reminder</Text>
               <Text style={s.toggleSub}>
-                We'll text you at the times you set (up to 2 per day) to log your act of kindness.
+                We'll text you once a day, at the time you set, to log your act of kindness.
               </Text>
             </View>
             <Switch
@@ -838,7 +805,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
               still needs its time to be readable and resettable. */}
           <View style={s.reminderTimeWrap}>
               <View style={!reminder1Enabled && s.reminderTimeWrapOff}>
-              <Text style={s.reminderTimeLabel}>FIRST REMINDER</Text>
+              <Text style={s.reminderTimeLabel}>REMINDER TIME</Text>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminderHour(h => h === 12 ? 1 : h + 1)}>
@@ -895,85 +862,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
               </View>
               </View>
 
-              <View style={[s.toggleRow, { marginTop: 18 }]}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={s.reminderTimeLabel}>SECOND REMINDER</Text>
-                  <Text style={s.toggleSub}>
-                    {reminder1Enabled
-                      ? 'Optional — off unless you turn it on.'
-                      : 'Available once the first reminder is on.'}
-                  </Text>
-                </View>
-                <Switch
-                  value={reminder2Enabled}
-                  disabled={!reminder1Enabled}
-                  onValueChange={(v) => toggleReminder('second', v)}
-                  trackColor={{ false: C.border, true: C.primary + '88' }}
-                  thumbColor={reminder2Enabled ? C.primary : '#f4f3f4'}
-                />
-              </View>
-
-              {/* Also always rendered, and dimmed while off, so a second
-                  reminder that has been switched off can still be reset. */}
-              <View style={(!reminder2Enabled || !reminder1Enabled) && s.reminderTimeWrapOff}>
-              <View style={s.reminderTimeRow}>
-                <View style={s.reminderColumn}>
-                  <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 12 ? 1 : h + 1)}>
-                    <Text style={s.reminderArrowText}>▲</Text>
-                  </TouchableOpacity>
-                  <Text style={s.reminderValue}>{String(reminder2Hour).padStart(2, '0')}</Text>
-                  <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Hour(h => h === 1 ? 12 : h - 1)}>
-                    <Text style={s.reminderArrowText}>▼</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={s.reminderColon}>:</Text>
-
-                <View style={s.reminderColumn}>
-                  <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Minute(m => (m + 5) % 60)}>
-                    <Text style={s.reminderArrowText}>▲</Text>
-                  </TouchableOpacity>
-                  <Text style={s.reminderValue}>{String(reminder2Minute).padStart(2, '0')}</Text>
-                  <TouchableOpacity style={s.reminderArrow} onPress={() => setReminder2Minute(m => (m - 5 + 60) % 60)}>
-                    <Text style={s.reminderArrowText}>▼</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={s.reminderPeriodWrap}>
-                  <TouchableOpacity
-                    style={[s.reminderPeriodBtn, reminder2Period === 'AM' && s.reminderPeriodBtnActive]}
-                    onPress={() => setReminder2Period('AM')}
-                  >
-                    <Text style={[s.reminderPeriodText, reminder2Period === 'AM' && s.reminderPeriodTextActive]}>AM</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.reminderPeriodBtn, reminder2Period === 'PM' && s.reminderPeriodBtnActive]}
-                    onPress={() => setReminder2Period('PM')}
-                  >
-                    <Text style={[s.reminderPeriodText, reminder2Period === 'PM' && s.reminderPeriodTextActive]}>PM</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={s.reminderSetRow}>
-                <TouchableOpacity
-                  disabled={!reminder1Enabled}
-                  onPress={() => toggleReminder('second', !reminder2Enabled)}
-                  style={[
-                    s.statusChip,
-                    reminder2Enabled ? s.statusChipOn : s.statusChipOff,
-                    !reminder1Enabled && { opacity: 0.4 },
-                  ]}
-                >
-                  <Text style={[s.statusChipText, reminder2Enabled ? s.statusChipTextOn : s.statusChipTextOff]}>
-                    {reminder2Enabled ? '\u25CF  ON' : '\u25CB  OFF'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              </View>
+              {/* The SECOND REMINDER block that used to sit here was removed
+                  2026-09-21 (item 28) - one text a day. Reinstating it means
+                  revisiting the Twilio HELP copy and the toll-free registered
+                  volume as well as this card. */}
 
               <Text style={s.reminderHint}>
-                Tap ON or OFF to switch a reminder. Time changes save on their own.
+                Tap ON or OFF to switch your reminder. Time changes save on their own.
               </Text>
           </View>
         </Card>

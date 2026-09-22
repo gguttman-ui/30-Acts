@@ -1,6 +1,12 @@
-// Send daily-act reminders (slot 1 + slot 2) to users whose local time
-// matches their configured reminder, skipping anyone who already
-// completed today. Quiet hours: 6 AM - 10 PM in user's local timezone.
+// Send the daily-act reminder to users whose local time matches their
+// configured reminder, skipping anyone who already completed today.
+// Quiet hours: 6 AM - 10 PM in user's local timezone.
+//
+// Changed 2026-09-21:
+//   * ONE reminder a day (item 28) — the second slot is gone.
+//   * Anyone with no completion for INACTIVE_DAYS gets a single explanation
+//     instead of that day's reminder, and their reminders are switched off
+//     (item 27).
 //
 // Compliance guards (added 2026-07-19):
 //   * Only sends to users with a recorded SMS consent timestamp
@@ -33,11 +39,44 @@ const WINDOW_MIN = 2;
 const QUIET_HOUR_START = 6;   // 6 AM
 const QUIET_HOUR_END   = 22;  // 10 PM (exclusive)
 
+// Item 27 (2026-09-21). Someone who signs up, logs a few acts and then drifts
+// away used to keep getting a text every day for the rest of their run. Nobody
+// benefits, it costs real money, and it is exactly the pattern that produces
+// STOP replies and spam complaints -- which is what carrier reputation is
+// judged on. After this many days with no completion we send one explanation
+// and switch their reminders off.
+const INACTIVE_DAYS = 10;
+
+// reminder_sends has UNIQUE (user_id, slot, local_date), which is what makes
+// the shutoff notice idempotent: one per user per day.
+//
+// IT MUST BE 1 OR 2, NEVER 0. The table carries
+//   CHECK (slot = ANY (ARRAY[1, 2]))
+// from when slots 1 and 2 were the only things recorded here. Slot 0 is
+// rejected outright, and because recordSend used to discard its result the row
+// simply vanished with nothing on screen to say so. Cost 30 minutes of testing
+// on 2026-09-22 before the constraint was read. No source-level test can see a
+// database constraint.
+//
+// Sharing slot 1 with the real reminder is also the behaviour we want: if a
+// reminder already went out today, the already-sent check short-circuits before
+// the inactivity check, so the shutoff waits until tomorrow rather than landing
+// as a second text the same day. `status` is what tells the two apart.
+const SHUTOFF_SLOT = 1;
+
 // Program name + STOP/HELP in every message (CTIA best practice). Kept to a
 // single SMS segment. HELP/STOP replies themselves are handled by Twilio
 // Advanced Opt-Out on the Messaging Service.
 const REMINDER_TEXT =
   "30 Acts of Kindness: don't forget today's act of kindness! Reply STOP to end, HELP for help.";
+
+// Sent ONCE, in place of that day's reminder, when someone crosses
+// INACTIVE_DAYS. Deliberately warm rather than a rule statement -- it is a
+// kindness app, and the person has not failed at anything. Like REMINDER_TEXT
+// it must stay plain ASCII: one curly quote or em dash flips the whole message
+// from GSM-7 to Unicode and cuts the segment from 160 characters to 70.
+const SHUTOFF_TEXT =
+  "30 Acts of Kindness: your reminders are off for now. Open the app to start again whenever you're ready. Reply STOP to end, HELP for help.";
 
 function to24h(hour12: number, period: string): number {
   if (period === 'AM') return hour12 === 12 ? 0 : hour12;
@@ -78,6 +117,62 @@ async function loadOptOuts(): Promise<Set<string>> {
   }
   for (const row of data ?? []) set.add(row.phone as string);
   return set;
+}
+
+// The cutoff date for "recently active", computed in UTC and deliberately ONE
+// DAY WIDER than INACTIVE_DAYS. completions.local_date is the user's local
+// calendar date, which can sit either side of the UTC date; erring wide means
+// the worst case is reminding someone for one extra day rather than cutting
+// them off a day early.
+function activeSinceDate(days: number): string {
+  return new Date(Date.now() - (days + 1) * 86_400_000).toISOString().slice(0, 10);
+}
+
+// Phones with at least one completion inside the window, loaded ONCE per run
+// into a Set -- the same shape as loadOptOuts. A per-user lookup here would
+// multiply the query count by the whole user base on every five-minute tick,
+// and this function already walks every user as it is.
+//
+// RETURNS NULL ON ERROR, AND THAT MATTERS. An empty Set would make every single
+// user look inactive, so a transient query failure would text the entire user
+// base a shutoff notice and disable everyone's reminders -- unrecoverable,
+// because we cannot tell afterwards who had chosen what. Null means "could not
+// determine activity this tick", and the caller skips the check entirely.
+async function loadActivePhones(sinceDate: string): Promise<Set<string> | null> {
+  const { data, error } = await supabase
+    .from('completions')
+    .select('user_phone')
+    .gte('local_date', sinceDate);
+  if (error) {
+    console.warn('activity load failed, skipping inactivity check:', error.message);
+    return null;
+  }
+  const set = new Set<string>();
+  for (const row of data ?? []) set.add(row.user_phone as string);
+  return set;
+}
+
+// Switch reminders off and clear both slots. Nulling the times (rather than
+// only flipping reminder_enabled) makes the state explicit: the sender fires a
+// slot only when its hour is a number, and the Settings card reads the same
+// fields, so the app shows OFF instead of silently suppressing a schedule the
+// user can still see. GoTrue merges user_metadata, so a key is removed by
+// setting it to null, not by omitting it.
+async function disableReminders(userId: string, meta: Record<string, unknown>) {
+  await supabase.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...meta,
+      reminder_enabled:  false,
+      reminder1_enabled: false,
+      reminder_hour:     null,
+      reminder_minute:   null,
+      reminder_period:   null,
+      reminder2_enabled: false,
+      reminder2_hour:    null,
+      reminder2_minute:  null,
+      reminder2_period:  null,
+    },
+  });
 }
 
 // Record an opt-out (idempotent) and turn the user's reminder toggle off so the
@@ -154,7 +249,12 @@ async function recordSend(
   twilioSid?: string,
   error?: string,
 ) {
-  await supabase
+  // This insert used to be fire-and-forget. supabase-js RETURNS errors rather
+  // than throwing, so a rejected row vanished silently -- and this table is the
+  // whole idempotency guard, so a silent failure means a person can be texted
+  // again tomorrow with nothing recording that we already did. A CHECK
+  // violation hid here for half an hour on 2026-09-22. Log it.
+  const { error: insertError } = await supabase
     .from('reminder_sends')
     .insert({
       user_id:    userId,
@@ -165,6 +265,12 @@ async function recordSend(
       twilio_sid: twilioSid ?? null,
       error:      error ?? null,
     });
+  if (insertError) {
+    console.error(
+      `recordSend FAILED (user ${userId}, slot ${slot}, ${dateStr}, status ${status}):`,
+      insertError.message,
+    );
+  }
 }
 
 Deno.serve(async (req) => {
@@ -182,14 +288,22 @@ Deno.serve(async (req) => {
 
   const optedOut = await loadOptOuts();
 
+  // Null means the activity query failed; the inactivity check is skipped for
+  // this tick rather than guessing. See loadActivePhones.
+  const sinceDate     = activeSinceDate(INACTIVE_DAYS);
+  const activePhones  = await loadActivePhones(sinceDate);
+  const inactiveCutMs = Date.now() - INACTIVE_DAYS * 86_400_000;
+
   const summary = {
     checked: 0,
     sent: 0,
+    shut_off: 0,
     skipped_completed: 0,
     skipped_already_sent: 0,
     skipped_quiet: 0,
     skipped_no_consent: 0,
     skipped_opted_out: 0,
+    skipped_activity_unknown: activePhones ? 0 : 1,
     errors: 0,
   };
 
@@ -218,11 +332,14 @@ Deno.serve(async (req) => {
       if (!tzResult) continue;
       const { dateStr, hour, minutes } = tzResult;
 
+      // Item 28 (2026-09-21): ONE reminder a day. The slot-2 block that used to
+      // sit here is gone, so reminder2_* metadata on existing accounts is now
+      // simply never read -- no migration needed, and the Settings card nulls
+      // those fields on the next save. Do not reintroduce a second slot without
+      // revisiting the Twilio HELP copy and the toll-free registered volume.
       const slots: { idx: number; h: number; m: number; p: string }[] = [];
       if (typeof meta.reminder_hour === 'number')
         slots.push({ idx: 1, h: meta.reminder_hour,  m: meta.reminder_minute  ?? 0, p: meta.reminder_period  ?? 'AM' });
-      if (typeof meta.reminder2_hour === 'number')
-        slots.push({ idx: 2, h: meta.reminder2_hour, m: meta.reminder2_minute ?? 0, p: meta.reminder2_period ?? 'PM' });
 
       for (const slot of slots) {
         summary.checked++;
@@ -238,6 +355,40 @@ Deno.serve(async (req) => {
           summary.skipped_already_sent++;
           continue;
         }
+
+        // Item 27: this person has drifted away. Send one explanation in place
+        // of the reminder, then switch reminders off. Hanging it off a matching
+        // slot means it arrives at the time they chose and inside quiet hours,
+        // rather than at whatever tick happened to notice.
+        //
+        // `createdMs` guards the person who has NEVER completed an act: with no
+        // completion to measure from they would look inactive from day one and
+        // be shut off before they had begun. Signup starts their clock instead,
+        // and an unparseable created_at counts as new -- every unknown here
+        // resolves towards leaving the reminder alone.
+        if (activePhones && !activePhones.has(phone)) {
+          const createdMs = u.created_at ? Date.parse(u.created_at) : NaN;
+          const longEnough = Number.isFinite(createdMs) && createdMs < inactiveCutMs;
+          if (longEnough) {
+            if (await alreadySent(u.id, dateStr, SHUTOFF_SLOT)) continue;
+            const stop = await sendTwilio(phone, SHUTOFF_TEXT);
+            if (stop.ok) {
+              await recordSend(u.id, dateStr, SHUTOFF_SLOT, phone, 'shutoff_notice', stop.sid);
+              await disableReminders(u.id, meta);
+              summary.shut_off++;
+            } else if (stop.optedOut) {
+              await recordOptOut(u.id, phone, meta, 'twilio_21610');
+              optedOut.add(phone);
+              await recordSend(u.id, dateStr, SHUTOFF_SLOT, phone, 'opted_out', undefined, stop.error);
+              summary.skipped_opted_out++;
+            } else {
+              await recordSend(u.id, dateStr, SHUTOFF_SLOT, phone, 'failed', undefined, stop.error);
+              summary.errors++;
+            }
+            continue;
+          }
+        }
+
         if (await alreadyCompletedToday(phone, dateStr)) {
           summary.skipped_completed++;
           await recordSend(u.id, dateStr, slot.idx, phone, 'skipped_completed');
