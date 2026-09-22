@@ -752,6 +752,26 @@ and in the App Store privacy answers, not only a database change.
 **Do it when:** immediately after approval, and certainly before the first real
 bracelet order. This is the highest-priority item on this list.
 
+### Split into two halves, 22 September 2026
+
+`delete_my_account()` is a **database function, not app code**. The frozen
+build 98 therefore does not block it, and the two items under "Still to close"
+above can ship **before release**:
+
+- clearing `recognition_orders` — the home address left behind on deletion, and
+  the actual privacy hole here
+- the `act_title` catalogue-vs-custom split
+
+The tombstone profile, and the wording changes to the deletion screen, the
+website and the App Store privacy answers, are app-side and stay in 1.0.1.
+
+The two read-only queries under "Do this first" are unchanged and still come
+before any code — they may collapse the tombstone half entirely. Written out
+ready to paste in `HANDOFF20260922.md`.
+
+**Do not test deletion on production.** The function is irreversible and
+production holds real accounts from 1 October.
+
 ---
 
 ## 18. `day_number` is renumbered on restart — shares can read "Day 79"
