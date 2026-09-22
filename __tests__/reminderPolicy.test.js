@@ -243,3 +243,64 @@ describe('item 52 — the door check is its own secret', () => {
     expect(guard[0]).toMatch(/status: 401/);
   });
 });
+
+describe('item 51 — the remaining writes report their failures', () => {
+  // supabase-js RETURNS errors rather than throwing, so a bare `await` looks
+  // like success whatever happened. recordSend was fixed on 21 Sep; these are
+  // the two that were left.
+
+  const disable = FN.match(/async function disableReminders[\s\S]*?\n\}/);
+  const optOut  = FN.match(/async function recordOptOut[\s\S]*?\n\}/);
+
+  test('both functions were found', () => {
+    expect(disable).not.toBeNull();
+    expect(optOut).not.toBeNull();
+  });
+
+  test('disableReminders destructures the error and logs it', () => {
+    expect(disable[0]).toMatch(/const \{ error \} = await supabase\.auth\.admin\.updateUserById/);
+    expect(disable[0]).toMatch(/console\.error\(/);
+  });
+
+  test('disableReminders reports failure to its caller', () => {
+    expect(disable[0]).toMatch(/Promise<boolean>/);
+    expect(disable[0]).toMatch(/return false;/);
+    expect(disable[0]).toMatch(/return true;/);
+  });
+
+  test('a failed shutoff is not counted as a clean shutoff', () => {
+    // The text has already gone out at this point. Counting it as shut_off
+    // while the schedule survives is the exact lie that hid the SHUTOFF_SLOT
+    // bug on 21 Sep.
+    // Must span both arms: matching only the `if` would pass even with no
+    // else at all, which is the bug this guards against.
+    const site = FN.match(
+      /if \(await disableReminders\(u\.id, meta\)\) \{[\s\S]*?\n {14}\} else \{[\s\S]*?\n {14}\}/
+    );
+    expect(site).not.toBeNull();
+    expect(site[0]).toMatch(/summary\.shut_off\+\+/);
+    expect(site[0]).toMatch(/summary\.errors\+\+/);
+  });
+
+  test('recordOptOut checks both writes, not just one', () => {
+    expect(optOut[0]).toMatch(/const \{ error: ledgerError \}/);
+    expect(optOut[0]).toMatch(/const \{ error: metaError \}/);
+  });
+
+  test('a failed ledger write still attempts the metadata write', () => {
+    // The STOP ledger and the reminder_enabled flag are independent defences.
+    // An early return on the first failure would drop the second one.
+    const between = optOut[0].slice(
+      optOut[0].indexOf('ledgerError'),
+      optOut[0].indexOf('metaError'),
+    );
+    expect(between).not.toMatch(/return/);
+  });
+
+  test('every recordOptOut call site reacts to a false return', () => {
+    const calls = FN.match(/recordOptOut\(u\.id, phone, meta, 'twilio_21610'\)/g) || [];
+    expect(calls.length).toBeGreaterThan(0);
+    const guarded = FN.match(/if \(!await recordOptOut\(u\.id, phone, meta, 'twilio_21610'\)\) summary\.errors\+\+;/g) || [];
+    expect(guarded.length).toBe(calls.length);
+  });
+});

@@ -51,16 +51,29 @@ describe('the content filter reaches every user-authored field', () => {
   }
 });
 
-describe('the filter fails open', () => {
-  // A flaky connection must never stop someone recording a real act. Every
-  // call site catches and continues; moderation.js returns false on error.
+describe('the filter cannot fail', () => {
+  // Was "fails open": the filter used to make a network call that always
+  // 404'd and swallowed the error. Item 15 removed it (22 Sep 2026), so there
+  // is no longer any failure mode to be open about — the check is local.
   const MODERATION = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'lib', 'moderation.js'), 'utf8'
   );
 
-  test('a network failure does not block a legitimate save', () => {
-    expect(MODERATION).toContain('moderateContent failed');
-    expect(MODERATION).toMatch(/return false;/);
+  test('there is no network call left to fail', () => {
+    // Re-adding one means sending private stories to a third party, which is
+    // a privacy-disclosure decision, not a code tweak. See item 15.
+    //
+    // Deliberately matched against CODE, not prose: the comment in
+    // moderation.js names the deleted function on purpose so nobody rebuilds
+    // it by accident, and a bare word search would forbid explaining itself.
+    const code = MODERATION
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
+
+    expect(code).not.toMatch(/fetch\(/);
+    expect(code).not.toMatch(/functions\/v1\//);
+    expect(code).not.toMatch(/moderateContent/);
+    expect(code).not.toMatch(/SUPABASE_URL|SUPABASE_ANON_KEY/);
   });
 
   test('every screen catches its own moderation failure', () => {

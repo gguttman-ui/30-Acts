@@ -196,8 +196,14 @@ async function loadActivePhones(sinceDate: string): Promise<Set<string> | null> 
 // fields, so the app shows OFF instead of silently suppressing a schedule the
 // user can still see. GoTrue merges user_metadata, so a key is removed by
 // setting it to null, not by omitting it.
-async function disableReminders(userId: string, meta: Record<string, unknown>) {
-  await supabase.auth.admin.updateUserById(userId, {
+// Item 51 (2026-09-22): returns false on failure instead of discarding the
+// error. supabase-js RETURNS errors rather than throwing, so `await` alone
+// looks like success no matter what happened. This is the dangerous one: the
+// shutoff text has already gone out by the time it is called, so a silent
+// failure leaves the schedule intact and the person is texted the same notice
+// again tomorrow, and every day after that.
+async function disableReminders(userId: string, meta: Record<string, unknown>): Promise<boolean> {
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
     user_metadata: {
       ...meta,
       reminder_enabled:  false,
@@ -211,18 +217,43 @@ async function disableReminders(userId: string, meta: Record<string, unknown>) {
       reminder2_period:  null,
     },
   });
+  if (error) {
+    console.error('disableReminders FAILED for', userId, '-', error.message,
+                  '- the shutoff notice was already sent, so this user will be texted again tomorrow');
+    return false;
+  }
+  return true;
 }
 
 // Record an opt-out (idempotent) and turn the user's reminder toggle off so the
 // app UI reflects reality and we stop scheduling them.
-async function recordOptOut(userId: string, phone: string, meta: Record<string, unknown>, source: string) {
-  await supabase.from('sms_opt_outs').upsert(
+//
+// Item 51 (2026-09-22): both writes are checked and both are ATTEMPTED even if
+// the other fails — the ledger and the metadata flag are independent defences
+// against texting someone who replied STOP, and one surviving is better than
+// neither. Returns false if either failed.
+async function recordOptOut(userId: string, phone: string, meta: Record<string, unknown>, source: string): Promise<boolean> {
+  let ok = true;
+
+  const { error: ledgerError } = await supabase.from('sms_opt_outs').upsert(
     { phone, source, opted_out_at: new Date().toISOString(), user_id: userId },
     { onConflict: 'phone' },
   );
-  await supabase.auth.admin.updateUserById(userId, {
+  if (ledgerError) {
+    console.error('recordOptOut: sms_opt_outs upsert FAILED for', phone, '-', ledgerError.message,
+                  '- this number is not in the STOP ledger and may be texted again');
+    ok = false;
+  }
+
+  const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
     user_metadata: { ...meta, reminder_enabled: false },
   });
+  if (metaError) {
+    console.error('recordOptOut: reminder_enabled update FAILED for', userId, '-', metaError.message);
+    ok = false;
+  }
+
+  return ok;
 }
 
 async function sendTwilio(toPhone: string, body: string): Promise<{ ok: boolean; sid?: string; error?: string; optedOut?: boolean }> {
@@ -418,10 +449,16 @@ Deno.serve(async (req) => {
             const stop = await sendTwilio(phone, SHUTOFF_TEXT);
             if (stop.ok) {
               await recordSend(u.id, dateStr, SHUTOFF_SLOT, phone, 'shutoff_notice', stop.sid);
-              await disableReminders(u.id, meta);
-              summary.shut_off++;
+              // Only count it as shut off if it actually is. If the update
+              // failed the notice still went out, so this tick must report an
+              // error rather than a clean shutoff (item 51).
+              if (await disableReminders(u.id, meta)) {
+                summary.shut_off++;
+              } else {
+                summary.errors++;
+              }
             } else if (stop.optedOut) {
-              await recordOptOut(u.id, phone, meta, 'twilio_21610');
+              if (!await recordOptOut(u.id, phone, meta, 'twilio_21610')) summary.errors++;
               optedOut.add(phone);
               await recordSend(u.id, dateStr, SHUTOFF_SLOT, phone, 'opted_out', undefined, stop.error);
               summary.skipped_opted_out++;
@@ -446,7 +483,7 @@ Deno.serve(async (req) => {
         } else if (result.optedOut) {
           // Carrier says this number opted out (replied STOP). Record it so we
           // never try again, and reflect it in the app.
-          await recordOptOut(u.id, phone, meta, 'twilio_21610');
+          if (!await recordOptOut(u.id, phone, meta, 'twilio_21610')) summary.errors++;
           optedOut.add(phone);
           await recordSend(u.id, dateStr, slot.idx, phone, 'opted_out', undefined, result.error);
           summary.skipped_opted_out++;

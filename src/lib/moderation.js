@@ -1,5 +1,3 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseEnv';
-
 // -- Content moderation ----------------------------------------------------
 // Lifted out of DailyActScreen so it can guard EVERY user-authored field,
 // not just the act text.
@@ -94,40 +92,36 @@ export function containsProfanity(text) {
   return WORD_BANNED_RE.test(lower);
 }
 
-/**
- * Server-side moderation via the moderate-content edge function.
- * Returns true if the text is flagged. Fails OPEN (returns false) on any
- * network/parse error so a flaky connection can never block a legitimate save.
- */
-export async function moderateContent(text) {
-  if (!text || !String(text).trim()) return false;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/moderate-content`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) return false;
-    const json = await res.json();
-    return !!(json?.flagged);
-  } catch (e) {
-    console.warn('moderateContent failed:', e.message);
-    return false;
-  }
-}
+// THE SERVER CHECK IS GONE (item 15, 2026-09-22)
+// ----------------------------------------------
+// moderateContent() used to POST every saved story to a `moderate-content`
+// edge function. That function was never deployed. Every call 404'd, the
+// catch swallowed it, and false came back — so the local wordlist above was
+// doing all of the work, on every save, behind a wasted network round trip.
+//
+// Deleted rather than built. Building it would mean sending every private
+// story to a third-party moderation provider, which has to be declared in the
+// App Store privacy answers, for a filter the local list already covers.
+//
+// The bar the filter has to clear has not moved: stories are private to their
+// author, and anything that can reach another person is human-approved before
+// it does. Nothing slips past this list into public view.
+//
+// If a server check is ever wanted, it is a new decision with a privacy
+// disclosure attached — not a matter of redeploying this.
 
 /**
- * Local check first (instant), then the server check.
+ * Local wordlist check. No network, so it cannot fail and cannot block a
+ * legitimate save through a flaky connection.
+ *
+ * Async deliberately: every call site already awaits it, and keeping the
+ * signature means this change touches one file.
  *
  * @returns {Promise<boolean>} true if the text should be REJECTED
  */
 export async function isContentBlocked(text) {
   if (!text || !String(text).trim()) return false;
-  if (containsProfanity(text)) return true;
-  return await moderateContent(text);
+  return containsProfanity(text);
 }
 
 /** Standard rejection copy, so every screen says the same thing. */

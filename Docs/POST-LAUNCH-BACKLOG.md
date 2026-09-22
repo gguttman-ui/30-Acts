@@ -587,6 +587,29 @@ either way, but the code should not change while a reviewer is looking at it.
 
 ---
 
+### Code written 22 September 2026 — NOT DEPLOYED
+
+Deleted, not built. `moderateContent()` and the `supabaseEnv` import are gone;
+`isContentBlocked()` stays `async` so no call site changed, and now returns the
+local wordlist result directly.
+
+Building the function instead would have meant sending every private story to a
+third-party moderation provider, which has to be declared in the App Store
+privacy answers — a disproportionate price for a filter the local list already
+covers. That reasoning is written into `moderation.js` so nobody rebuilds it by
+reflex.
+
+The bar has not moved: stories are private to their author, and anything that
+can reach another person is human-approved first.
+
+Two side effects: the `[supabase] EXPO_PUBLIC_SUPABASE_*` warning is gone from
+the test output, and `moderationCoverage`'s "the filter fails open" block is now
+"the filter cannot fail" — there is no longer a failure mode to be open about.
+
+**App-side, so it ships with 1.0.1, not before 1 October.**
+
+---
+
 ## 16. Volume and load testing
 
 > **Status (spreadsheet, 20 Sep 2026):** **Open** · timing Before Release · priority 1 · effort M
