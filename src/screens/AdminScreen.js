@@ -7,7 +7,11 @@ import {
 import { Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 
-import { supabase, SUPABASE_URL, REST_HEADERS } from '../lib/supabase';
+// Item 41 (23 Sep 2026): every call here goes through the supabase client so
+// the signed-in session is sent. The public anon key (REST_HEADERS) cannot do
+// any of this since item 55 locked admins, reviewers, delete_user and
+// send_sms_notification to signed-in admins. __tests__/adminSession.test.js.
+import { supabase } from '../lib/supabase';
 
 const KEYBOARD_ACCESSORY_ID = 'adminKeyboardAccessory';
 
@@ -293,8 +297,8 @@ export default function AdminScreen({ navigation }) {
   const fetchAdmins = useCallback(async () => {
     setLoadingAdmins(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/admins?select=*&order=added_at.desc`, { headers: REST_HEADERS });
-      const data = await res.json();
+      const { data, error } = await supabase.from('admins').select('*').order('added_at', { ascending: false });
+      if (error) throw error;
       setAdmins(Array.isArray(data) ? data : []);
     } catch (e) { console.warn('Error loading admins:', e.message); }
     finally { setLoadingAdmins(false); }
@@ -303,8 +307,8 @@ export default function AdminScreen({ navigation }) {
   const fetchReviewers = useCallback(async () => {
     setLoadingReviewers(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/reviewers?select=*&order=added_at.desc`, { headers: REST_HEADERS });
-      const data = await res.json();
+      const { data, error } = await supabase.from('reviewers').select('*').order('added_at', { ascending: false });
+      if (error) throw error;
       setReviewers(Array.isArray(data) ? data : []);
     } catch (e) { console.warn('Error loading reviewers:', e.message); }
     finally { setLoadingReviewers(false); }
@@ -318,12 +322,9 @@ export default function AdminScreen({ navigation }) {
     }
     setAddingAdmin(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/admins`, {
-        method: 'POST', headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ email: proxyEmail }),
-      });
-      if (res.ok || res.status === 201) { setNewAdminPhone(''); fetchAdmins(); }
-      else { const t = await res.text(); Alert.alert('Failed', t); }
+      const { error } = await supabase.from('admins').insert({ email: proxyEmail });
+      if (!error) { setNewAdminPhone(''); fetchAdmins(); }
+      else { Alert.alert('Failed', error.message); }
     } catch (e) { Alert.alert('Error', e.message); }
     finally { setAddingAdmin(false); }
   }, [newAdminPhone, fetchAdmins]);
@@ -332,10 +333,10 @@ export default function AdminScreen({ navigation }) {
     const display = isProxyEmail(admin.email) ? proxyEmailToDisplay(admin.email) : admin.email;
     showConfirm('Remove Admin', `Remove ${display} as admin?`, () => {
       hideConfirm();
-      fetch(`${SUPABASE_URL}/rest/v1/admins?id=eq.${admin.id}`, { method: 'DELETE', headers: REST_HEADERS })
-        .then(res => {
-          if (res.ok || res.status === 204) setAdmins(prev => prev.filter(a => a.id !== admin.id));
-          else res.text().then(t => Alert.alert('Failed', t));
+      supabase.from('admins').delete().eq('id', admin.id)
+        .then(({ error }) => {
+          if (!error) setAdmins(prev => prev.filter(a => a.id !== admin.id));
+          else Alert.alert('Failed', error.message);
         });
     });
   }, []);
@@ -348,12 +349,9 @@ export default function AdminScreen({ navigation }) {
     }
     setAddingReviewer(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/reviewers`, {
-        method: 'POST', headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ email: proxyEmail }),
-      });
-      if (res.ok || res.status === 201) { setNewReviewerPhone(''); fetchReviewers(); }
-      else { const t = await res.text(); Alert.alert('Failed', t); }
+      const { error } = await supabase.from('reviewers').insert({ email: proxyEmail });
+      if (!error) { setNewReviewerPhone(''); fetchReviewers(); }
+      else { Alert.alert('Failed', error.message); }
     } catch (e) { Alert.alert('Error', e.message); }
     finally { setAddingReviewer(false); }
   }, [newReviewerPhone, fetchReviewers]);
@@ -362,10 +360,10 @@ export default function AdminScreen({ navigation }) {
     const display = isProxyEmail(reviewer.email) ? proxyEmailToDisplay(reviewer.email) : reviewer.email;
     showConfirm('Remove Reviewer', `Remove ${display} as reviewer?`, () => {
       hideConfirm();
-      fetch(`${SUPABASE_URL}/rest/v1/reviewers?id=eq.${reviewer.id}`, { method: 'DELETE', headers: REST_HEADERS })
-        .then(res => {
-          if (res.ok || res.status === 204) setReviewers(prev => prev.filter(r => r.id !== reviewer.id));
-          else res.text().then(t => Alert.alert('Failed', t));
+      supabase.from('reviewers').delete().eq('id', reviewer.id)
+        .then(({ error }) => {
+          if (!error) setReviewers(prev => prev.filter(r => r.id !== reviewer.id));
+          else Alert.alert('Failed', error.message);
         });
     });
   }, []);
@@ -428,25 +426,19 @@ export default function AdminScreen({ navigation }) {
           'Your 30 Acts of Kindness account has been removed because your ' +
           'activity violated our Terms of Service.';
 
-        fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_user`, {
-          method: 'POST', headers: REST_HEADERS,
-          body: JSON.stringify({ user_id: user.id }),
-        })
-          .then(async (res) => {
-            if (res.ok || res.status === 204) {
+        supabase.rpc('delete_user', { user_id: user.id })
+          .then(async ({ error }) => {
+            if (!error) {
               setUsers(prev => prev.filter(u => u.id !== user.id));
               // Notify the removed user. Non-blocking: a Twilio failure must
               // not make a successful delete look like it failed.
               if (phone) {
-                try {
-                  await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_sms_notification`, {
-                    method: 'POST', headers: REST_HEADERS,
-                    body: JSON.stringify({ phone_number: phone, message: ACCOUNT_TERMS_SMS }),
-                  });
-                } catch (e) { console.warn('Account Terms SMS failed:', e.message); }
+                const { error: smsError } = await supabase.rpc('send_sms_notification',
+                  { phone_number: phone, message: ACCOUNT_TERMS_SMS });
+                if (smsError) console.warn('Account Terms SMS failed:', smsError.message);
               }
             } else {
-              res.text().then(t => Alert.alert('Delete Failed', `${res.status}: ${t}`));
+              Alert.alert('Delete Failed', error.message);
             }
           })
           .catch(e => Alert.alert('Error', e.message))
@@ -474,12 +466,9 @@ export default function AdminScreen({ navigation }) {
           if (error) { Alert.alert('Remove Failed', error.message); return; }
           setCompletions(prev => prev.filter(c => c.id !== comp.id));
           if (comp.user_phone) {
-            try {
-              await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_sms_notification`, {
-                method: 'POST', headers: REST_HEADERS,
-                body: JSON.stringify({ phone_number: comp.user_phone, message: TERMS_SMS }),
-              });
-            } catch (e) { console.warn('Terms SMS failed:', e.message); }
+            const { error: smsError } = await supabase.rpc('send_sms_notification',
+              { phone_number: comp.user_phone, message: TERMS_SMS });
+            if (smsError) console.warn('Terms SMS failed:', smsError.message);
           }
         } finally {
           setDeletingComp(null);

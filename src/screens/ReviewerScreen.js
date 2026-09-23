@@ -6,7 +6,10 @@ import {
 import { Card, ScreenHeader } from '../components';
 import { C, ACT_CATEGORIES } from '../constants';
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, REST_HEADERS } from '../lib/supabase';
+// Item 41 (23 Sep 2026): all calls go through the supabase client so the
+// signed-in session is sent. With the anon key, completions RLS returned no
+// rows at all, and send_sms_notification is admin/reviewer-only since item 55.
+import { supabase } from '../lib/supabase';
 
 const APPROVED_MSG = "Great work making the World a Kinder place";
 const REJECTED_MSG = "We have reviewed your act and is not within our guidelines and will be deleted. Please perform an Act today that will bring happiness to someone else";
@@ -47,11 +50,9 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
   const fetchActs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/completions?select=*&order=completed_at.desc&limit=500`,
-        { headers: REST_HEADERS }
-      );
-      const data = await res.json();
+      const { data, error } = await supabase.from('completions').select('*')
+        .order('completed_at', { ascending: false }).limit(500);
+      if (error) throw error;
       setActs(Array.isArray(data) ? data : []);
     } catch (e) {
       console.warn('Error loading acts:', e.message);
@@ -113,15 +114,12 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
     try {
       if (isPhone) {
         const phoneNumber = act.user_email.replace('@phone.30acts.app', '');
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_sms_notification`, {
-          method: 'POST', headers: REST_HEADERS,
-          body: JSON.stringify({ phone_number: phoneNumber, message }),
-        });
+        const { error } = await supabase.rpc('send_sms_notification', { phone_number: phoneNumber, message });
+        if (error) console.warn('Notification error:', error.message);
       } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/send_email_notification`, {
-          method: 'POST', headers: REST_HEADERS,
-          body: JSON.stringify({ to_email: act.user_email, message, act_title: act.act_title }),
-        });
+        // send_email_notification was DISABLED on 23 Sep (item 55). Every
+        // account is phone-based, so this branch should not be reached.
+        console.warn('No notification sent: account has no phone number.');
       }
     } catch (e) { console.warn('Notification error:', e.message); }
   };
@@ -131,23 +129,19 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
     if (!status) return;
     setSubmitting(act.id);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/completions?id=eq.${act.id}`, {
-        method: 'PATCH',
-        headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
-          review_status: status,
-          reviewed_by:   user?.email || '',
-          reviewed_at:   new Date().toISOString(),
-        }),
-      });
-      if (res.ok || res.status === 204) {
+      const { error } = await supabase.from('completions').update({
+        review_status: status,
+        reviewed_by:   user?.email || '',
+        reviewed_at:   new Date().toISOString(),
+      }).eq('id', act.id);
+      if (!error) {
         await sendMessage(act, status);
         setActs(prev => prev.map(a =>
           a.id === act.id ? { ...a, review_status: status, reviewed_by: user?.email } : a
         ));
         setSelections(prev => ({ ...prev, [act.id]: null }));
       } else {
-        alert('Update failed: ' + await res.text());
+        alert('Update failed: ' + error.message);
       }
     } catch (e) {
       alert('Error: ' + e.message);
@@ -194,24 +188,19 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
 
     setAddingToList(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/custom_acts`, {
-        method: 'POST',
-        headers: { ...REST_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
-          category_id:    catId,
-          category_label: catLabel,
-          category_emoji: catEmoji,
-          act_title:      addModalAct.act_title,
-          added_by:       user?.email || null,
-        }),
+      const { error } = await supabase.from('custom_acts').insert({
+        category_id:    catId,
+        category_label: catLabel,
+        category_emoji: catEmoji,
+        act_title:      addModalAct.act_title,
+        added_by:       user?.email || null,
       });
 
-      if (res.ok || res.status === 201 || res.status === 204) {
+      if (!error) {
         Alert.alert('✅ Added!', `"${addModalAct.act_title}" added to ${catLabel}`);
         closeAddModal();
       } else {
-        const err = await res.text();
-        Alert.alert('Error', err);
+        Alert.alert('Error', error.message);
       }
     } catch (e) {
       Alert.alert('Error', e.message);

@@ -17,6 +17,8 @@ import { generateInviteLink } from '../lib/branch';
 import { loadRuns, lapCount, actsInLap } from '../lib/runs';
 import QRCode from 'react-native-qrcode-svg';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
+import { createTapCounter } from '../lib/tapCounter';
 import { DB_ENVIRONMENT, PROJECT_REF } from '../lib/supabase';
 
 // iOS-only: nativeID for the keyboard Done bar.
@@ -67,6 +69,17 @@ function KeyboardDoneBar() {
 }
 
 export default function SettingsScreen({ user, challenge, onStartChallenge, onRestart, navigation, navigate, route }) {
+  // Item 43 (23 Sep 2026): five quick taps on the build stamp send a test
+  // message to Sentry, to prove error reporting still works after a config
+  // change. Hidden on purpose; nothing else happens on fewer taps.
+  const buildStampTapRef = useRef(createTapCounter({ count: 5, windowMs: 3000 }));
+  const handleBuildStampTap = () => {
+    if (!buildStampTapRef.current(Date.now())) return;
+    const eventId = Sentry.captureMessage(
+      `Sentry test from Settings (item 43) - ${Updates.channel || 'dev'} - update ${Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'}`
+    );
+    Alert.alert('Sentry test sent', `Event ${eventId ? eventId.slice(0, 8) : '(no id)'}. It should appear in Sentry Issues within a minute or two.`);
+  };
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName,  setLastName]  = useState(user?.lastName  || '');
   const [contactEmail, setContactEmail] = useState('');
@@ -970,13 +983,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
             nothing on screen said so. If the channel reads preview and the db
             reads production (or the reverse), that is the bug, not a display
             quirk. */}
-        <Text style={s.buildStamp}>
-          v{Updates.runtimeVersion || '1.0.0'} {'\u00b7'} {Updates.channel || 'dev'} {'\u00b7'} update{' '}
-          {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'}
-        </Text>
-        <Text style={s.buildStampDb}>
-          db {'\u00b7'} {DB_ENVIRONMENT === 'other' ? PROJECT_REF : DB_ENVIRONMENT}
-        </Text>
+        <TouchableOpacity onPress={handleBuildStampTap} activeOpacity={1}>
+          <Text style={s.buildStamp}>
+            v{Updates.runtimeVersion || '1.0.0'} {'\u00b7'} {Updates.channel || 'dev'} {'\u00b7'} update{' '}
+            {Updates.updateId ? Updates.updateId.slice(0, 8) : 'embedded'}
+          </Text>
+          <Text style={s.buildStampDb}>
+            db {'\u00b7'} {DB_ENVIRONMENT === 'other' ? PROJECT_REF : DB_ENVIRONMENT}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 <Modal visible={showAgeBrackets} animationType="slide" presentationStyle="pageSheet">
   <View style={{ flex: 1, backgroundColor: C.bg }}>
