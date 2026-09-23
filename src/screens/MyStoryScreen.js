@@ -193,6 +193,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const [listening, setListening] = useState(false);
   // Text present when dictation started, so streaming results append cleanly.
   const dictationBaseRef = useRef('');
+  // Item 54: set when typing or Save cuts dictation off; see cutDictation.
+  const discardResultsRef = useRef(false);
   const [saving,  setSaving]  = useState(false);
   const [sharing, setSharing] = useState(false);
 
@@ -237,7 +239,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         }
         if (completion?.notes)     setCompletedStory(completion.notes);
         if (completion?.act_title) setCompletedTitle(completion.act_title);
-        if (completion?.day_number != null) setDayNumber(completion.day_number);
+        // Backlog item 18: do NOT take the day number from the stored
+        // completion. day_number is written when the act is logged and goes
+        // stale after Restart Challenge renumbers the board, so a re-shared
+        // old act would print the wrong day. dayNumber stays as initialised
+        // from route.params.day, which is the number shown on the grid.
       } catch (e) {
         console.warn('Load completion for share failed:', e.message);
       }
@@ -261,6 +267,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   // Append the live transcript to whatever was in the box when we started,
   // clamped to the character cap.
   useSpeechEvent('result', (event) => {
+    // Item 54: once dictation was cut off by typing or Save, late results from
+    // that session must not overwrite the box.
+    if (discardResultsRef.current) return;
     const transcript = event?.results?.[0]?.transcript ?? '';
     if (!transcript) return;
     const base = dictationBaseRef.current;
@@ -305,6 +314,29 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     setListening(false);
   };
 
+  // ITEM 54 (23 Sep 2026) - a dictation session must not outlive the person's
+  // intent. Proven on device: the mic kept listening through a blocked Save,
+  // then through typing and clearing the box. With continuous: true, iOS sends
+  // the WHOLE transcript since the session began on every result, and the
+  // result handler writes base + transcript into the box, so clearing the box
+  // did nothing - the next result put every earlier sentence back.
+  //
+  // The fix leaves startListening and the result join (the 2 Sep baseline)
+  // alone. It stops the session when the person types or taps Save, and drops
+  // any result that arrives after that stop. An ordinary tap on the mic to stop
+  // still keeps its final words, because it does not set the flag.
+  const cutDictation = () => {
+    if (!listening) return;
+    discardResultsRef.current = true;
+    stopListening();
+  };
+
+  // Typing or deleting while the mic is on: stop it and keep what they typed.
+  const handleStoryChange = (text) => {
+    cutDictation();
+    setStory(text);
+  };
+
   const handleMicPress = () => {
     if (!SPEECH_AVAILABLE) {
       // Expo Go / module missing → just focus the box (text-only fallback).
@@ -312,7 +344,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       return;
     }
     if (listening) stopListening();
-    else startListening();
+    else {
+      discardResultsRef.current = false;   // item 54: a new session's results count
+      startListening();
+    }
   };
 
   // Stop listening if the user leaves the screen mid-dictation.
@@ -916,6 +951,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
   const handleSave = async () => {
     if (saving) return;
+    cutDictation();   // item 54: Save ends any dictation still running
 
     if (!storyValid) {
       Alert.alert(
@@ -1218,7 +1254,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 ref={storyRef}
                 style={s.storyBox}
                 value={story}
-                onChangeText={setStory}
+                onChangeText={handleStoryChange}
                 placeholder="What act of kindness did you do today? Tell the story…"
                 placeholderTextColor={C.muted}
                 multiline

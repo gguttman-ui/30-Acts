@@ -148,7 +148,19 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
   const lastIdx = pieces.length - 1;
   const pages = [];
   let buffer = null;
-  const flush = () => { if (buffer && buffer.cells.length) pages.push(buffer); buffer = null; };
+  const flush = () => {
+    if (buffer && buffer.cells.length) {
+      // A long streak's last partial lap that nothing was packed onto keeps its
+      // full 30-slot board, as before.
+      if (buffer.type === 'streak' && !buffer.packed) {
+        buffer.cells = padPast(buffer.cells, buffer.lapStart);
+      }
+      delete buffer.packed;
+      delete buffer.lapStart;
+      pages.push(buffer);
+    }
+    buffer = null;
+  };
 
   // Short, never-completed streaks share a page, oldest first, one blank tile
   // between them -- six little May/June streaks belong together on one page,
@@ -158,6 +170,7 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     const sep = (buffer && buffer.cells.length) ? 1 : 0;
     if (buffer && buffer.cells.length && buffer.cells.length + sep + cells.length > TILES_PER_PAGE) flush();
     if (!buffer) buffer = { type: 'consolidated', cells: [] };
+    buffer.packed = true;
     if (buffer.cells.length) buffer.cells.push({ type: 'sep' });
     for (const c of cells) {
       if (buffer.cells.length >= TILES_PER_PAGE) { flush(); buffer = { type: 'consolidated', cells: [] }; }
@@ -201,13 +214,20 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
           pages.push({ type: 'current', cells: padBoard(live, startDayNo), hasCurrent: true });
           currentPlaced = true;
         } else {
-          pages.push({
-            type:  'streak',
-            cells: padPast(cells, startDayNo),
-            label: lap === 0
-              ? `STREAK ${'·'} Completed ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`
-              : `STREAK ${'·'} LAP ${lap + 1} ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`,
-          });
+          const label = lap === 0
+            ? `STREAK ${'·'} Completed ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`
+            : `STREAK ${'·'} LAP ${lap + 1} ${'·'} ${rangeLabel(slice[0], slice[slice.length - 1])}`;
+          if (isLastLap && !isFull) {
+            // Item 53 (23 Sep 2026): a finished long streak's partial last lap
+            // does not get a page to itself. Its free slots take the short
+            // streaks that follow -- one blank tile after the lap, then the
+            // short streaks, each separated by a blank -- so there is no
+            // separate EARLIER STREAKS page. It stays open as the buffer;
+            // packInto fills it and flush pads it only if nothing was packed.
+            buffer = { type: 'streak', label, cells, lapStart: startDayNo };
+          } else {
+            pages.push({ type: 'streak', cells: padPast(cells, startDayNo), label });
+          }
         }
       }
       return;
