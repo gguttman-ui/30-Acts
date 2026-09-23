@@ -1407,6 +1407,123 @@ Two unverified things sitting behind item 48. (1) The production publishable key
 
 ---
 
+## Synced 2026-09-23 - status of items changed on 22 and 23 September
+> The spreadsheet (Desktop\30-acts-backlog.xlsx) is the live list; this block records what changed so the long-form record stays complete. Newest note first in each entry, exactly as in the spreadsheet.
+- **15. moderate-content Edge Function does not exist** - status **Open**, timing Just after Release, priority 1, effort S. DEVICE TESTED ON STAGING 23 Sep 2026 (preview OTA): 'I cleaned up the crap in the park' was refused with the content-not-allowed message; a typed ordinary story saved. Ships with 1.0.1.
+- **16. Volume and load testing** - status **Open**, timing Before Release, priority 1, effort M. 23 Sep 2026: fold the staging tests for 52 (three invokes: old secret, new secret, wrong secret gets 401) and 51 (one normal invoke, regression check) into this same session, with the fingerprint-and-restore discipline from 21 Sep.
+- **17. Account deletion - tombstone design (database DONE; wording 17c open)** - status **Open**, timing Just after Release, priority 1, effort L. 23 Sep 2026 ADDED TO 17c-app: the screen after Delete My Account says 'See you next time' - wrong after a permanent deletion. Needs a proper account-deleted goodbye screen (confirmation that the account and personal details are gone, thank-you). In-app deletion tested on staging 23 Sep (Gart Goog, Google Voice number): tombstone created, act kept under DELETED- token. 17c-web (website privacy) drafted 23 Sep, publish on release day with item 29; draft adds 2.7 shipping-address and deletion paragraphs, 2.9 self-service deletion sentence, website 2.2/2.5 replaced with the app's versions, effective date October 1, 2026.
+- **18. day_number renumbers on restart - shares can read 'Day 79'** - status **Open**, timing Just after Release, priority 2, effort S. CODE WRITTEN 23 Sep 2026, IN GIT 09466dd (pushed 23 Sep), ships with 1.0.1: line 240 of MyStoryScreen.js replaced by a comment; the caption now keeps the grid's dayNumber from route.params.day. Guarded by __tests__/shareDayNumber.test.js (2 tests). npm test: 23 suites, 364 tests, all pass.
+- **19. Dead camera permissions in app.json** - status **Open**, timing After Release, priority 1, effort S. ALSO DO WHEN PHOTO/VIDEO RETURNS (added 22 Sep 2026): item 31 set the act-media bucket to image/jpeg only, 5 MB. Bringing DailyActScreen back means widening allowed_mime_types to include video/mp4 and raising file_size_limit, or uploads fail. Dashboard change, no build, but it must ship with that release.
+- **27. Stop reminders for inactive users** - status **Open**, timing Just after Release, priority 1, effort M. 23 Sep 2026: BUILT AND TESTED - the only step left is the production deploy of send-reminders on release day, alongside the OTA (same deploy carries 51 and 52).
+- **28. Reduce reminders from two a day to one** - status **Open**, timing Just after Release, priority 1, effort M. 23 Sep 2026: BUILT AND TESTED - the only step left is the production deploy of send-reminders on release day, alongside the OTA (same deploy carries 51 and 52).
+- **38. Sentry debug symbols (dSYMs) are not uploaded** - status **Done 23 Sep**, timing Just after Release, priority 1, effort S. RESOLVED 23 Sep 2026, NO BUILD NEEDED: SENTRY_AUTH_TOKEN is set in the EAS production environment and Sentry's Debug Files page holds build 98's dSYM (30ActsofKindness, uploaded 11 Sep) plus the FBSDK libraries. Uploads already work; build 96's <unknown> frames predate the token. Guarded by __tests__/sentryUpload.test.js (production profile must not set SENTRY_DISABLE_AUTO_UPLOAD; plugin names org and project).
+- **41. Admin Admins and Reviewers tabs read with the anon key** - status **New**, timing Just after Release, priority 1, effort S. CODE WRITTEN AND DEVICE VERIFIED 23 Sep 2026 (preview OTA 01a0cf2e, staging): AdminScreen and ReviewerScreen now use the supabase client for every call - admins/reviewers read/add/remove, rpc delete_user, rpc send_sms_notification, completions read/update, custom_acts insert. Review screen previously loaded NO acts with the anon key (completions RLS). Email branch no longer calls the disabled function. __tests__/adminSession.test.js (16 tests, all fail on old code). npm test 26/393. On device: Admins list loads, remove works, Review tab lists acts. IN GIT 7733178 (pushed 23 Sep). Ships with 1.0.1.
+- **42. Downloads tile shows the 999999 placeholder** - status **New**, timing After Release, priority 1, effort S. MOVED TO AFTER RELEASE 23 Sep 2026: production app_metrics checked - downloads is null (updated 2 Sep), so the tile shows no number; 999999 exists only on staging. Nothing to do before release. After release, enter the real count by hand from App Store Connect for the first week or two. Table columns are key, value, updated_at; the one-line UPDATE is written at that time with the real number, never as a template.
+- **43. No way to trigger a test error for Sentry** - status **New**, timing After Release, priority 1, effort S. CODE WRITTEN 23 Sep 2026: five taps within 3 s on the Settings build stamp -> Sentry.captureMessage + alert with the event id. src/lib/tapCounter.js (pure) + SettingsScreen wiring; __tests__/sentryTestTrigger.test.js (5 tests). npm test 27/398. DEVICE VERIFIED 23 Sep (preview OTA 01a0cf41): popup appeared and the event arrived in Sentry. IN GIT 7733178 (pushed 23 Sep). Ships with 1.0.1.
+- **55. Database functions and admin tables open to the public key** - status **Done 23 Sep**, timing Before Release, priority 1, effort M. 23 Sep pm: step 5 (Twilio rotation) turned out to be NEEDED after all - the live token was hard-coded in send_phone_otp/verify_phone_otp/send_phone_otp_voice. Done under item 59: all Twilio functions now read Vault, token rotated and promoted.
+
+---
+
+## 51. Other writes in send-reminders still discard their errors
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+recordSend was fixed on 22 Sep to log a failed insert, but recordOptOut (the sms_opt_outs upsert AND its updateUserById) and disableReminders still call supabase without checking the returned error. supabase-js returns errors rather than throwing, so any of these can fail silently. disableReminders is the serious one: if it fails after the shutoff text has gone out, the person keeps their reminder schedule and gets texted again the next day.
+
+**Notes:** STAGING TESTED 23 Sep 2026: regression check passed - four staging invokes each returned checked 3, errors 0, identical to 22 Sep. Remaining: production deploy on release day with 27, 28, 52. | CODE WRITTEN 22 Sep 2026, NOT DEPLOYED (Edge Function - goes out in the 1.0.1 window with items 27, 28 and 52). disableReminders and recordOptOut now return a boolean and console.error their failures. A FAILED SHUTOFF NO LONGER COUNTS AS shut_off - it counts as an error, because the text has already gone out and reporting a clean shutoff while the schedule survives is the same lie that hid the SHUTOFF_SLOT bug on 21 Sep. recordOptOut ATTEMPTS BOTH WRITES even if the first fails: the STOP ledger and the reminder_enabled flag are independent defences and an early return would drop the second. 7 tests added; 22 suites, 362 tests. | Found 22 Sep while chasing a vanished reminder_sends row. That row was rejected by CHECK (slot = ANY (ARRAY[1,2])) and the swallowed error hid it for half an hour of testing. Same class of bug, three more call sites. Low effort: destructure { error } and console.error, exactly as recordSend now does. Guarded for recordSend by __tests__/reminderPolicy.test.js; extend that test to the others when fixing.
+
+---
+
+## 52. Decouple the reminders door check from the admin key
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Just after Release · priority - · effort S
+
+send-reminders uses ONE value, the REMINDERS_SECRET_KEY Edge Function secret, for two unrelated jobs: line ~176 rejects any request whose apikey header does not string-equal it (verify_jwt is off, so that comparison is the only access control), and line ~22 passes it to createClient as the admin credential. Because of that, the cron command and the Edge Function secret must always change together - change either alone and every tick 401s instantly.
+
+**Notes:** STAGING TESTED 23 Sep 2026, ALL PASS: deployed to staging; (1) old key accepted with door secret unset, (2) REMINDERS_DOOR_SECRET set on staging (random 64 hex) and accepted, (3) wrong value gets 401, (4) old key still accepted with both set - the mid-rollout state. Staging fingerprint of auth.users, profiles, reminder_sends identical before and after. Remaining: production rollout on release day (deploy, set secret in Edge Function secrets and Vault, repoint cron job 7, verify 200), then later remove the fallback. | CODE WRITTEN 22 Sep 2026, NOT DEPLOYED. The door check now reads its own REMINDERS_DOOR_SECRET, and SECRET_KEY is the admin credential only; the comparison is constant-time instead of ===. DEPLOY IN THE 1.0.1 WINDOW, NOT BEFORE 1 OCT - it changes the only access control on a function whose cron is live. ROLLOUT IS ORDER-INDEPENDENT so no tick can drop: (1) deploy - with the new secret unset it still accepts SECRET_KEY exactly as now; (2) add REMINDERS_DOOR_SECRET to Edge Function secrets and Vault - both values accepted; (3) repoint the cron command, verify a tick returns 200; (4) LATER, as its own change, delete the fallback clause so the admin key stops being a valid password. Until step 4 the coupling is loosened, not removed. 5 tests added to reminderPolicy.test.js. | Fix: give the door check its own independent random shared secret, separate from the Supabase key. Rotations then touch one place instead of two. Noted during the 15 Sep rotation and again on 22 Sep; the Vault plumbing added for item 45 makes it easier, since the new secret can live there too. Not urgent - the coupling is documented and both rotations have been done successfully - but it removes a standing footgun.
+
+---
+
+## 53. Short streaks after a long streak get their own page
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+After a finished long streak, its partial last lap (e.g. LAP 2, days 31-38) sat on a page of its own and the short streaks that followed went to a separate EARLIER STREAKS page. Gary (23 Sep): the short streaks should follow on the LAP 2 page after one blank tile, with no separate page.
+
+**Notes:** DEVICE VERIFIED 23 Sep 2026 on Gary's iPhone (preview OTA 01a0ce9e): LAP 2 shows days 31-38, a blank, then Sep 10, 12, 14; no EARLIER STREAKS page; best streak reads 38. | CODE WRITTEN 23 Sep 2026, IN GIT 09466dd (pushed 23 Sep), ships with 1.0.1 (app-side). src/lib/dashboardPages.js only: a finished streak's partial last lap is left open so packInto fills its free slots; a lap with nothing after it still pads to its full 30-slot board; short streaks that do not fit spill onto a shared page as before. No DashboardView change - its streak branch already renders 'sep' as a blank tile. dashboardPages.test.js: one test updated to the new rule, five added. New tests fail on the old code. Needs a device check via preview OTA.
+
+---
+
+## 54. Mic keeps listening through Save and typing
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+Found 23 Sep 2026 on device: a dictation session kept running through a blocked Save and through typing/clearing the story box. With continuous recognition iOS resends the whole transcript since the session began, so earlier sentences reappeared in a box the person had just emptied.
+
+**Notes:** IN GIT 09466dd (pushed 23 Sep). CODE WRITTEN AND DEVICE VERIFIED 23 Sep 2026 (preview OTA 01a0ceb6): typing or Save now stops the mic (cutDictation), and results arriving after that cut are discarded; a normal tap-to-stop still keeps its final words. startListening and the result join (the 2 Sep baseline) untouched. __tests__/dictationStop.test.js, 6 tests. npm test: 25 suites, 377. On device: typing a letter stopped the mic immediately and a cleared box stayed empty. Ships with 1.0.1. Possibly related to item 13 (David's mic).
+
+---
+
+## 55. Database functions and admin tables open to the public key
+
+> **Status (spreadsheet, 23 Sep 2026):** **Done 23 Sep** · timing Before Release · priority 1 · effort M
+
+Found 23 Sep 2026 while starting item 41. With only the app's public (anon) key, anyone could: run delete_user (delete ANY account, no check); run send_sms_notification (text any number from our Twilio number; it also held an old Twilio token in plain text); run send_email_notification (it held a live Resend API key in plain text and sent real email); read, add and delete rows in admins and reviewers (make themselves admin).
+
+**Notes:** 23 Sep pm: step 5 (Twilio rotation) turned out to be NEEDED after all - the live token was hard-coded in send_phone_otp/verify_phone_otp/send_phone_otp_voice. Done under item 59: all Twilio functions now read Vault, token rotated and promoted. | DONE ON BOTH PROJECTS 23 Sep 2026, each rehearsed on staging first. (1) delete_user: is_admin() check, anon/public EXECUTE revoked; public key gets 401. (2) send_sms_notification: admin-or-reviewer check, token now read from Vault secret twilio_auth_token (fingerprint a2263ca5 = live TWILIO_AUTH_TOKEN; the embedded token c4cf... was an OLD one, so it had been failing), anon revoked; real admin text sent and received on both projects. (3) send_email_notification: DISABLED (raises), all EXECUTE revoked, key removed; the Resend key (only user was this function, last used ~1 Sep for Act Review emails) DELETED in Resend. (4) admins/reviewers: old public policies dropped; new = read own row or admin, insert/delete admin only, all for authenticated; anon grants revoked; public key read gets 401; Admin tab still shows in preview (staging) and TestFlight build 98 (production). (5) admin_growth_stats already had its own admin check (auth.jwt email in admins) - no change. Remaining: app side is item 41 (1.0.1). Optional: confirm Twilio shows no SECONDARY auth token. Later if wanted: email notifications = new Resend key in Vault + rebuilt function with admin check. send_phone_otp / send_phone_otp_voice / verify_phone_otp must stay open (pre-login) - rate limiting is a possible later item.
+
+---
+
+## 56. Sentry Session Replay freezes the app (fatal app hang)
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Just after Release · priority 3 · effort S
+
+REACT-NATIVE-8, production build 98, 23 Sep 2026 11:47 CDT: main thread blocked over 2 s in SentrySessionReplay.takeScreenshot; Gary's first tap to add an act did nothing. With replaysOnErrorSampleRate 1, Sentry keeps buffering screenshots in the background so a replay is ready if an error happens; one screenshot blocked the UI.
+
+**Notes:** DECIDED 23 Sep 2026: option A - leave it, watch Sentry after launch. 30-day picture: 3 hang issues, 4 events, 1 user (REACT-NATIVE-8 today; -7 and -6 three weeks ago, pre-dSYM, unreadable). If it recurs: B = replaysOnErrorSampleRate 0 (stops the background screenshots, loses error replays; sentryConfig.test.js guards the current value, so change the test with it) or C = keep replays with Sentry's lighter screenshot mode if the installed @sentry/react-native supports it (research first). Both are JS, ship by OTA. Also confirms item 38: the stack is fully symbolicated.
+
+---
+
+## 57. Tree counts only direct invites, not the whole downline
+
+> **Status (spreadsheet, 23 Sep 2026):** **Done 23 Sep** · timing Before Release · priority 1 · effort S
+
+get_tree_stats counted only people invited DIRECTLY (profiles.referred_by = my phone) plus my sponsor groups' members. Gary (23 Sep): everyone down the tree must accrue to everyone above, like a multilevel chain - A invites X, X invites B, B's acts count for X AND A.
+
+**Notes:** DONE ON BOTH PROJECTS 23 Sep 2026 (database only, no build). get_tree_stats rewritten with WITH RECURSIVE: roots = direct invites + sponsor-group members, then everyone they invited, at every level; UNION (not UNION ALL) counts each person once and stops if a chain loops; the caller is excluded. Staging proof: inviter ...8269 went 1 person / 83 acts -> 2 people / 112 acts when a 29-act member (...0758) was linked under the inviter's invitee (...9481); link removed and baseline 1/83 restored. Production: installed; TestFlight Tree tab loads (8 / 8 / 0). Item 17's deleted_members must be folded into this recursion so a deleted person's downline still rolls up.
+
+---
+
+## 58. Shipping addresses kept forever
+
+> **Status (spreadsheet, 23 Sep 2026):** **Done 23 Sep** · timing Before Release · priority 1 · effort S
+
+recognition_orders kept ship name/street/city/state/zip indefinitely for every customer. Privacy policy 2.7 promises retention only as long as reasonably necessary to administer bracelets. Gary (23 Sep): clear the address 30 days after the order ships; keep the order row.
+
+**Notes:** DONE ON BOTH PROJECTS 23 Sep 2026. public.purge_shipped_addresses() nulls ship_name/street1/street2/city/state/zip (country kept) where shipped_at is over 30 days ago; EXECUTE revoked from anon/authenticated/public. Nightly pg_cron job 'purge-shipped-addresses' at 30 4 * * * (UTC) - production jobid 16, staging also scheduled. Staging proof: test order shipped 31 days ago cleared, one shipped 5 days ago kept; test rows deleted. Production had 0 shipped orders. Privacy wording to state the rule is item 17c.
+
+---
+
+## 59. Anyone could sign in as anyone who has a phone number
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing Before Release · priority 1 · effort M
+
+Every account signs in with a password built from its phone number ('Ph0ne_' + digits + '_30Acts!', in the public repo), and AuthScreen logged an existing number straight in with NO text code (checkExistingPhoneUser, also run automatically for a remembered number). Knowing a number was enough to read someone's stories, change settings, or delete their account - in the app or directly against the API.
+
+**Notes:** 23 Sep 2026. DATABASE (both projects): otp_verifications table (RLS on, no access); verify_phone_otp records each approved check; send_phone_otp, send_phone_otp_voice, verify_phone_otp now read the Twilio token from Vault; new public.require_otp_for_password_login(event) = Custom Access Token hook: a 'password' or 'email/signup' token is refused (403) unless that number has a code check from the last 10 minutes, which it then uses up; token refreshes, non-phone accounts and the reviewer/test numbers +15550100100/+15550100142 pass. HOOK IS ON FOR STAGING ONLY. PRODUCTION: function installed, hook NOT enabled - switch it on on RELEASE DAY together with the 1.0.1 OTA (Authentication > Hooks > Customize Access Token > Postgres, public.require_otp_for_password_login). APP (in git d5ab79f, ships with 1.0.1): AuthScreen code-first - Continue always sends a code; after verification an existing account signs straight in, a new number is asked for name + ZIP then Create account then the reminder step; silent login removed everywhere; __tests__/signInRequiresCode.test.js (6 tests, fail on old code); npm test 28/404. STAGING PROOF: password-formula API sign-in -> 403; returning user (build-98 flow, then the new flow) lands in the existing account with no duplicate; new user via Google Voice (texts to GV do not arrive; call-me works) gets verified -> name/ZIP -> account; Apple reviewer 123456 works; code check used up. TWILIO TOKEN ROTATED 23 Sep (the live token had been hard-coded in the OTP functions and appeared in the chat): secondary token created, then Vault twilio_auth_token (both), Edge secret TWILIO_AUTH_TOKEN (both), Auth phone provider (both) switched, then PROMOTED - old token dead. New fingerprint ba27381b. Production code text after promotion: 201, received. New token in Dashlane 'Twilio auth token (secondary, 23 Sep)'. Sign-ins are rare (audit log: 0-2/day after 16 Sep, 4-20 token refreshes/day), so the extra Twilio cost is about one code per user plus phone changes.
+
+---
+
+## 60. Change my phone number
+
+> **Status (spreadsheet, 23 Sep 2026):** **New** · timing After Release · priority 2 · effort M
+
+The account IS the phone number (sign-in, acts, streak, tree links). Someone who changes number gets a fresh empty account; there is no way to move over. Also, a recycled old number lets its new owner sign in to the old account (true of every phone-number app).
+
+**Notes:** Agreed 23 Sep 2026: after release. Settings > Change my number: verify the new number with a code while signed in, then a database function moves auth email + proxy password, profiles.phone, completions.user_phone, referred_by links (profiles, deleted_members, waitlist), admins/reviewers, sms_opt_outs, reminder rows. Until then, move an account by hand in the SQL Editor on request.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
