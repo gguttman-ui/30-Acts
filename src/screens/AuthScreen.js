@@ -113,6 +113,10 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   // in, new users get the sign-up fields (name + ZIP) revealed below. No tabs.
   const [mode, setMode] = useState('login');
   const [signupFields, setSignupFields] = useState(false);
+  // Item 59 (23 Sep 2026): the code comes FIRST for everyone. codeVerified is
+  // set once a new number has passed its text code, and only then are the
+  // name + ZIP fields shown to create the account.
+  const [codeVerified, setCodeVerified] = useState(false);
 
   const [fn,    setFn]    = useState('');
   const [ln,    setLn]    = useState('');
@@ -199,13 +203,9 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
         setPhone(display);
         setAutoOtpAttempted(true);
 
-        // Try silent re-login first (existing behaviour). If that
-        // works the user is back in without ever seeing OTP.
-        const autoLoggedIn = await checkExistingPhoneUser(remembered);
-        if (autoLoggedIn) return;
-
-        // Silent login didn't work. For bypass numbers (Apple reviewer / test)
-        // just show the code screen — DEMO_OTP is accepted with no real SMS. For a
+        // Item 59: no silent re-login. Knowing a number is not proof of owning
+        // it, so a returning user always gets a code. For bypass numbers (Apple
+        // reviewer / test) just show the code screen — DEMO_OTP is accepted with no real SMS. For a
         // real number we must actually SEND a code first, otherwise the OTP screen
         // would claim a code was sent with nothing on the way.
         const formatted = formatPhoneForAuth(display);
@@ -250,6 +250,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     // If they edit the number after we revealed the sign-up fields, collapse
     // back to the phone-only step so the next "Continue" re-checks the backend.
     if (signupFields) { setSignupFields(false); setMode('login'); }
+    setCodeVerified(false);
   };
 
   const formatPhoneForAuth = (display) => {
@@ -257,34 +258,22 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     return ten ? `+1${ten}` : null;
   };
 
-  const checkExistingPhoneUser = async (formattedPhone) => {
-    try {
-      const proxyEmail = phoneProxyEmail(formattedPhone);
-      const proxyPassword = phoneProxyPassword(formattedPhone);
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: proxyEmail,
-        password: proxyPassword,
-      });
-
-      if (!error && data?.user) {
-        const authUser = data.user;
-        finishLogin({
-          email: proxyEmail,
-          phone: formattedPhone,
-          firstName: authUser?.user_metadata?.firstName || '',
-          lastName: authUser?.user_metadata?.lastName || '',
-          isFirstLogin: false,
-        });
-        return true;
-      }
-
-      return false;
-    } catch (err) {
-      console.log('Auto-login check failed:', err.message);
-      return false;
-    }
+  // Item 59 (23 Sep 2026): sign in to an EXISTING account. Only ever called
+  // after the number has passed its text code - the server refuses a password
+  // sign-in without a fresh code check (require_otp_for_password_login hook).
+  // Returns { user } on success, or { error } (no account yet, or a real error).
+  const tryExistingSignIn = async (formatted) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email:    phoneProxyEmail(formatted),
+      password: phoneProxyPassword(formatted),
+    });
+    if (!error && data?.user) return { user: data.user };
+    return { error };
   };
+
+  // Supabase answers "Invalid login credentials" when no account exists.
+  const isNoAccountError = (error) =>
+    !!error && /invalid login credentials/i.test(error.message || '');
 
   // Shared helper used by both the manual Verify button and the
   // auto-send-on-mount effect. Sends an OTP and flips to the OTP UI.
@@ -432,36 +421,11 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     setLoading(true);
     const formatted = formatPhoneForAuth(phone);
 
-    // Apple reviewer demo number: straight to the OTP screen (frictionless
-    // review — BYPASS_META supplies the profile). Treated as a sign-up at verify.
-    if (formatted === DEMO_PHONE_RAW) {
-      setMode('signup');
-      setOtpPending(true);
-      setLoading(false);
-      return;
-    }
-
-    // Existing number → silent login. No OTP, no extra fields.
-    const autoLoggedIn = await checkExistingPhoneUser(formatted);
-    if (autoLoggedIn) { setLoading(false); return; }
-
-    // New number (including the reset test number) → reveal the sign-up fields.
-    // The OTP is sent once those are filled, in handleSignupSend.
-    setMode('signup');
-    setSignupFields(true);
-    setLoading(false);
-  };
-
-  // Step 2: a new user filled in their name + ZIP. Validate and send the code.
-  const handleSignupSend = async () => {
-    const e = validate();
-    if (Object.keys(e).length) return setErrors(e);
-    setLoading(true);
-    const formatted = formatPhoneForAuth(phone);
-
-    // Test bypass number: skip Twilio, jump to OTP (DEMO_OTP accepted at verify),
-    // but still carry the name/ZIP just entered so the full flow is exercised.
+    // Item 59: the code comes first for everyone, new or returning. Whether
+    // the number already has an account is only decided AFTER the code is
+    // verified, so nobody can use this screen to probe who is a member.
     if (BYPASS_PHONES.includes(formatted)) {
+      // Apple reviewer / test numbers: no real SMS; DEMO_OTP accepted at verify.
       setOtpPending(true);
       setLoading(false);
       return;
@@ -469,6 +433,40 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
 
     await sendOtpFor(formatted);
     setLoading(false);
+  };
+
+  // Step 3 (new numbers only): the code is already verified; the person has
+  // filled in name + ZIP. Create the account and go on to the reminder step.
+  const handleSignupSend = async () => {
+    const e = validate();
+    if (Object.keys(e).length) return setErrors(e);
+    if (!codeVerified) { await handleContinue(); return; }
+    setLoading(true);
+    try {
+      const formatted = formatPhoneForAuth(phone);
+      const proxyEmail = phoneProxyEmail(formatted);
+      const { data, error } = await supabase.auth.signUp({
+        email: proxyEmail, password: phoneProxyPassword(formatted),
+        options: { data: { phone: formatted, firstName: fn, lastName: ln, state: zipState, zip, city: zipCity, timezone } },
+      });
+      if (error || !data?.user) {
+        // The code check is only good for 10 minutes. Start again cleanly.
+        setCodeVerified(false);
+        setSignupFields(false);
+        setMode('login');
+        Alert.alert('Please verify again', 'Your code has expired. Tap Continue to get a new one.');
+        return;
+      }
+      setPendingFinish({
+        email: proxyEmail, phone: formatted,
+        firstName: fn, lastName: ln, isFirstLogin: true,
+      });
+      setReminderStep(true);
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async () => {
@@ -495,24 +493,28 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           city:      zipCity || null,
           timezone:  timezone || null,
         };
-        let authResult = await supabase.auth.signInWithPassword({ email: proxyEmail, password: proxyPassword });
-        if (authResult.error) {
-          authResult = await supabase.auth.signUp({
+        // Existing bypass account signs straight in; a fresh one is created
+        // with BYPASS_META so Apple review stays frictionless.
+        const existing = await tryExistingSignIn(formatted);
+        let authUser = existing.user;
+        const isNew = !authUser;
+        if (isNew) {
+          const created = await supabase.auth.signUp({
             email: proxyEmail, password: proxyPassword,
             options: { data: { phone: formatted, ...meta } },
           });
+          authUser = created?.data?.user;
         }
-        const authUser = authResult?.data?.user;
         const loginData = {
           email:        proxyEmail,
           phone:        formatted,
           firstName:    authUser?.user_metadata?.firstName || meta.firstName || '',
           lastName:     authUser?.user_metadata?.lastName  || meta.lastName  || '',
-          isFirstLogin: mode === 'signup',
+          isFirstLogin: isNew,
         };
         // Test/demo sign-ups walk the same end-of-signup reminder step as real
         // ones, so the whole flow can be exercised with the bypass number.
-        if (mode === 'signup') {
+        if (isNew) {
           setPendingFinish(loginData);
           setReminderStep(true);
           setLoading(false);
@@ -536,31 +538,28 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
       const body = typeof data?.body === 'string' ? JSON.parse(data.body) : data?.body;
 
       if (body?.status === 'approved') {
-        const proxyEmail    = phoneProxyEmail(formatted);
-        const proxyPassword = phoneProxyPassword(formatted);
-        let authResult = await supabase.auth.signInWithPassword({ email: proxyEmail, password: proxyPassword });
-        if (authResult.error) {
-          authResult = await supabase.auth.signUp({
-            email: proxyEmail, password: proxyPassword,
-            options: { data: { phone: formatted, firstName: fn, lastName: ln, state: zipState, zip, city: zipCity, timezone } },
+        // Item 59: the number is proven. Returning member -> straight in.
+        // No account yet -> ask for name + ZIP, then create it.
+        const existing = await tryExistingSignIn(formatted);
+        if (existing.user) {
+          finishLogin({
+            email:        phoneProxyEmail(formatted),
+            phone:        formatted,
+            firstName:    existing.user.user_metadata?.firstName || '',
+            lastName:     existing.user.user_metadata?.lastName  || '',
+            isFirstLogin: false,
           });
-        }
-        const authUser = authResult?.data?.user;
-        const loginData = {
-          email:        proxyEmail,
-          phone:        formatted,
-          firstName:    authUser?.user_metadata?.firstName || fn,
-          lastName:     authUser?.user_metadata?.lastName  || ln,
-          isFirstLogin: mode === 'signup',
-        };
-        // At the very end of a real sign-up, offer daily reminders before
-        // entering the app. Returning logins go straight in.
-        if (mode === 'signup') {
-          setPendingFinish(loginData);
-          setReminderStep(true);
           return;
         }
-        finishLogin(loginData);
+        if (isNoAccountError(existing.error)) {
+          setOtpPending(false);
+          setOtpCode(['', '', '', '', '', '']);
+          setCodeVerified(true);
+          setMode('signup');
+          setSignupFields(true);
+          return;
+        }
+        Alert.alert('Sign-in failed', existing.error?.message || 'Please try again.');
       } else {
         Alert.alert('Invalid Code', 'The code you entered is incorrect. Please try again.');
       }
@@ -797,7 +796,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
 
         {signupFields && (
           <>
-            <Text style={s.newHint}>Looks like you're new here — a couple details to set up your account.</Text>
+            <Text style={s.newHint}>Your number is verified. Welcome! Just two details to set up your account.</Text>
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
