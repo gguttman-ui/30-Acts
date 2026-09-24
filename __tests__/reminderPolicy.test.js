@@ -93,13 +93,18 @@ describe('item 27 — the inactivity cutoff', () => {
     // skips the check.
     const fn = FN.match(/async function loadActivePhones[\s\S]*?\n\}/);
     expect(fn).not.toBeNull();
-    // Scope this to the error branch itself. Matching loosely from `if (error)`
-    // runs on to the function's own successful `return set` and passes either
-    // way, which is how a test like this quietly stops testing anything.
-    const errBranch = fn[0].match(/if \(error\) \{[\s\S]*?\n  \}/);
+    // Item 61 (24 Sep 2026): the query now pages through fetchAllRows, which
+    // returns null on ANY page's error; loadActivePhones must pass that null
+    // straight through rather than building a (partial or empty) Set.
+    expect(fn[0]).toMatch(/fetchAllRows\(/);
+    expect(fn[0]).toMatch(/if \(data === null\) return null;/);
+    const pager = FN.match(/async function fetchAllRows[\s\S]*?\n\}/);
+    expect(pager).not.toBeNull();
+    // Scope this to the error branch itself, so the test cannot pass on the
+    // function's successful return.
+    const errBranch = pager[0].match(/if \(error\) \{.*\}$/m);
     expect(errBranch).not.toBeNull();
     expect(errBranch[0]).toContain('return null;');
-    expect(errBranch[0]).not.toContain('return set;');
     // And the guard is actually read before the branch runs.
     expect(FN).toMatch(/if \(activePhones && !activePhones\.has\(phone\)\)/);
   });

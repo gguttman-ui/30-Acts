@@ -70,8 +70,19 @@ const TWILIO_SID   = Deno.env.get('TWILIO_ACCOUNT_SID')!;
 const TWILIO_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')!;
 const TWILIO_FROM  = Deno.env.get('TWILIO_FROM_NUMBER')!;
 
-// 5-min cron tick -> match anything within +/- 2 min
-const WINDOW_MIN = 2;
+// 5-min cron tick. A reminder becomes due WINDOW_MIN minutes before the
+// chosen time and stays due for CATCHUP_MIN minutes after it, until it has
+// been sent today.
+//
+// Item 61 (24 Sep 2026), measured on staging: one run handles about 350 due
+// people before the platform's 150-second limit stops it (500 due -> 358 sent,
+// 142 silently missed). With a +/-2 minute window the next tick, five minutes
+// later, was already outside it, so those people got nothing that day. The
+// catch-up window lets the 9:05, 9:10 ... runs pick up whoever the 9:00 run
+// did not reach. reminder_sends (loaded once per run, below) guarantees nobody
+// is texted twice.
+const WINDOW_MIN  = 2;
+const CATCHUP_MIN = 30;
 
 // Quiet hours: only send between these (user local time)
 const QUIET_HOUR_START = 6;   // 6 AM
@@ -142,17 +153,37 @@ function nowInTz(tz: string): { dateStr: string; hour: number; minutes: number }
 
 function matchesSlot(nowMin: number, hour12: number, minute: number, period: string): boolean {
   const target = to24h(hour12, period) * 60 + minute;
-  return Math.abs(nowMin - target) <= WINDOW_MIN;
+  const late = nowMin - target;
+  return late >= -WINDOW_MIN && late <= CATCHUP_MIN;
+}
+
+// Item 61: PostgREST returns at most 1,000 rows per request. Every "load once
+// per run" query below must page, or it silently sees only the first 1,000
+// rows. For loadActivePhones that was dangerous: past 1,000 recent completions
+// most active people would have looked inactive and been sent the shutoff text.
+// Returns null on error so each caller can decide how to fail safely.
+async function fetchAllRows(
+  build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<any[] | null> {
+  const size = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += size) {
+    const { data, error } = await build(from, from + size - 1);
+    if (error) { console.warn(`${label} load failed:`, error.message); return null; }
+    rows.push(...(data ?? []));
+    if (!data || data.length < size) break;
+  }
+  return rows;
 }
 
 // Load the full opt-out ledger once per run into a Set for O(1) lookups.
 async function loadOptOuts(): Promise<Set<string>> {
   const set = new Set<string>();
-  const { data, error } = await supabase.from('sms_opt_outs').select('phone');
-  if (error) {
-    console.warn('sms_opt_outs load failed:', error.message);
-    return set; // fail open on read error, but 21610 self-heal still protects us
-  }
+  const data = await fetchAllRows(
+    (from, to) => supabase.from('sms_opt_outs').select('phone').order('phone').range(from, to),
+    'sms_opt_outs');
+  // fail open on read error, but 21610 self-heal still protects us
   for (const row of data ?? []) set.add(row.phone as string);
   return set;
 }
@@ -177,16 +208,45 @@ function activeSinceDate(days: number): string {
 // because we cannot tell afterwards who had chosen what. Null means "could not
 // determine activity this tick", and the caller skips the check entirely.
 async function loadActivePhones(sinceDate: string): Promise<Set<string> | null> {
-  const { data, error } = await supabase
-    .from('completions')
-    .select('user_phone')
-    .gte('local_date', sinceDate);
-  if (error) {
-    console.warn('activity load failed, skipping inactivity check:', error.message);
-    return null;
-  }
+  const data = await fetchAllRows(
+    (from, to) => supabase.from('completions').select('user_phone')
+      .gte('local_date', sinceDate).order('id').range(from, to),
+    'activity (skipping inactivity check)');
+  if (data === null) return null;
   const set = new Set<string>();
-  for (const row of data ?? []) set.add(row.user_phone as string);
+  for (const row of data) set.add(row.user_phone as string);
+  return set;
+}
+
+// Item 61: with the catch-up window a person stays "due" for half an hour, so
+// the per-person "already sent?" and "already done today?" lookups would run on
+// every tick for everyone in the window - enough on a busy morning to use up
+// the time limit on lookups alone. Both are loaded ONCE per run into Sets
+// instead (two days back covers every time zone's "today"). Null on error:
+// the per-person queries below are then used, exactly as before.
+let sentCache: Set<string> | null = null;
+let completedCache: Set<string> | null = null;
+const sentKey = (userId: string, dateStr: string, slot: number) => `${userId}|${dateStr}|${slot}`;
+
+async function loadRecentSends(sinceDate: string): Promise<Set<string> | null> {
+  const data = await fetchAllRows(
+    (from, to) => supabase.from('reminder_sends').select('user_id, local_date, slot')
+      .gte('local_date', sinceDate).order('id').range(from, to),
+    'reminder_sends');
+  if (data === null) return null;
+  const set = new Set<string>();
+  for (const r of data) set.add(sentKey(r.user_id, r.local_date, r.slot));
+  return set;
+}
+
+async function loadRecentCompletions(sinceDate: string): Promise<Set<string> | null> {
+  const data = await fetchAllRows(
+    (from, to) => supabase.from('completions').select('user_phone, local_date')
+      .gte('local_date', sinceDate).order('id').range(from, to),
+    'recent completions');
+  if (data === null) return null;
+  const set = new Set<string>();
+  for (const r of data) set.add(`${r.user_phone}|${r.local_date}`);
   return set;
 }
 
@@ -284,6 +344,7 @@ async function sendTwilio(toPhone: string, body: string): Promise<{ ok: boolean;
 }
 
 async function alreadyCompletedToday(phone: string, dateStr: string): Promise<boolean> {
+  if (completedCache) return completedCache.has(`${phone}|${dateStr}`);
   // Use local_date column (set at write-time in user's home TZ) - single source of truth
   const { data, error } = await supabase
     .from('completions')
@@ -299,6 +360,7 @@ async function alreadyCompletedToday(phone: string, dateStr: string): Promise<bo
 }
 
 async function alreadySent(userId: string, dateStr: string, slot: number): Promise<boolean> {
+  if (sentCache) return sentCache.has(sentKey(userId, dateStr, slot));
   const { data } = await supabase
     .from('reminder_sends')
     .select('id')
@@ -323,6 +385,7 @@ async function recordSend(
   // whole idempotency guard, so a silent failure means a person can be texted
   // again tomorrow with nothing recording that we already did. A CHECK
   // violation hid here for half an hour on 2026-09-22. Log it.
+  sentCache?.add(sentKey(userId, dateStr, slot));
   const { error: insertError } = await supabase
     .from('reminder_sends')
     .insert({
@@ -368,6 +431,11 @@ Deno.serve(async (req) => {
   const sinceDate     = activeSinceDate(INACTIVE_DAYS);
   const activePhones  = await loadActivePhones(sinceDate);
   const inactiveCutMs = Date.now() - INACTIVE_DAYS * 86_400_000;
+
+  // Item 61: loaded once per run; see loadRecentSends.
+  const recentSince = activeSinceDate(1);
+  sentCache      = await loadRecentSends(recentSince);
+  completedCache = await loadRecentCompletions(recentSince);
 
   const summary = {
     checked: 0,
