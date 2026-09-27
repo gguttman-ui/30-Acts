@@ -61,6 +61,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
       onRestart={onRestart}
       navigate={(dest) => {
         if (dest === 'logout') onLogout();
+        if (dest === 'deleted') onLogout('deleted');
       }}
     />
   );

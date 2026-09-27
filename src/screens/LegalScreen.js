@@ -104,7 +104,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.5 Sharing of Information',
-    body: 'We may share personal information with the service providers that operate the app on our behalf, including Supabase (database, authentication, and file hosting), Twilio (text message delivery), Sentry (crash and performance diagnostics), Branch Metrics (invitation links and referral attribution), and PayPal (donations).\n\nWe may also share information with legal authorities where required by law, and with our professional advisors.\n\nWe do not sell personal information.',
+    body: 'We may share personal information with the service providers that operate the app on our behalf, including Supabase (database, authentication, and file hosting), Twilio (text message delivery), Sentry (crash and performance diagnostics), Branch Metrics (invitation links and referral attribution), and PayPal and Zelle (donations and bracelet shipping).\n\nWe may also share information with legal authorities where required by law, and with our professional advisors.\n\nWe do not sell personal information.',
   },
   {
     heading: '2.6 Public Features',
@@ -112,7 +112,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.7 Data Retention',
-    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain activity history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.',
+    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain activity history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.\n\nShipping addresses. If you order a bracelet or other recognition item, we use your mailing address only to send it, and we delete the address 30 days after the order ships.\n\nWhen you delete your account. You can delete your account at any time in the app. We delete your name, mobile number, ZIP code, profile, reminder settings and reminder history, and what you wrote about your acts. The acts themselves stay in our totals with no name or number attached, so the people who invited you keep their counts. Feedback you sent is kept without your contact details. If you replied STOP to our texts, we keep that record so you are not texted again if you rejoin. Picture cards of acts you shared by email may remain at their link until we remove them. Deletion cannot be undone.',
   },
   {
     heading: '2.8 Security',
@@ -120,7 +120,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.9 Your Rights',
-    body: 'Depending on your location, you may have the right to access your personal data, correct inaccurate data, request deletion of your account or content, restrict or object to certain processing, request portability of your data, or withdraw consent.\n\nTo make a privacy request, contact: privacy@30actsofkindness.org',
+    body: 'Depending on your location, you may have the right to access your personal data, correct inaccurate data, request deletion of your account or content, restrict or object to certain processing, request portability of your data, or withdraw consent.\n\nYou can delete your account yourself at any time in the app, under Settings > Delete My Account.\n\nTo make a privacy request, contact: privacy@30actsofkindness.org',
     email: 'privacy@30actsofkindness.org',
   },
   {
@@ -220,7 +220,7 @@ const CONTENT_MODERATION = [
 
 export const LEGAL_DOCS = {
   terms:      { title: 'Terms of Service',         sections: TERMS_OF_SERVICE },
-  privacy:    { title: 'Privacy Policy',            sections: PRIVACY_POLICY },
+  privacy:    { title: 'Privacy Policy',            sections: PRIVACY_POLICY, effective: 'October 1, 2026' },
   guidelines: { title: 'Community Guidelines',      sections: COMMUNITY_GUIDELINES },
   moderation: { title: 'Content Moderation Policy', sections: CONTENT_MODERATION },
 };
@@ -236,7 +236,7 @@ export default function LegalScreen({ route, navigation }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title={doc.title} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.lastUpdated}>Effective: April 2026</Text>
+        <Text style={s.lastUpdated}>Effective: {doc.effective || 'April 2026'}</Text>
         {doc.sections.map((section, i) => (
           <View key={i} style={s.section}>
             <Text style={s.heading}>{section.heading}</Text>

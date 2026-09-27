@@ -292,7 +292,15 @@ const reloadDays = async (email) => {
   // Supabase session is preserved here so re-entry can be fast
   // (biometric or auto-OTP). The user's name persists for the
   // greeting until they tap Welcome Back or hard-logout.
-const handleLogout = async () => {
+// Item 17c (27 Sep 2026): Settings > Delete My Account arrives here with
+// reason 'deleted'. The account is gone, so forget the phone and biometric
+// unlock - otherwise Welcome Back would try to unlock a deleted account.
+const handleLogout = async (reason) => {
+  if (reason === 'deleted') {
+    try { await AsyncStorage.multiRemove(['remembered_phone', 'biometric_enabled']); } catch {}
+    setGoodbye('deleted');
+    return;
+  }
   setGoodbye(true);
 };
 
@@ -453,7 +461,8 @@ onUnlock={async () => {
         <StatusBar style="light" />
         <GoodbyeScreen
           firstName={user?.firstName}
-          onWelcomeBack={handleWelcomeBack}
+          deleted={goodbye === 'deleted'}
+          onWelcomeBack={goodbye === 'deleted' ? handleHardLogout : handleWelcomeBack}
         />
       </SafeAreaProvider>
     );

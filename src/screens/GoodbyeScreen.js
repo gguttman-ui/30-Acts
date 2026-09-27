@@ -16,8 +16,34 @@ import { C } from '../constants';
  * Props:
  *  - firstName?: string   — optional name to personalize the message
  *  - onWelcomeBack(): void — called when user taps "Welcome Back"
+ *  - deleted?: boolean — the account was just deleted (item 17c, 27 Sep 2026).
+ *    Shows a permanent farewell instead of "See you next time", and the
+ *    button ("Done") calls onWelcomeBack, which App wires to a hard logout.
  */
-export default function GoodbyeScreen({ firstName, onWelcomeBack }) {
+export default function GoodbyeScreen({ firstName, onWelcomeBack, deleted }) {
+  if (deleted) {
+    return (
+      <View style={s.wrap}>
+        <Image source={require('../../assets/logo.png')} style={s.logo} resizeMode="contain" />
+        <Text style={s.title}>Your account has been deleted</Text>
+        <Text style={s.sub}>
+          Your name, phone number and personal details are gone. Your acts of kindness stay in the count with no name attached, so the people who invited you keep their totals.
+        </Text>
+        <Text style={[s.sub, { marginTop: 12 }]}>
+          Thank you for every kind act. You're welcome back any time.
+        </Text>
+
+        <Btn
+          label="Done"
+          onPress={onWelcomeBack}
+          style={{ width: '80%', marginTop: 32 }}
+        />
+
+        <Text style={s.tagline}>30 Acts of Kindness™</Text>
+      </View>
+    );
+  }
+
   const greeting = firstName
     ? `See you next time, ${firstName}!`
     : 'See you next time!';

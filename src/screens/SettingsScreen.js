@@ -134,7 +134,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     await supabase.auth.signOut();
     setShowDeleteConfirm(false);
     setDeletingAccount(false);
-    navigate('logout');
+    navigate('deleted');
   } catch (e) {
     Alert.alert('Error', e.message);
     setDeletingAccount(false);
