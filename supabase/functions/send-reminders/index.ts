@@ -116,8 +116,12 @@ const SHUTOFF_SLOT = 1;
 // Program name + STOP/HELP in every message (CTIA best practice). Kept to a
 // single SMS segment. HELP/STOP replies themselves are handled by Twilio
 // Advanced Opt-Out on the Messaging Service.
+// The link is the Branch Quick Link "Daily reminder" (alias today, created 27
+// Sep 2026 in the Branch dashboard): it opens the app when installed (the
+// production app claims applinks:alrpa.app.link) and the App Store when not.
+// It carries NO referral data, so it never attributes anyone to a tree.
 const REMINDER_TEXT =
-  "30 Acts of Kindness: don't forget today's act of kindness! Reply STOP to end, HELP for help.";
+  "30 Acts of Kindness: don't forget today's act of kindness! https://alrpa.app.link/today Reply STOP to end, HELP for help.";
 
 // Sent ONCE, in place of that day's reminder, when someone crosses
 // INACTIVE_DAYS. Deliberately warm rather than a rule statement -- it is a

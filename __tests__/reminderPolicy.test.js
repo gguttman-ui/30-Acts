@@ -206,6 +206,13 @@ describe('SMS copy stays on one GSM-7 segment', () => {
   test('the two messages are different', () => {
     expect(texts.SHUTOFF_TEXT).not.toBe(texts.REMINDER_TEXT);
   });
+
+  // 27 Sep 2026: the reminder links straight into the app. Branch Quick Link
+  // alias "today" on the production app's claimed domain - a different domain
+  // would open Safari instead of the app.
+  test('the reminder links into the app', () => {
+    expect(texts.REMINDER_TEXT).toContain('https://alrpa.app.link/today ');
+  });
 });
 
 describe('item 52 — the door check is its own secret', () => {
