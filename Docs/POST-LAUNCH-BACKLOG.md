@@ -1524,6 +1524,54 @@ The account IS the phone number (sign-in, acts, streak, tree links). Someone who
 
 ---
 
+## Synced 2026-09-25 - status of items changed on 24 and 25 September
+
+- **16 Volume and load testing:** Done 24 Sep on staging (details in the spreadsheet row). Findings became items 61 and 62.
+- **59:** release day also raises Auth rate limits (sign-ups, sign-ins) from 30 to 150 per 5 min per IP, after the hook is on.
+- **61, 62:** new 24 Sep. **63, 64:** new 25 Sep.
+
+---
+
+## 61. Reminders silently missed when many are due at once
+
+> **Status (spreadsheet, 25 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+Measured 24 Sep: one send-reminders run handles about 350 due people before the platform's 150-second limit stops it; the rest got nothing that day (+/-2 min window, next tick 5 min later). Also every bulk 'load once per run' query was capped at 1,000 rows by PostgREST - loadActivePhones past 1,000 recent completions would have made active users look inactive and sent them the shutoff text.
+
+**Notes:** CODE DONE 24 Sep 2026, git 661d081, deployed to STAGING only. CATCHUP_MIN = 30: due from 2 min before until 30 min after, until sent; reminder_sends and recent completions loaded once per run into Sets (sentCache/completedCache, fall back to per-person queries on error); fetchAllRows pages every bulk load (opt-outs, activity, sends, completions) past the 1,000-row cap with a stable order; a failed activity load still returns null (skip the inactivity check). __tests__/reminderCatchUp.test.js (16) + reminderPolicy guard updated; npm test 29/420. Staging proof: 1,000 due -> all reached exactly once across two runs. Ships in the RELEASE-DAY send-reminders production deploy with 27, 28, 51, 52.
+
+---
+
+## 62. Twilio auto-recharge before launch
+
+> **Status (spreadsheet, 25 Sep 2026):** **New** · timing Before Release · priority 1 · effort S
+
+Twilio balance ~$18.60 on 24 Sep. Estimated spend: week 1 ~$13 in Twilio (sign-up codes ~6.3c each incl. $0.05 Verify fee, reminders ~1.3c each) - the balance runs out in week 1, and at zero sign-up codes and reminders stop.
+
+**Notes:** Twilio console > Billing: turn on auto-recharge, e.g. recharge $50 when the balance falls below $20. Cost estimate (24 Sep): week totals incl. fixed ~$7.10/wk (Supabase Pro ~$28.75/mo, Twilio number $2.15/mo): W1 ~$20, W2 ~$36, W3 ~$60, W4 ~$114; first month ~$230.
+
+---
+
+## 63. Illinois AG charity registration (CO-1 / CO-2) - refiling
+
+> **Status (spreadsheet, 25 Sep 2026):** **Open** · timing Before Release · priority 1 · effort S
+
+The AG rejected CO-1 filing 2026105449 (21 Sep): signed by only one officer, no written explanation of the $36 cash on the CO-2. A new complete filing is required, signed by two different officers.
+
+**Notes:** 25 Sep 2026 IN PROGRESS. Explanation letter written (legal name 30 ACTS OF KINDNESS, NFP; $100 gift from Gary's savings, not a loan; $64 on checks; $36 balance), signed and uploaded. New filing started in the portal: No re-registration; Q2 (solicit OR located in Illinois) = YES, so it is now BOTH ACTS; income from Illinois persons = 100. CO-2 filled (receipts 100, cash 36, 2/3/2026 thru 9/25/2026) and sent for signature: Gary SIGNED, David (dave@30actsofkindness.org) PENDING. NEXT: after David signs, My Filings > Open Filings > arrow > resume CO-1: upload purpose statement, officer list, Articles, bylaws, IRS letter, cash letter (each ONCE), add BOTH signers. Deadline ~25 Oct (30 days from creation). Fee should be $15 (new registration); if $200 is asked, call Ceretha Jackson (312) 814-9197 first.
+
+---
+
+## 64. Waitlist launch messages
+
+> **Status (spreadsheet, 25 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+Personal launch messages for the 12 people on the waitlist, sent by hand on release day.
+
+**Notes:** DRAFTED 25 Sep 2026: Desktop\Waitlist launch messages.txt (plain ASCII). 7 iPhone emails, 1 Android email (David Schwartz - 'Android is coming'), 4 texts for people with no email (Jorge, Amy, Donna - asked to sign up with her waitlist number so she lands on Gary's team, Ghenno - tester, install from App Store, account carries over). All point to 30actsofkindness.org, so SEND ONLY AFTER item 29 puts the App Store link on the website. Signed Gary only.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait

@@ -523,7 +523,7 @@ export default function AdminScreen({ navigation }) {
         </Card>
 
         <Card>
-          <Text style={s.section}>📈 Growth</Text>
+          <Text style={s.section}>📈 Metrics</Text>
           <Text style={s.growthNote}>
             Fills in once the app is live. A dash means no data yet.
           </Text>
@@ -532,6 +532,7 @@ export default function AdminScreen({ navigation }) {
             <StatTile icon="🔑" label="Signed in"        value={growth?.signins     ?? '—'} color={C.accent} />
             <StatTile icon="🌱" label="Did 1+ act"       value={growth?.did_one_act ?? '—'} color={C.success} />
             <StatTile icon="🔥" label="30 days in a row" value={growth?.streak_30   ?? '—'} color={C.gold} />
+            <StatTile icon="⏰" label="Using reminders"  value={growth?.reminders   ?? '—'} color={C.primary} />
           </View>
         </Card>
 
