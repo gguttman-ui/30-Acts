@@ -1572,6 +1572,56 @@ Personal launch messages for the 12 people on the waitlist, sent by hand on rele
 
 ---
 
+## Synced 2026-09-27 - status of items changed on 27 September
+
+- **Release decided:** Wednesday 1 October 2026, 8:00 AM Eastern (7:00 AM Central).
+- **17 / 17c:** Done 27 Sep. App privacy text, account-deleted goodbye (git 00e6960, ships in 1.0.1); website/privacy.html uploads on release day with item 29.
+- **5:** privacy policy now discloses emailed picture cards; the deletion half of item 5 (remove a deleted user's cards) is priority 1 after launch.
+- **62:** Done 27 Sep ($200 added, auto-recharge $100 below $50).
+- **65-68:** new 27 Sep (68 done the same day).
+
+---
+
+## 65. Influencer referral links
+
+> **Status (spreadsheet, 27 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+Influencers post a Branch link; everyone who installs through it and signs up is credited to the influencer's tree - even before the influencer has an account.
+
+**Notes:** AGREED 27 Sep 2026, NO CODE CHANGE: the app already reads Branch link data key 'ref' (src/lib/branch.js) and sets profiles.referred_by at sign-up. Per influencer: Branch dashboard > Create Link, alias = their name, Link Data key ref = their phone as +1 and ten digits EXACTLY (optional key group = a group's join code to auto-join followers). Do NOT create accounts for them: credit is keyed on the phone number, so when the influencer later signs up and verifies, their tree already holds everyone. Tell each influencer their number is inside the link data (hidden, not unfindable) and get their OK. Branch also counts clicks/installs per link. TEST on release day: needs a phone that never had the app and a number with no account. Give Gary a SQL Editor query to count credits per influencer phone.
+
+---
+
+## 66. Reminder text links into the app
+
+> **Status (spreadsheet, 27 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+The daily reminder SMS now includes https://alrpa.app.link/today, which opens the app (App Store if not installed).
+
+**Notes:** DONE AND TESTED 27 Sep 2026, git 4563b92. Branch Quick Link 'Daily reminder' (alias today, iOS fallback App Store id6762151038, Android/desktop fallback website, no referral data). REMINDER_TEXT 121 chars, one GSM-7 segment; test added (npm test 29/421). Deployed to STAGING; David received a real staging reminder through Twilio with the link and it opened the app - carriers delivered it. Shutoff text left unchanged (a link would push it past 160). Ships in the release-day send-reminders production deploy with 27, 28, 51, 52, 61. After launch watch Twilio for error 30007 (carrier filtered).
+
+---
+
+## 67. Admin: Growth renamed Metrics, add Using reminders
+
+> **Status (spreadsheet, 27 Sep 2026):** **New** · timing Just after Release · priority 1 · effort S
+
+Gary 27 Sep: the Admin Growth card is now 'Metrics' with a fifth tile, 'Using reminders' - the people send-reminders would actually text (reminders on, consent recorded, not in the STOP ledger, test numbers excluded).
+
+**Notes:** 27 Sep 2026. DATABASE DONE ON BOTH PROJECTS: admin_growth_stats() returns a new key 'reminders' (production definition checked identical to staging before replacing; file Desktop\admin-metrics-reminders.sql). Staging 3, production 3. Build 98 ignores the extra key, so safe already live. APP: AdminScreen.js label + tile, __tests__/adminMetrics.test.js (3 tests), npm test 30/424, git 5903ef5, verified on staging via preview OTA eac3791f. Ships in the 1.0.1 OTA.
+
+---
+
+## 68. Published email addresses must reach someone
+
+> **Status (spreadsheet, 27 Sep 2026):** **Done 27 Sep** · timing Completed · priority 1 · effort S
+
+The privacy policy and SMS HELP text publish info@, privacy@ and support@30actsofkindness.org. Only info@ existed (its own mailbox); privacy@ and support@ did not.
+
+**Notes:** DONE 27 Sep 2026: privacy@ and support@ added as ALIASES of the info@ mailbox in GoDaddy Email & Office (Admin > Email aliases). Tested from Gary's Gmail: both arrived in info@. Read info@ via the GoDaddy dashboard 'Sign In to your email' or a private window at outlook.office.com. Someone must check info@ regularly from launch. GoDaddy '3 add-ons available' = paid extras (not needed); '3 available accounts' = unused paid mailboxes, spare for later.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
