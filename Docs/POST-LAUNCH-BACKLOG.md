@@ -1622,6 +1622,33 @@ The privacy policy and SMS HELP text publish info@, privacy@ and support@30actso
 
 ---
 
+## Synced 2026-09-28 - status of items changed on 28 September
+
+- **63** CO-2 (tracking 2026118675) complete with both signatures (David signed as Chairman; the AG confirmed that is fine). CO-1 signed by Gary, waiting for David's signature. Fee should be $15; if $200 is asked, call Ceretha Jackson, (312) 814-9197.
+- **68** info@ now forwards to gary@30actsofkindness.org (keep a copy on); tested.
+- **69** New: social media accounts, created on all six platforms.
+
+---
+
+## 69. Social media accounts under the 30 Acts name
+
+> **Status (spreadsheet, 28 Sep 2026):** **Open** · timing Just after Release · priority 2 · effort S
+
+One look on six platforms: display name "30 Acts of Kindness", handle 30actsofkind, the 30 logo, bio "One kind act a day for 30 days. Free iPhone app. A 501(c)(3) nonprofit.", link https://30actsofkindness.org, sign-up email info@30actsofkindness.org, passwords in Dashlane.
+
+| Platform | Handle | State |
+|---|---|---|
+| Instagram | @30actsofkind | Professional account, category Nonprofit organization, linked to the Facebook Page. Home address removed; email only. |
+| Facebook | facebook.com/30actsofkind | Page, Nonprofit organization; logo, website, email. |
+| LinkedIn | linkedin.com/company/30actsofkind | Logo and tagline. |
+| YouTube | @30ActsofKind | Brand Account under ggutman@gmail.com (ID verified 28 Sep); logo, description, link, info@ contact. |
+| X | @30ActsofKind | Name, logo, header, bio, website, Illinois. Personal birth date removed. Bio reads "Free phone app. 501(c)(3) nonprofit." (iPhone autocorrect; close enough). |
+| TikTok | @30actsofkind | Second account in the TikTok app (switch with the arrow by the name). Tied to the Google Voice number - keep it active. Logo and bio. |
+
+**Notes:** Created 28 Sep 2026. X would not accept a name starting with a digit at sign-up (fixed later in Edit profile); @30ActsKindness was reserved, hence 30actsofkind everywhere. TikTok web sign-up hit its fraud filter; the app over cellular worked. Google refused a new account ("phone number used too many times"), so YouTube is a Brand Account. LEFT: (1) TikTok display name is "30actsofkind" - change to "30 Acts of Kindness" after 5 Oct (TikTok allows one name change per 7 days); (2) TikTok website link needs 1,000 followers; (3) banners for Facebook, X, LinkedIn and YouTube; (4) add David as an admin on each.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
