@@ -33,10 +33,10 @@
         <h1>Small acts, done daily, change everything.</h1>
         <p class="lead">30 Acts of Kindness gives you one gentle prompt a day for a month. Do the act, save your story, and watch your 30-day streak grow.</p>
         <div class="hero-cta">
-          <a class="btn btn--primary" href="#waitlist">Join the Waitlist</a>
+          <a class="btn btn--primary" href="https://apps.apple.com/app/id6762151038" target="_blank" rel="noopener">Download on the App Store</a>
           <button type="button" class="btn btn--ghost" onclick="openStory()">Watch our Story</button>
         </div>
-        <p class="hero-note">Coming soon to iOS · A project of 30ActsofKindness NFP</p>
+        <p class="hero-note">Free on iPhone · Android coming soon · A project of 30ActsofKindness NFP</p>
       </div>
       <div aria-hidden="true">
         <div class="kindgrid">
@@ -180,9 +180,9 @@
   <!-- WAITLIST -->
   <section class="section" id="waitlist">
     <div class="wrap center" style="max-width:560px">
-      <p class="eyebrow">Be first in line</p>
-      <h2>Join the Waitlist</h2>
-      <p class="lead" style="margin:0 auto 24px">The app is launching on iPhone soon. Leave your details and we'll invite you to try it early — and let you know the moment it's live.</p>
+      <p class="eyebrow">Not on iPhone?</p>
+      <h2>Join the Android Waitlist</h2>
+      <p class="lead" style="margin:0 auto 24px">30 Acts of Kindness is free on iPhone now. Android is coming - leave your details and we'll let you know the moment it's ready for your phone.</p>
       <form class="waitlist" id="waitlist-form" novalidate>
         <div class="waitlist-row">
           <span class="req"><input type="text" id="wl-first" name="first_name" placeholder="First name" required autocomplete="given-name" aria-label="First name"><span class="req-star">*</span></span>
@@ -196,7 +196,6 @@
         </select>
         <select id="wl-device" name="device" class="waitlist-select" required aria-label="What phone do you have?">
           <option value="" disabled selected>What phone do you have?</option>
-          <option value="iPhone">iPhone (iOS)</option>
           <option value="Android">Android</option>
           <option value="Other">Other</option>
         </select>
@@ -210,7 +209,7 @@
         <button type="submit" class="btn btn--primary">Join the Waitlist</button>
       </form>
       <p class="waitlist-msg" id="waitlist-msg" role="status" aria-live="polite"></p>
-      <p class="muted" style="font-size:.82rem;margin-top:10px;line-height:1.5">iPhone only for now. We use the details you share only to send your launch invite and to see where interest is coming from. We'll never sell or share your information.</p>
+      <p class="muted" style="font-size:.82rem;margin-top:10px;line-height:1.5">On an iPhone? <a href="https://apps.apple.com/app/id6762151038" target="_blank" rel="noopener">Get the app now</a>. We use the details you share only to tell you when the app reaches your phone and to see where interest is coming from. We'll never sell or share your information.</p>
     </div>
   </section>
 
@@ -255,7 +254,7 @@
       <div class="center" style="margin-bottom:40px">
         <p class="eyebrow">Contact</p>
         <h2>Say hello</h2>
-        <p class="lead" style="margin:0 auto">Questions, partnership ideas, or want to help test the app? We'd love to hear from you.</p>
+        <p class="lead" style="margin:0 auto">Questions, partnership ideas, or want to bring 30 Acts to your group? We'd love to hear from you.</p>
       </div>
       <div class="grid-2">
         <div class="prose">
@@ -269,8 +268,9 @@
           <p class="muted">Illinois not-for-profit corporation<br>A registered 501(c)(3) nonprofit</p>
           <p class="muted">c/o Republic Registered Agent LLC<br>137 N Oak Park Ave, Ste 215<br>Oak Park, IL 60301</p>
           <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-          <h3>Want to test the app?</h3>
-          <p class="muted">We're inviting iOS testers through TestFlight. Email us and we'll send an invite.</p>
+          <h3>Get the app</h3>
+          <p class="muted">Free on iPhone. Android is coming soon.</p>
+          <p><a class="btn btn--primary" href="https://apps.apple.com/app/id6762151038" target="_blank" rel="noopener">Download on the App Store</a></p>
         </div>
       </div>
     </div>
@@ -298,8 +298,8 @@
     <div>
       <h4>Get the app</h4>
       <ul class="foot-links">
-        <li><a href="#waitlist">Join the Waitlist</a></li>
-        <li><a href="#contact">Become a tester</a></li>
+        <li><a href="https://apps.apple.com/app/id6762151038" target="_blank" rel="noopener">Download on the App Store</a></li>
+        <li><a href="#waitlist">Android waitlist</a></li>
       </ul>
     </div>
     <div>
@@ -320,7 +320,7 @@
 
 <script src="vendor/supabase.js"></script>
 <script src="vendor/libphonenumber-min.js"></script>
-<script src="site.js?v=2"></script>
+<script src="site.js?v=3"></script>
   <div id="storyModal" role="dialog" aria-modal="true" aria-label="Our story video" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,20,15,.82);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeStory()">
     <div style="position:relative;width:100%;max-width:340px">
       <button type="button" aria-label="Close" onclick="closeStory()" style="position:absolute;top:-44px;right:0;width:36px;height:36px;border-radius:50%;border:0;background:#fff;color:#15231B;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)">&times;</button>

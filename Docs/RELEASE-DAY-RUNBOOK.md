@@ -11,7 +11,7 @@ Times below are Central. Every step says where it runs. Claude gives each comman
 |---|---|---|---|
 | A1 | PowerShell | `npx eas whoami` and `npx supabase projects list` | Both show you logged in, and the list includes mtfyekdxtkdiaqbgaoza. |
 | A2 | PowerShell | `git status` and `git log -1 --oneline` in 30-Acts-current | "working tree clean"; the last commit is 705d3f0 or later. |
-| A3 | Claude + browser | **Website (item 29):** Claude edits `website\index.html`: the hero button becomes "Download on the App Store" (https://apps.apple.com/app/id6762151038), "Coming soon to iOS" becomes "Free on iPhone", the TestFlight line goes, and the waitlist becomes an Android waitlist. You open the file in Chrome to check it, then commit. **Not uploaded until Thursday.** | Page looks right locally; committed. |
+| A3 | DONE 29 Sep | **Website (item 29):** Claude edits `website\index.html`: the hero button becomes "Download on the App Store" (https://apps.apple.com/app/id6762151038), "Coming soon to iOS" becomes "Free on iPhone", the TestFlight line goes, and the waitlist becomes an Android waitlist. You open the file in Chrome to check it, then commit. **Not uploaded until Thursday.** | Page looks right locally; committed. |
 | A4 | Phone call / text | Line up one person with an iPhone that **never had the app** and a number with **no account**, for the influencer-link test (item 65) on Thursday. | Someone has agreed. |
 | A5 | Supabase production | **Only if you approve (decision 1 below):** deploy `send-reminders` and the door secret - section C, steps C1-C6. | The 5-minute tick returns 200. |
 | A6 | PowerShell + Supabase | **Only if you approve (decision 2 below):** 1.0.1 update and sign-in hook - section D, steps D1-D5. | You signed in with a text code on the production app. |
@@ -72,7 +72,7 @@ The update goes **before** the hook: the old sign-in screen does not ask for a c
 | E2 | iPhone | Open it, wait 10 seconds on the first screen, swipe it closed, open it again. **Do not sign in before the reopen** - the first launch runs the old code, which the hook refuses. | Second launch shows the new sign-in screen. |
 | E3 | iPhone | Sign in with your number and the texted code. | Your acts, streak and tree are all there. |
 | E4 | Text to David and testers | "30 Acts is live in the App Store. Install it from https://apps.apple.com/app/id6762151038 over your TestFlight copy (if the App Store only offers Open, delete the app first, then install; your account is safe on the server). Open it, close it, open it again, then sign in with the text code." Keep 30 Acts (Staging). | Each confirms. |
-| E5 | cPanel File Manager, public_html | **Website (items 29, 17c-web):** upload `index.html` and `privacy.html` from 30-Acts-current\website, replacing the old ones. | 30actsofkindness.org shows the App Store button; the privacy page says October 1, 2026. Check on your phone too. |
+| E5 | cPanel File Manager, public_html | **Website (items 29, 17c-web):** upload `index.html`, `site.js` and `privacy.html` from 30-Acts-current\website, replacing the old ones. | 30actsofkindness.org shows the App Store button; the privacy page says October 1, 2026. Check on your phone too. |
 | E6 | Test person's iPhone (A4) | **Influencer link (item 65):** they open your test Branch link, install, sign up. Claude gives a query to confirm the credit. | referred_by shows the influencer's number. |
 
 ---

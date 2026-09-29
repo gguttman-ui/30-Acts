@@ -130,7 +130,7 @@
       if (res.error) {
         if (res.error.code === '23505') {
           wf.reset(); lastLen = 0;
-          say("You're already on the list - see you at launch!", 'ok');
+          say("You're already on the list - we'll let you know when it's ready for your phone.", 'ok');
         } else {
           say('Something went wrong - email ' + FALLBACK_EMAIL + " and we'll add you.");
         }
