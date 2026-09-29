@@ -9,12 +9,20 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
 ## TUESDAY 29 / WEDNESDAY 30 SEPTEMBER - preparation (only you, David and the testers can see any of this)
 
 - [x] **1. Tue - PowerShell**
-  - Do: Check both logins: npx eas whoami ; npx supabase projects list
+  - Do: Check both logins.
   - Worked if: Both show you logged in; the list includes mtfyekdxtkdiaqbgaoza.
 
+  ```
+  npx eas whoami; npx supabase projects list
+  ```
+
 - [x] **2. Tue - PowerShell**
-  - Do: Check the code is clean: git status ; git log -1 --oneline
+  - Do: Check the code is clean.
   - Worked if: "working tree clean".
+
+  ```
+  git status; git log -1 --oneline
+  ```
 
 - [x] **3. Tue - Claude + Chrome**
   - Do: Website (item 29): App Store button, Android waitlist. Checked in Chrome and committed (9ec89f2). NOT uploaded until Thursday.
@@ -28,37 +36,93 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
 
 ## WEDNESDAY - reminders deploy (items 27, 28, 51, 52, 61, 66). Approved 29 Sep. Safe at every step: after the deploy the old key still works, so no reminder is missed.
 
-- [ ] **5. Wed - PowerShell**
-  - Do: Deploy the new reminders code: npx supabase functions deploy send-reminders --project-ref mtfyekdxtkdiaqbgaoza
+- [ ] **5. Wed - PowerShell, in 30-Acts-current**
+  - Do: Deploy the new reminders code (command in the last column).
   - Worked if: "Deployed Function send-reminders".
 
+  ```
+  npx supabase functions deploy send-reminders --project-ref mtfyekdxtkdiaqbgaoza
+  ```
+
 - [ ] **6. Wed - Supabase production - SQL Editor**
-  - Do: Wait for the next 5-minute tick, then run Claude's check query.
-  - Worked if: Status 200 (old key still works).
+  - Do: Wait for the next 5-minute tick (:00, :05, :10 ...), then run the check query.
+  - Worked if: The newest row (latest created time) shows status_code 200.
+
+  ```
+  select id, status_code, created
+  from net._http_response
+  order by id desc
+  limit 5;
+  ```
 
 - [ ] **7. Wed - Supabase production - SQL Editor**
-  - Do: Create the door secret inside Vault (Claude's query; the database generates it, so it never appears in chat).
-  - Worked if: The query returns the new secret's id.
+  - Do: Create the door secret inside Vault. The database generates it, so it never appears in chat.
+  - Worked if: The query returns an id (a long string of letters and numbers).
+
+  ```
+  select vault.create_secret(
+    encode(extensions.gen_random_bytes(32), 'hex'),
+    'reminders_door_secret',
+    'send-reminders door check (item 52)'
+  );
+  ```
 
 - [ ] **8. Wed - Supabase production - SQL Editor, then Edge Functions > Secrets**
   - Do: Read the secret from Vault, copy it (never paste it into chat) and add it as REMINDERS_DOOR_SECRET.
   - Worked if: The secret is listed.
 
+  ```
+  select decrypted_secret
+  from vault.decrypted_secrets
+  where name = 'reminders_door_secret';
+  
+  -- Copy the value (never into chat). Then Edge Functions > Secrets > Add new secret:
+  -- Name: REMINDERS_DOOR_SECRET   Value: the copied text
+  ```
+
 - [ ] **9. Wed - Supabase production - SQL Editor**
-  - Do: Show cron job 7's command; Claude writes the replacement that reads the secret from Vault; run it.
-  - Worked if: Command updated.
+  - Do: Point cron job 7 at the new door secret (it also stops sending the admin key).
+  - Worked if: The query returns one row (no error).
+
+  ```
+  select cron.alter_job(
+    7,
+    command := $cmd$
+    select net.http_post(
+      url     := 'https://mtfyekdxtkdiaqbgaoza.supabase.co/functions/v1/send-reminders',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'apikey',       (select decrypted_secret from vault.decrypted_secrets where name = 'reminders_door_secret')
+      ),
+      body    := '{}'::jsonb,
+      timeout_milliseconds := 30000
+    );
+    $cmd$
+  );
+  ```
 
 - [ ] **10. Wed - Supabase production - SQL Editor**
   - Do: Wait for the next tick and run the check query again.
-  - Worked if: Status 200. (If 401: put the old command back - Claude keeps it.)
+  - Worked if: The newest row shows status_code 200. If 401: run the rollback on the second tab.
+
+  ```
+  select id, status_code, created
+  from net._http_response
+  order by id desc
+  limit 5;
+  ```
 
 ---
 
 ## WEDNESDAY - 1.0.1 update, then the sign-in hook (items 41, 43, 15, 18, 53, 54, 67, 17c-app, 59). Approved 29 Sep. The update MUST go first: the old sign-in screen does not ask for a code.
 
 - [ ] **11. Wed - PowerShell, in 30-Acts-current**
-  - Do: Publish 1.0.1: npx eas update --branch production --environment production -m "1.0.1"
+  - Do: Publish the 1.0.1 update (command in the last column).
   - Worked if: "Published!" with an update id. Send Claude the id.
+
+  ```
+  npx eas update --branch production --environment production -m "1.0.1"
+  ```
 
 - [ ] **12. Wed - iPhone - production 30 Acts app**
   - Do: Open it, wait 10 seconds, swipe it closed, open it again.
@@ -89,8 +153,15 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   - Worked if: All open and signed in.
 
 - [ ] **18. 6:50 - Supabase production - SQL Editor**
-  - Do: Run Claude's check query on the overnight reminder ticks.
-  - Worked if: All 200.
+  - Do: Check the latest reminder ticks.
+  - Worked if: All rows show status_code 200.
+
+  ```
+  select id, status_code, created
+  from net._http_response
+  order by id desc
+  limit 5;
+  ```
 
 - [ ] **19. 7:00 - App Store Connect**
   - Do: Press Release This Version, then confirm.
@@ -176,7 +247,27 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
 
 ## If something goes wrong
 
-- **A reminder tick returns 401 after the cron change:** Put cron job 7's previous command back (Claude keeps it). Reminders resume at the next tick.
+- **A reminder tick returns 401 after the cron change (step 9):** Supabase production SQL Editor: run the rollback SQL in the next row. Reminders resume at the next tick. Then tell Claude.
+
+- **ROLLBACK SQL for step 9:**
+
+  ```
+  select cron.alter_job(
+    7,
+    command := $cmd$
+    select net.http_post(
+      url     := 'https://mtfyekdxtkdiaqbgaoza.supabase.co/functions/v1/send-reminders',
+      headers := jsonb_build_object(
+        'Content-Type',  'application/json',
+        'apikey',        (select decrypted_secret from vault.decrypted_secrets where name = 'reminders_secret_key'),
+        'Authorization', concat('Bearer ', (select decrypted_secret from vault.decrypted_secrets where name = 'reminders_secret_key'))
+      ),
+      body    := '{}'::jsonb,
+      timeout_milliseconds := 30000
+    );
+    $cmd$
+  );
+  ```
 
 - **Nobody can sign in after the hook is enabled:** Supabase production > Authentication > Hooks > Disable. Sign-in works as before. Then tell Claude.
 
