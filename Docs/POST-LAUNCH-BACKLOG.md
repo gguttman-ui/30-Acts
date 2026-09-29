@@ -1624,7 +1624,7 @@ The privacy policy and SMS HELP text publish info@, privacy@ and support@30actso
 
 ## Synced 2026-09-28 - status of items changed on 28 September
 
-- **63** CO-2 (tracking 2026118675) complete with both signatures (David signed as Chairman; the AG confirmed that is fine). CO-1 signed by Gary, waiting for David's signature. Fee should be $15; if $200 is asked, call Ceretha Jackson, (312) 814-9197.
+- **63** CO-2 (tracking 2026118675) complete with both signatures (David signed as Chairman; the AG confirmed that is fine). CO-1 signed by both, filed and paid on 28 Sep. Waiting for the AG response - last time it took exactly one month, so expect it around 28 Oct. If the AG asks about the fee or anything else, call Ceretha Jackson, (312) 814-9197.
 - **68** info@ now forwards to gary@30actsofkindness.org (keep a copy on); tested.
 - **69** New: social media accounts, created on all six platforms.
 
