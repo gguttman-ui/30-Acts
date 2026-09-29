@@ -1649,6 +1649,19 @@ One look on six platforms: display name "30 Acts of Kindness", handle 30actsofki
 
 ---
 
+## Synced 2026-09-29 - status of items changed on 29 September
+
+- **27, 28, 51, 52, 61, 66** Production `send-reminders` deploy moved to WEDNESDAY 30 Sep (approved by Gary), a day before release.
+- **41, 43, 15, 18, 53, 54, 67, 17c-app** 1.0.1 OTA to production on WEDNESDAY 30 Sep (approved by Gary; a one-time exception to "never publish to production before Release This Version" - only Gary, David and the testers use production before release).
+- **59** Sign-in hook on WEDNESDAY right after the OTA; rate limit 30 -> 150 on THURSDAY right after Release This Version.
+- **29** Website BUILT and committed (9ec89f2): App Store button, Android waitlist, tester lines replaced. Upload index.html, site.js and privacy.html on Thursday once the app shows in the App Store.
+- **42** Downloads figure: App Store Connect > Analytics > Overview > First-Time Downloads, Friday or later.
+- **64** Send all 12 messages, including David Schwartz's "Android is coming" email; he stays on the (now Android) waitlist.
+- **65** Influencer kit made: captions for each platform and 3 graphics with a "Scan to join" QR code (30 Acts set on the Desktop as influencer-30acts-*.png). Per influencer: Gary creates the Branch Quick Link, sends Claude the name and link, Claude makes their graphics and captions. The release-day link test is optional.
+- **1 Oct is a THURSDAY** (earlier docs said Wednesday). The step-by-step list is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop and Docs), mirrored in `RELEASE-DAY-RUNBOOK.md`.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait

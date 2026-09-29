@@ -1,98 +1,187 @@
 # 30 Acts of Kindness - release runbook
 
 **Release: Thursday 1 October 2026, 7:00 AM Central (8:00 AM Eastern).**
-Times below are Central. Every step says where it runs. Claude gives each command at the time, one at a time; this list is the map, not the commands to paste.
+
+The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This file mirrors it for the repo. Claude gives each command at the time, one at a time.
 
 ---
 
-## A. Wednesday 30 September - preparation (nothing the public can see)
+## TUESDAY 29 / WEDNESDAY 30 SEPTEMBER - preparation (only you, David and the testers can see any of this)
 
-| # | Where | Action | Done when |
-|---|---|---|---|
-| A1 | PowerShell | `npx eas whoami` and `npx supabase projects list` | Both show you logged in, and the list includes mtfyekdxtkdiaqbgaoza. |
-| A2 | PowerShell | `git status` and `git log -1 --oneline` in 30-Acts-current | "working tree clean"; the last commit is 705d3f0 or later. |
-| A3 | DONE 29 Sep | **Website (item 29):** Claude edits `website\index.html`: the hero button becomes "Download on the App Store" (https://apps.apple.com/app/id6762151038), "Coming soon to iOS" becomes "Free on iPhone", the TestFlight line goes, and the waitlist becomes an Android waitlist. You open the file in Chrome to check it, then commit. **Not uploaded until Thursday.** | Page looks right locally; committed. |
-| A4 | Phone call / text | Line up one person with an iPhone that **never had the app** and a number with **no account**, for the influencer-link test (item 65) on Thursday. | Someone has agreed. |
-| A5 | Supabase production | **Only if you approve (decision 1 below):** deploy `send-reminders` and the door secret - section C, steps C1-C6. | The 5-minute tick returns 200. |
-| A6 | PowerShell + Supabase | **Only if you approve (decision 2 below):** 1.0.1 update and sign-in hook - section D, steps D1-D5. | You signed in with a text code on the production app. |
+- [x] **1. Tue - PowerShell**
+  - Do: Check both logins: npx eas whoami ; npx supabase projects list
+  - Worked if: Both show you logged in; the list includes mtfyekdxtkdiaqbgaoza.
 
-**Decision 1 - reminders deploy on Wednesday.** Recommended. It is server-only, it does not depend on the App Store release, and the new code is designed so no reminder is missed during the change. Doing it Wednesday gives a full day of real ticks before the public arrives.
+- [x] **2. Tue - PowerShell**
+  - Do: Check the code is clean: git status ; git log -1 --oneline
+  - Worked if: "working tree clean".
 
-**Decision 2 - 1.0.1 update and sign-in hook on Wednesday.** Recommended, but it breaks your rule "never publish to production before Release This Version", so it is your call. Before release, the only people on production are you, David and the testers, so Wednesday is a dress rehearsal: if anything is wrong, only we see it. If you say no, D1-D5 run on Thursday right after Release.
+- [x] **3. Tue - Claude + Chrome**
+  - Do: Website (item 29): App Store button, Android waitlist. Checked in Chrome and committed (9ec89f2). NOT uploaded until Thursday.
+  - Worked if: Page looked right; committed.
 
----
-
-## B. Thursday 1 October - release
-
-| # | Time | Where | Action | Done when |
-|---|---|---|---|---|
-| B1 | 6:45 | Laptop | Open these tabs: App Store Connect (30 Acts of Kindness > Distribution), Supabase **production**, GoDaddy cPanel File Manager, Twilio console, Sentry. | All open and signed in. |
-| B2 | 6:50 | Supabase production, SQL Editor | If C was done Wednesday: check the last reminder ticks returned 200 (Claude gives the query). If not: do **C1-C6 now**, finishing before 7:55. | 200s. |
-| B3 | **7:00** | App Store Connect | Press **Release This Version**. Confirm. | Status changes to "Processing for Distribution", then "Ready for Distribution". |
-| B4 | 7:05 | PowerShell + iPhone | If D was not done Wednesday: do **D1-D5 now**. | You signed in with a text code. |
-| B5 | after D | Supabase production, Authentication > Rate Limits | **Rate limit for sign-ups and sign-ins:** 30 to **150**. Change nothing else. Save. | Shows 150 requests/5 min. |
-| B6 | every 15 min | iPhone Safari | Open https://apps.apple.com/app/id6762151038 | The app page shows with a **Get** button. This can take from minutes to a few hours. |
+- [ ] **4. Wed - Phone / text**
+  - Do: Optional (item 65): find one person with an iPhone that never had the app and a number with no account, for the influencer-link test.
+  - Worked if: Someone agreed - or skip; the link uses the same code as the app's invite links.
 
 ---
 
-## C. Reminders deploy (items 27, 28, 51, 52, 61, 66)
+## WEDNESDAY - reminders deploy (items 27, 28, 51, 52, 61, 66). Approved 29 Sep. Safe at every step: after the deploy the old key still works, so no reminder is missed.
 
-Order is safe at every step: after C1 the function still accepts the old key, so no tick fails.
+- [ ] **5. Wed - PowerShell**
+  - Do: Deploy the new reminders code: npx supabase functions deploy send-reminders --project-ref mtfyekdxtkdiaqbgaoza
+  - Worked if: "Deployed Function send-reminders".
 
-| # | Where | Action | Done when |
-|---|---|---|---|
-| C1 | PowerShell | `npx supabase functions deploy send-reminders --project-ref mtfyekdxtkdiaqbgaoza` | "Deployed Function send-reminders". |
-| C2 | Supabase production, SQL Editor | Wait for the next 5-minute tick, then check it (Claude gives the query). | 200 - old key still works. |
-| C3 | Supabase production, SQL Editor | Create the door secret inside Vault (random, generated by the database - it never appears in chat). | Query returns the new secret's id. |
-| C4 | Supabase production, SQL Editor, then Edge Functions > Secrets | Read the value from Vault, copy it (do not paste it into chat), add it as `REMINDERS_DOOR_SECRET`. | Secret listed. |
-| C5 | Supabase production, SQL Editor | Show cron job 7's command; Claude writes the replacement that reads the door secret from Vault; run it. | Command updated. |
-| C6 | Supabase production, SQL Editor | Wait for the next tick and check it. | **200**. If 401, run C5's previous command again - it still works. |
+- [ ] **6. Wed - Supabase production - SQL Editor**
+  - Do: Wait for the next 5-minute tick, then run Claude's check query.
+  - Worked if: Status 200 (old key still works).
 
----
+- [ ] **7. Wed - Supabase production - SQL Editor**
+  - Do: Create the door secret inside Vault (Claude's query; the database generates it, so it never appears in chat).
+  - Worked if: The query returns the new secret's id.
 
-## D. 1.0.1 update, then the sign-in hook (items 41, 43, 15, 18, 53, 54, 67, 17c-app, 59)
+- [ ] **8. Wed - Supabase production - SQL Editor, then Edge Functions > Secrets**
+  - Do: Read the secret from Vault, copy it (never paste it into chat) and add it as REMINDERS_DOOR_SECRET.
+  - Worked if: The secret is listed.
 
-The update goes **before** the hook: the old sign-in screen does not ask for a code, so the hook first would lock people out.
+- [ ] **9. Wed - Supabase production - SQL Editor**
+  - Do: Show cron job 7's command; Claude writes the replacement that reads the secret from Vault; run it.
+  - Worked if: Command updated.
 
-| # | Where | Action | Done when |
-|---|---|---|---|
-| D1 | PowerShell, in 30-Acts-current | `npx eas update --branch production --environment production -m "1.0.1"` | "Published!" with an update id. Tell Claude the id. |
-| D2 | iPhone, production 30 Acts app | Open it, wait 10 seconds, swipe it closed, open it again. | The build stamp at the bottom of Settings shows the new update. |
-| D3 | iPhone | Settings > Privacy Policy. | Says "Effective: October 1, 2026". |
-| D4 | Supabase production, Authentication > Hooks | Customize Access Token > Postgres > schema public, function `require_otp_for_password_login` > Enable. | Hook shows enabled. |
-| D5 | iPhone | Sign out, sign back in. | It texts a code; you land in your own account. |
-
----
-
-## E. Once the app shows in the App Store (B6)
-
-| # | Where | Action | Done when |
-|---|---|---|---|
-| E1 | iPhone | **Delete and reinstall - you only.** Press and hold **30 Acts of Kindness** (NOT "30 Acts (Staging)" - keep that one), Remove App > Delete App. In the App Store, install it from the link in B6. | Installed from the App Store. |
-| E2 | iPhone | Open it, wait 10 seconds on the first screen, swipe it closed, open it again. **Do not sign in before the reopen** - the first launch runs the old code, which the hook refuses. | Second launch shows the new sign-in screen. |
-| E3 | iPhone | Sign in with your number and the texted code. | Your acts, streak and tree are all there. |
-| E4 | Text to David and testers | "30 Acts is live in the App Store. Install it from https://apps.apple.com/app/id6762151038 over your TestFlight copy (if the App Store only offers Open, delete the app first, then install; your account is safe on the server). Open it, close it, open it again, then sign in with the text code." Keep 30 Acts (Staging). | Each confirms. |
-| E5 | cPanel File Manager, public_html | **Website (items 29, 17c-web):** upload `index.html`, `site.js` and `privacy.html` from 30-Acts-current\website, replacing the old ones. | 30actsofkindness.org shows the App Store button; the privacy page says October 1, 2026. Check on your phone too. |
-| E6 | Test person's iPhone (A4) | **Influencer link (item 65):** they open your test Branch link, install, sign up. Claude gives a query to confirm the credit. | referred_by shows the influencer's number. |
+- [ ] **10. Wed - Supabase production - SQL Editor**
+  - Do: Wait for the next tick and run the check query again.
+  - Worked if: Status 200. (If 401: put the old command back - Claude keeps it.)
 
 ---
 
-## F. After the website is live
+## WEDNESDAY - 1.0.1 update, then the sign-in hook (items 41, 43, 15, 18, 53, 54, 67, 17c-app, 59). Approved 29 Sep. The update MUST go first: the old sign-in screen does not ask for a code.
 
-| # | When | Where | Action |
-|---|---|---|---|
-| F1 | after E5 | Email / Messages | **Waitlist messages (item 64):** send the 12 from `Desktop\Waitlist launch messages.txt`. |
-| F2 | after F1 | Email / Messages | Your contacts and David's. |
-| F3 | after E5 | Instagram, Facebook, LinkedIn, X, YouTube, TikTok | Launch post pointing to 30actsofkindness.org. Switch TikTok to the 30 Acts account first. |
-| F4 | all day | Twilio, Sentry, Supabase | Twilio: any error 30007 (carrier filtered). Sentry: new or "Regressed" issues. Supabase: cron ticks 200. Tell Claude anything odd. |
-| F5 | end of day | Claude | Update the backlog and write the handoff. |
-| F6 | Friday or later | Supabase production, SQL Editor | **Downloads tile (item 42):** App Store Connect Analytics runs a day or two behind; enter the real figure once it shows. |
+- [ ] **11. Wed - PowerShell, in 30-Acts-current**
+  - Do: Publish 1.0.1: npx eas update --branch production --environment production -m "1.0.1"
+  - Worked if: "Published!" with an update id. Send Claude the id.
+
+- [ ] **12. Wed - iPhone - production 30 Acts app**
+  - Do: Open it, wait 10 seconds, swipe it closed, open it again.
+  - Worked if: The build stamp at the bottom of Settings shows the new update.
+
+- [ ] **13. Wed - iPhone**
+  - Do: Settings > Privacy Policy.
+  - Worked if: It says "Effective: October 1, 2026".
+
+- [ ] **14. Wed - Supabase production - Authentication > Hooks**
+  - Do: Customize Access Token > Postgres > schema public > require_otp_for_password_login > Enable.
+  - Worked if: The hook shows Enabled.
+
+- [ ] **15. Wed - iPhone**
+  - Do: Sign out, then sign back in.
+  - Worked if: It texts you a code and you land in your own account.
+
+- [ ] **16. Wed - Text to David and the testers**
+  - Do: "Please open 30 Acts, close it and open it again to get today's update. You stay signed in."
+  - Worked if: Each sees the update.
+
+---
+
+## THURSDAY 1 OCTOBER - release day (times are Central)
+
+- [ ] **17. 6:45 - Laptop**
+  - Do: Open tabs: App Store Connect (30 Acts of Kindness > Distribution), Supabase production, GoDaddy cPanel File Manager, Twilio, Sentry.
+  - Worked if: All open and signed in.
+
+- [ ] **18. 6:50 - Supabase production - SQL Editor**
+  - Do: Run Claude's check query on the overnight reminder ticks.
+  - Worked if: All 200.
+
+- [ ] **19. 7:00 - App Store Connect**
+  - Do: Press Release This Version, then confirm.
+  - Worked if: "Processing for Distribution", then "Ready for Distribution".
+
+- [ ] **20. 7:05 - Supabase production - Authentication > Rate Limits**
+  - Do: Rate limit for sign-ups and sign-ins: change 30 to 150. Change nothing else. Save.
+  - Worked if: It shows 150 requests/5 min.
+
+- [ ] **21. every 15 min - iPhone Safari**
+  - Do: Open https://apps.apple.com/app/id6762151038
+  - Worked if: The app page shows a Get button (minutes to a few hours).
+
+---
+
+## THURSDAY - once the app shows in the App Store
+
+- [ ] **22. iPhone**
+  - Do: Delete and reinstall (you only). Press and hold 30 Acts of Kindness - NOT 30 Acts (Staging), keep that one - then Remove App > Delete App. Install it again from the App Store link.
+  - Worked if: Installed from the App Store.
+
+- [ ] **23. iPhone**
+  - Do: Open it, wait 10 seconds, swipe it closed, open it again. Do NOT sign in before the reopen - the first launch runs the old code, which the hook refuses.
+  - Worked if: The second launch shows the new sign-in screen.
+
+- [ ] **24. iPhone**
+  - Do: Sign in with your number and the texted code.
+  - Worked if: Your acts, streak and tree are all there.
+
+- [ ] **25. Text to David and the testers**
+  - Do: "30 Acts is live! Install it from https://apps.apple.com/app/id6762151038 over your TestFlight copy (if it only offers Open, delete the app first - your account is safe). Open, close, reopen, then sign in with the text code. Keep 30 Acts (Staging)."
+  - Worked if: Each confirms.
+
+- [ ] **26. GoDaddy cPanel File Manager - public_html**
+  - Do: Website (items 29, 17c-web): upload index.html, site.js and privacy.html from 30-Acts-current\website, replacing the old ones.
+  - Worked if: 30actsofkindness.org shows the App Store button; the privacy page says October 1, 2026. Check on your phone too.
+
+- [ ] **27. Test person's iPhone**
+  - Do: Optional (item 65): they open your test Branch link, install, sign up. Claude gives a query to confirm the credit.
+  - Worked if: The influencer's number shows as the inviter.
+
+---
+
+## THURSDAY - after the website is live
+
+- [ ] **28. Email / Messages**
+  - Do: Waitlist messages (item 64): send all 12 from Desktop\Waitlist launch messages.txt, including David Schwartz's "Android is coming" email. He stays on the waitlist, which is now the Android waitlist.
+  - Worked if: All 12 sent.
+
+- [ ] **29. Email / Messages**
+  - Do: Your contacts and David's.
+  - Worked if: Sent.
+
+- [ ] **30. Instagram, Facebook, LinkedIn, X, YouTube, TikTok**
+  - Do: Launch post with the graphics on your Desktop (influencer-30acts-*.png) pointing to 30actsofkindness.org. Switch TikTok to the 30 Acts account first.
+  - Worked if: Posted on all six.
+
+- [ ] **31. Branch dashboard, then Claude**
+  - Do: Influencers (item 65): for each, create a Quick Link (alias = their name, link data ref = +1 and their 10 digits, iOS fallback id6762151038). Send Claude the name and link; Claude makes their 3 graphics with their QR code and their captions.
+  - Worked if: Each influencer has their link, graphics and captions.
+
+- [ ] **32. all day - Twilio, Sentry, Supabase**
+  - Do: Watch: Twilio error 30007 (carrier filtered); Sentry new or "Regressed" issues; Supabase reminder ticks 200. Tell Claude anything odd.
+  - Worked if: Nothing unexplained.
+
+- [ ] **33. end of day - Claude**
+  - Do: Update the backlog and write the handoff.
+  - Worked if: Done.
+
+---
+
+## FRIDAY 2 OCTOBER OR LATER
+
+- [ ] **34. App Store Connect, then Supabase production - SQL Editor**
+  - Do: Downloads tile (item 42): Apps > 30 Acts of Kindness > Analytics > Overview > First-Time Downloads, "Last 7 days" (about a day behind). Send Claude the number; run the one-line SQL Claude gives.
+  - Worked if: The Admin Downloads tile shows the real number.
+
+- [ ] **35. after 5 Oct - TikTok app**
+  - Do: Change the TikTok name from 30actsofkind to 30 Acts of Kindness (item 69).
+  - Worked if: Name updated.
 
 ---
 
 ## If something goes wrong
 
-- **Reminder ticks return 401 after C5:** put job 7's previous command back (Claude keeps it). Reminders resume at the next tick.
-- **Nobody can sign in after D4:** switch the hook off (same screen, Disable). Sign-in works as before.
-- **The 1.0.1 update misbehaves:** tell Claude before doing anything else; a fix or a rollback goes out the same way as D1.
-- **The App Store page takes hours to appear:** normal. Nothing in E or F starts until it does.
+- **A reminder tick returns 401 after the cron change:** Put cron job 7's previous command back (Claude keeps it). Reminders resume at the next tick.
+
+- **Nobody can sign in after the hook is enabled:** Supabase production > Authentication > Hooks > Disable. Sign-in works as before. Then tell Claude.
+
+- **The 1.0.1 update misbehaves:** Tell Claude before doing anything else. A fix or a rollback goes out the same way as the publish step.
+
+- **The App Store page takes hours to appear:** Normal. Nothing in the "once the app shows" section starts until it does.
+
+- **Wednesday's steps did not all get done:** Do the rest on Thursday: reminders deploy before 7:55 CT; the 1.0.1 update and hook right after Release This Version; then the rate limit.
