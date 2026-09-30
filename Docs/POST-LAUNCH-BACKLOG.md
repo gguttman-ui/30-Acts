@@ -1682,6 +1682,16 @@ The "Missed yesterday?" box offers Add yesterday's act / Restart / Remind me lat
 
 ---
 
+## 71. Android version
+
+> **Status (spreadsheet, 30 Sep 2026):** **New** · timing After Release · priority 2 · effort L
+
+The app is iPhone-only; the website now runs an Android waitlist and David Schwartz was told "Android is coming". Expo builds Android from the same code, but several parts are iPhone-specific and must be reworked and tested: sharing (Instagram Stories, X, Facebook, Mail composer), voice dictation, Branch deep links (Android app links), SMS flows, and the store listing.
+
+**Notes:** 30 Sep 2026: added at Gary's request. START THE PAPERWORK EARLY (plan item 71a, week 1): the nonprofit needs a Google Play ORGANIZATION developer account ($25 one time), which requires a D-U-N-S number for 30 Acts of Kindness NFP (free, can take about 30 days) and identity verification. Organization accounts skip the closed-test rule (12 testers for 14 days) that applies to new personal accounts. Build after 1.1: Android build profile in eas.json, Branch Android settings, Play listing and Data safety form, internal test with Android waitlisters.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
