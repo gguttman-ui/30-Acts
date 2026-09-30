@@ -1662,6 +1662,26 @@ One look on six platforms: display name "30 Acts of Kindness", handle 30actsofki
 
 ---
 
+## Synced 2026-09-30 - status of items changed on 30 September
+
+- **27, 28, 51, 61, 66** Deployed to production 30 Sep 8:01 CT; ticks 200. **52** deployed; REMINDERS_DOOR_SECRET in Vault and Edge secrets; cron job 7 sends only the door secret (13:20 UTC tick 200). Removing the old-key fallback is still to do.
+- **41, 43, 15, 18, 53, 54, 67, 17c-app** 1.0.1 OTA published to production (update group 65473a9e, iOS 01a0f27d, commit f340c25); verified on Gary's phone.
+- **59** Production sign-in hook enabled; Gary signed in with a text code. Rate limit 30 -> 150 on 1 Oct after Release.
+- **70** New (below). Bridget's accidental restart undone by hand.
+- The suggested order for after release is the "After release plan" tab of `Desktop\30-acts-backlog.xlsx`.
+
+---
+
+## 70. Restart is too easy to hit by mistake - add Undo or clearer wording
+
+> **Status (spreadsheet, 30 Sep 2026):** **New** · timing After Release · priority 1 · effort S
+
+The "Missed yesterday?" box offers Add yesterday's act / Restart / Remind me later. Bridget tapped Restart and then "Yes, restart" by mistake on 30 Sep and lost the chance to add yesterday's act. Restart only sets profiles.last_restart_at (App.js handleRestart); nothing is deleted, so an undo is simple.
+
+**Notes:** 30 Sep 2026: fixed for Bridget by hand (profiles.last_restart_at set back to null for her row, phone ending 7589); she was told to reopen the app and tap "Add yesterday's act". Ideas: rename the button "Start over at Day 1", say what will be lost ("your 3-day streak"), and offer "Undo restart" on the home screen for 24 hours. Ships as an OTA.
+
+---
+
 ## Adding to this list
 
 Keep it to things that are genuinely deferred, with a note on *why* they wait
