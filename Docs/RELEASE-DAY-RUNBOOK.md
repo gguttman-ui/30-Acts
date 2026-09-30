@@ -36,7 +36,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
 
 ## WEDNESDAY - reminders deploy (items 27, 28, 51, 52, 61, 66). Approved 29 Sep. Safe at every step: after the deploy the old key still works, so no reminder is missed.
 
-- [ ] **5. Wed - PowerShell, in 30-Acts-current**
+- [x] **5. Wed - PowerShell, in 30-Acts-current**
   - Do: Deploy the new reminders code (command in the last column).
   - Worked if: "Deployed Function send-reminders".
 
@@ -44,7 +44,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   npx supabase functions deploy send-reminders --project-ref mtfyekdxtkdiaqbgaoza
   ```
 
-- [ ] **6. Wed - Supabase production - SQL Editor**
+- [x] **6. Wed - Supabase production - SQL Editor**
   - Do: Wait for the next 5-minute tick (:00, :05, :10 ...), then run the check query.
   - Worked if: The newest row (latest created time) shows status_code 200.
 
@@ -55,7 +55,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   limit 5;
   ```
 
-- [ ] **7. Wed - Supabase production - SQL Editor**
+- [x] **7. Wed - Supabase production - SQL Editor**
   - Do: Create the door secret inside Vault. The database generates it, so it never appears in chat.
   - Worked if: The query returns an id (a long string of letters and numbers).
 
@@ -67,7 +67,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   );
   ```
 
-- [ ] **8. Wed - Supabase production - SQL Editor, then Edge Functions > Secrets**
+- [x] **8. Wed - Supabase production - SQL Editor, then Edge Functions > Secrets**
   - Do: Read the secret from Vault, copy it (never paste it into chat) and add it as REMINDERS_DOOR_SECRET.
   - Worked if: The secret is listed.
 
@@ -80,7 +80,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   -- Name: REMINDERS_DOOR_SECRET   Value: the copied text
   ```
 
-- [ ] **9. Wed - Supabase production - SQL Editor**
+- [x] **9. Wed - Supabase production - SQL Editor**
   - Do: Point cron job 7 at the new door secret (it also stops sending the admin key).
   - Worked if: The query returns one row (no error).
 
@@ -101,7 +101,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   );
   ```
 
-- [ ] **10. Wed - Supabase production - SQL Editor**
+- [x] **10. Wed - Supabase production - SQL Editor**
   - Do: Wait for the next tick and run the check query again.
   - Worked if: The newest row shows status_code 200. If 401: run the rollback on the second tab.
 
@@ -116,7 +116,7 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
 
 ## WEDNESDAY - 1.0.1 update, then the sign-in hook (items 41, 43, 15, 18, 53, 54, 67, 17c-app, 59). Approved 29 Sep. The update MUST go first: the old sign-in screen does not ask for a code.
 
-- [ ] **11. Wed - PowerShell, in 30-Acts-current**
+- [x] **11. Wed - PowerShell, in 30-Acts-current**
   - Do: Publish the 1.0.1 update (command in the last column).
   - Worked if: "Published!" with an update id. Send Claude the id.
 
@@ -124,23 +124,23 @@ The working copy with checkboxes is `RELEASE-DAY-RUNBOOK.xlsx` (Desktop). This f
   npx eas update --branch production --environment production -m "1.0.1"
   ```
 
-- [ ] **12. Wed - iPhone - production 30 Acts app**
+- [x] **12. Wed - iPhone - production 30 Acts app**
   - Do: Open it, wait 10 seconds, swipe it closed, open it again.
   - Worked if: The build stamp at the bottom of Settings shows the new update.
 
-- [ ] **13. Wed - iPhone**
+- [x] **13. Wed - iPhone**
   - Do: Settings > Privacy Policy.
   - Worked if: It says "Effective: October 1, 2026".
 
-- [ ] **14. Wed - Supabase production - Authentication > Hooks**
+- [x] **14. Wed - Supabase production - Authentication > Hooks**
   - Do: Customize Access Token > Postgres > schema public > require_otp_for_password_login > Enable.
   - Worked if: The hook shows Enabled.
 
-- [ ] **15. Wed - iPhone**
+- [x] **15. Wed - iPhone**
   - Do: Sign out, then sign back in.
   - Worked if: It texts you a code and you land in your own account.
 
-- [ ] **16. Wed - Text to David and the testers**
+- [x] **16. Wed - Text to David and the testers**
   - Do: "Please open 30 Acts, close it and open it again to get today's update. You stay signed in."
   - Worked if: Each sees the update.
 
