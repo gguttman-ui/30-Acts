@@ -213,6 +213,39 @@ describe('SMS copy stays on one GSM-7 segment', () => {
   test('the reminder links into the app', () => {
     expect(texts.REMINDER_TEXT).toContain('https://alrpa.app.link/today ');
   });
+
+  // Item 72 (2 Oct 2026): the shutoff said "open the app" with nothing to tap.
+  test('the shutoff notice links into the app too', () => {
+    expect(texts.SHUTOFF_TEXT).toContain('https://alrpa.app.link/today ');
+  });
+});
+
+describe('item 72 — switching reminders back on restarts the clock', () => {
+  // 1 Oct 2026: David was shut off, turned reminders back on the same day, and
+  // was shut off AGAIN at his next reminder time -- his last act was still more
+  // than INACTIVE_DAYS ago. Anyone who already got a shutoff inside the window
+  // and has reminders on again chose that; they get the normal reminder.
+  const branch = FN.match(/if \(activePhones && !activePhones\.has\(phone\)\)[\s\S]*?\n        \}/);
+
+  test('recent shutoffs are loaded once per run, for the whole window', () => {
+    expect(FN).toMatch(/async function loadRecentShutoffs\(/);
+    expect(FN).toMatch(/\.eq\('status', 'shutoff_notice'\)/);
+    expect(FN).toMatch(/const recentShutoffs = await loadRecentShutoffs\(activeSinceDate\(INACTIVE_DAYS\)\)/);
+  });
+
+  test('a user shut off recently is never sent a second shutoff', () => {
+    expect(branch).not.toBeNull();
+    expect(branch[0]).toMatch(/recentShutoffs\.has\(u\.id\)/);
+    expect(branch[0]).toMatch(/if \(longEnough && !shutOffRecently\)/);
+  });
+
+  test('if the shutoff history cannot be read, no shutoff is sent', () => {
+    // A wrong shutoff switches someone off; a missed one costs one reminder.
+    expect(branch[0]).toMatch(/recentShutoffs === null \|\|/);
+    const fn = FN.match(/async function loadRecentShutoffs[\s\S]*?\n\}/);
+    expect(fn).not.toBeNull();
+    expect(fn[0]).toMatch(/if \(data === null\) return null;/);
+  });
 });
 
 describe('item 52 — the door check is its own secret', () => {

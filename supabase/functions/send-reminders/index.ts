@@ -128,8 +128,12 @@ const REMINDER_TEXT =
 // kindness app, and the person has not failed at anything. Like REMINDER_TEXT
 // it must stay plain ASCII: one curly quote or em dash flips the whole message
 // from GSM-7 to Unicode and cuts the segment from 160 characters to 70.
+//
+// Item 72 (2026-10-02): carries the same app link as REMINDER_TEXT. The first
+// version said "open the app" with nothing to tap; the link was added to
+// REMINDER_TEXT on 27 Sep (item 66) and missed here.
 const SHUTOFF_TEXT =
-  "30 Acts of Kindness: your reminders are off for now. Open the app to start again whenever you're ready. Reply STOP to end, HELP for help.";
+  "30 Acts of Kindness: reminders are paused. Start again anytime: https://alrpa.app.link/today Reply STOP to end, HELP for help.";
 
 function to24h(hour12: number, period: string): number {
   if (period === 'AM') return hour12 === 12 ? 0 : hour12;
@@ -240,6 +244,26 @@ async function loadRecentSends(sinceDate: string): Promise<Set<string> | null> {
   if (data === null) return null;
   const set = new Set<string>();
   for (const r of data) set.add(sentKey(r.user_id, r.local_date, r.slot));
+  return set;
+}
+
+// Item 72 (2026-10-02): users who were sent a shutoff notice inside the last
+// INACTIVE_DAYS. If such a person has reminders ON again, they switched them
+// back on themselves -- that restarts their clock, so they get ordinary
+// reminders, not a second shutoff the next morning. (David, 1 and 2 Oct 2026:
+// shut off, turned reminders back on, shut off again 24 hours later.)
+//
+// RETURNS NULL ON ERROR. Callers treat null as "do not send a shutoff": a
+// missed shutoff costs one extra reminder, a wrong one switches someone off.
+async function loadRecentShutoffs(sinceDate: string): Promise<Set<string> | null> {
+  const data = await fetchAllRows(
+    (from, to) => supabase.from('reminder_sends').select('user_id')
+      .eq('status', 'shutoff_notice')
+      .gte('local_date', sinceDate).order('id').range(from, to),
+    'reminder_sends (shutoffs)');
+  if (data === null) return null;
+  const set = new Set<string>();
+  for (const r of data) set.add(r.user_id);
   return set;
 }
 
@@ -440,6 +464,8 @@ Deno.serve(async (req) => {
   const recentSince = activeSinceDate(1);
   sentCache      = await loadRecentSends(recentSince);
   completedCache = await loadRecentCompletions(recentSince);
+  // Item 72: see loadRecentShutoffs.
+  const recentShutoffs = await loadRecentShutoffs(activeSinceDate(INACTIVE_DAYS));
 
   const summary = {
     checked: 0,
@@ -516,7 +542,10 @@ Deno.serve(async (req) => {
         if (activePhones && !activePhones.has(phone)) {
           const createdMs = u.created_at ? Date.parse(u.created_at) : NaN;
           const longEnough = Number.isFinite(createdMs) && createdMs < inactiveCutMs;
-          if (longEnough) {
+          // Item 72: already shut off once inside the window and switched back
+          // on by the user, or we cannot tell -> fall through to the reminder.
+          const shutOffRecently = recentShutoffs === null || recentShutoffs.has(u.id);
+          if (longEnough && !shutOffRecently) {
             if (await alreadySent(u.id, dateStr, SHUTOFF_SLOT)) continue;
             const stop = await sendTwilio(phone, SHUTOFF_TEXT);
             if (stop.ok) {
