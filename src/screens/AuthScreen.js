@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppInput, Btn } from '../components';
 import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../constants';
 import { lookupZip } from '../lib/zip';
+import { nameErrors, cleanName } from '../lib/nameRules';
 import { supabase } from '../lib/supabase';
 import { applyPendingReferral } from '../lib/branch';
 
@@ -329,8 +330,9 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   const validate = () => {
     const e = {};
     if (signupFields) {
-      if (!fn.trim()) e.fn = 'Required';
-      if (!ln.trim()) e.ln = 'Required';
+      const ne = nameErrors(fn, ln);
+      if (ne.first) e.fn = ne.first;
+      if (ne.last)  e.ln = ne.last;
       if (!/^\d{5}$/.test(zip)) e.zip = 'Enter your 5-digit ZIP code';
       else if (!zipState)       e.zip = 'Enter a valid US ZIP code';
     }
@@ -445,9 +447,11 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     try {
       const formatted = formatPhoneForAuth(phone);
       const proxyEmail = phoneProxyEmail(formatted);
+      const firstName = cleanName(fn);
+      const lastName  = cleanName(ln);
       const { data, error } = await supabase.auth.signUp({
         email: proxyEmail, password: phoneProxyPassword(formatted),
-        options: { data: { phone: formatted, firstName: fn, lastName: ln, state: zipState, zip, city: zipCity, timezone } },
+        options: { data: { phone: formatted, firstName, lastName, state: zipState, zip, city: zipCity, timezone } },
       });
       if (error || !data?.user) {
         // The code check is only good for 10 minutes. Start again cleanly.
@@ -459,7 +463,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
       }
       setPendingFinish({
         email: proxyEmail, phone: formatted,
-        firstName: fn, lastName: ln, isFirstLogin: true,
+        firstName, lastName, isFirstLogin: true,
       });
       setReminderStep(true);
     } catch (err) {
@@ -938,4 +942,4 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

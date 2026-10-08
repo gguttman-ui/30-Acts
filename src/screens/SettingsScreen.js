@@ -20,6 +20,7 @@ import * as Updates from 'expo-updates';
 import * as Sentry from '@sentry/react-native';
 import { createTapCounter } from '../lib/tapCounter';
 import { DB_ENVIRONMENT, PROJECT_REF } from '../lib/supabase';
+import { nameProblem, cleanName } from '../lib/nameRules';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -384,10 +385,21 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       return false;
     }
 
+    // Every member keeps a first name and at least a last initial (8 Oct 2026:
+    // a save here could blank a real name, since this runs on every reminder
+    // change too). Refuse the save instead of writing an empty name.
+    const nameMsg = nameProblem(firstName, lastName);
+    if (nameMsg) {
+      Alert.alert('Name required', nameMsg);
+      return false;
+    }
+    const cleanFirst = cleanName(firstName);
+    const cleanLast  = cleanName(lastName);
+
     // first_name / last_name are rendered as "First L." on challenge
     // leaderboards, so other participants see them. Moderate before saving
     // (Apple Guideline 1.2).
-    const nameToCheck = [firstName, lastName].filter(Boolean).join(' ');
+    const nameToCheck = [cleanFirst, cleanLast].join(' ');
     if (nameToCheck.trim() && await isContentBlocked(nameToCheck)) {
       Alert.alert('Name Not Allowed', BLOCKED_MESSAGE);
       return false;
@@ -433,8 +445,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: {
-          firstName,
-          lastName,
+          firstName: cleanFirst,
+          lastName:  cleanLast,
           zip:      zip      || null,
           state:    zipState || null,
           city:     zipCity  || null,
@@ -471,8 +483,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
           .upsert({
             id:           authUser.id,
             email:        authUser.email       || user?.email || null,
-            first_name:   firstName            || null,
-            last_name:    lastName             || null,
+            first_name:   cleanFirst,
+            last_name:    cleanLast,
             phone:        authUser.phone       || user?.phone || null,
             country_code: '+1',
             state:        zipState             || null,
