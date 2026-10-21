@@ -195,7 +195,10 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
     const yesterdayDay = days.find(d => d.scheduledDate === yesterday);
     const todayDay     = days.find(d => d.scheduledDate === today);
     const shouldPrompt = yesterdayDay && yesterdayDay.status !== 'COMPLETED' && todayDay;
-    if (!shouldPrompt) return;
+    // Close it again once yesterday is filled in (staging test 21 Oct 2026:
+    // after adding yesterday the box stayed up, because this only ever
+    // OPENED it - a refresh that arrived mid-save left it showing).
+    if (!shouldPrompt) { setMissedPrompt(false); return; }
     missedEverRef.current = true;
     setMissedPrompt(true);
   }, [days]);

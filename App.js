@@ -353,8 +353,11 @@ const handleLogout = async (reason) => {
 
 const handleComplete = async (completedDay) => {
   // Optimistically update the cell so the UI feels instant...
+  // Match the cell by CALENDAR DATE, not day number: day numbers repeat
+  // (every streak starts at 1), so this used to tick the wrong cell and leave
+  // yesterday looking empty until the reload landed (21 Oct 2026).
   setDays(prev => prev?.map(d =>
-    d.dayNumber === completedDay.dayNumber ? { ...d, ...completedDay } : d
+    d.scheduledDate && d.scheduledDate === completedDay.scheduledDate ? { ...d, ...completedDay } : d
   ));
   // ...then reload from Supabase so tier rollovers (Day 30 → 31, 60 → 61, etc.)
   // pick up the new tier window.

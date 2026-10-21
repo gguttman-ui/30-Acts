@@ -72,3 +72,15 @@ describe('backlog 84 - the act is shown once', () => {
     expect(code('src/screens/MyStoryScreen.js')).toMatch(/!sameActText\(completedTitle, completedStory\)/);
   });
 });
+
+describe('missed-yesterday box closes once yesterday is added (staging 21 Oct 2026)', () => {
+  test('the prompt effect also closes the box', () => {
+    expect(code('src/screens/HomeScreen.js')).toMatch(/if \(!shouldPrompt\) \{ setMissedPrompt\(false\); return; \}/);
+  });
+
+  test('a completed act updates its cell by date, not day number', () => {
+    const src = code('App.js');
+    expect(src).toMatch(/d\.scheduledDate === completedDay\.scheduledDate/);
+    expect(src).not.toMatch(/d\.dayNumber === completedDay\.dayNumber/);
+  });
+});
