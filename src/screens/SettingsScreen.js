@@ -361,12 +361,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   // the confirm dialog appeared, nothing was written, and the old streak came
   // straight back. Ghenno reported it; verified in staging 2026-09-20.
   const handleRestart = () => {
+    // Backlog 70: clearer wording, and it can be undone from Home for 24 hours.
     Alert.alert(
-      'Restart?',
-      "We'll keep your most recent unbroken streak of completed days and drop the rest. If you have no completed days, you'll start fresh from Day 1.",
+      'Start over at Day 1?',
+      'Your current streak ends and you begin again at Day 1. Your past acts are kept. You can undo this from the Home screen for 24 hours.',
       [
         { text: 'Keep everything', style: 'cancel' },
-        { text: 'Yes, restart', style: 'destructive', onPress: onRestart },
+        { text: 'Yes, start over', style: 'destructive', onPress: onRestart },
       ]
     );
   };
@@ -638,7 +639,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                 <Btn label="Go to Today's Act →" onPress={handleGoToChallenge} style={{ flex: 1 }} />
                 <Btn label="Log Out" variant="secondary" onPress={() => navigate('logout')} style={{ flex: 1, borderColor: C.error + '66' }} />
               </View>
-              <Btn label="Restart" variant="danger" onPress={handleRestart} />
+              <Btn label="Start over at Day 1" variant="danger" onPress={handleRestart} />
             </View>
           )}
         </Card>

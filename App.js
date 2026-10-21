@@ -19,6 +19,7 @@ import { C, buildFreshDays, STATE_IANA_TZ } from './src/constants';
 import { supabase } from './src/lib/supabase';
 import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
 import { initBranch } from './src/lib/branch';
+import { checkForUpdateInBackground } from './src/lib/appUpdates';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -154,6 +155,17 @@ useEffect(() => {
     if (user) AsyncStorage.setItem('user', JSON.stringify(user));
     else AsyncStorage.removeItem('user');
   }, [user]);
+
+  // Backlog 78: look for a new update at launch and every time the app comes
+  // back to the front, instead of only on a fresh start. A downloaded update
+  // is switched to on the Home tab only (src/lib/updateGate.js).
+  useEffect(() => {
+    checkForUpdateInBackground();
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') checkForUpdateInBackground();
+    });
+    return () => sub.remove();
+  }, []);
 
   // Refresh data whenever the app returns to the foreground. Catches cases
   // like emailing an export, switching apps, ending a phone call, etc. —

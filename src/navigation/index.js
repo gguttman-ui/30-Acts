@@ -1,6 +1,7 @@
 ﻿﻿import React, { useState } from 'react';
 import { Text, Image, TouchableOpacity } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { updateGate } from '../lib/appUpdates';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import SponsorDetailScreen   from '../screens/SponsorDetailScreen';
@@ -149,8 +150,13 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
 export default function AppNavigator({ days, daysReloading, user, actCategories, onLogin, onLogout, onRestart, onStartChallenge, onComplete, onDelete, onReloadDays }) {
   const [pendingLoginData, setPendingLoginData] = useState(null);
 
+  // Backlog 78: tell the update gate which screen is showing, so a downloaded
+  // update is only switched to on the Home tab - never mid-story or mid-sign-up.
+  const navRef = useNavigationContainerRef();
+  const noteRoute = () => updateGate.noteRoute(navRef.getCurrentRoute()?.name);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navRef} onReady={noteRoute} onStateChange={noteRoute}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>

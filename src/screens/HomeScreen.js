@@ -18,6 +18,7 @@ import { C, todayStr, getActIcon, ALL_ACTS, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { rowLocalDate, windowStartDate, currentWindowIndex } from '../lib/streak';
 import DashboardView from './DashboardView';
+import { canUndoRestart } from '../lib/restartUndo';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
 const PROOF_VIDEO_ICON  = require('../assets/proof/Video.png');
@@ -200,6 +201,37 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   }, [days]);
 
   const handleRestart = () => { onRestart?.(); setConfirmRestart(false); setMissedPrompt(false); };
+
+  // Backlog 70: a start-over can be undone for 24 hours. Restart only writes
+  // profiles.last_restart_at (no act is deleted), so Undo just clears it.
+  const [restartAt, setRestartAt] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser?.id) return;
+        const { data: prof } = await supabase
+          .from('profiles').select('last_restart_at').eq('id', authUser.id).maybeSingle();
+        if (!cancelled) setRestartAt(prof?.last_restart_at || null);
+      } catch (e) { /* no undo offered if this fails */ }
+    })();
+    return () => { cancelled = true; };
+  }, [days]);
+
+  const handleUndoRestart = async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser?.id) return;
+      const { error } = await supabase
+        .from('profiles').update({ last_restart_at: null }).eq('id', authUser.id);
+      if (error) { Alert.alert('Could not undo', error.message); return; }
+      setRestartAt(null);
+      if (onReloadDays) await onReloadDays();
+    } catch (e) {
+      Alert.alert('Could not undo', e?.message || 'Please try again.');
+    }
+  };
 
   // Post-login "Do you want to document your act?" prompt. Shows once per app
   // session the first time the calendar has loaded its grid, regardless of how
@@ -690,8 +722,12 @@ const handleConfirmWipe = async () => {
           );
         })()}
 
+        {canUndoRestart(restartAt) && (
+          <Btn label="↩ Undo start over" onPress={handleUndoRestart} variant="secondary" style={{ marginBottom: 10 }} />
+        )}
+
          <View style={s.btnRow}>
-          <Btn label="↺ Restart" onPress={() => setConfirmRestart(true)} variant="danger" style={{ flex: 1 }} />
+          <Btn label="↺ Start over at Day 1" onPress={() => setConfirmRestart(true)} variant="danger" style={{ flex: 1 }} />
           <Btn label="Settings"  onPress={() => navigation.navigate('Me')}  variant="secondary" style={{ flex: 1 }} />
         </View>
 
@@ -765,11 +801,10 @@ const handleConfirmWipe = async () => {
             <Text style={s.modalTitle}>Missed yesterday?</Text>
             <Text style={s.modalBody}>
               You didn't log an act yesterday. You have one chance to add it
-              now and keep your streak — or restart from your most recent
-              unbroken streak.
+              now and keep your streak — or start over at Day 1.
             </Text>
             <Btn label="Add yesterday's act" onPress={handleAddYesterday} style={{ marginBottom: 10 }} />
-            <Btn label="Restart" onPress={handleMissedRestart} variant="secondary" style={{ marginBottom: 10 }} />
+            <Btn label="Start over at Day 1" onPress={handleMissedRestart} variant="secondary" style={{ marginBottom: 10 }} />
             <TouchableOpacity onPress={() => setMissedPrompt(false)}>
               <Text style={s.dismissLink}>Remind me later</Text>
             </TouchableOpacity>
@@ -795,13 +830,12 @@ const handleConfirmWipe = async () => {
         <View style={s.modalBg}>
           <View style={s.modalCard}>
             <Text style={{ fontSize: sf(44), textAlign: 'center', marginBottom: 12 }}>⚠️</Text>
-            <Text style={s.modalTitle}>Restart?</Text>
+            <Text style={s.modalTitle}>Start over at Day 1?</Text>
             <Text style={s.modalBody}>
-              We'll keep your most recent unbroken streak of completed days
-              and drop the rest. If you have no completed days, you'll start
-              fresh from Day 1.
+              Your current streak ends and you begin again at Day 1. Your past
+              acts are kept. You can undo this from the Home screen for 24 hours.
             </Text>
-            <Btn label="Yes, restart" onPress={handleRestart}
+            <Btn label="Yes, start over" onPress={handleRestart}
               style={{ backgroundColor: C.error, borderWidth: 0, marginBottom: 10 }} />
             <Btn label="Keep everything" onPress={() => setConfirmRestart(false)} variant="secondary" />
           </View>
