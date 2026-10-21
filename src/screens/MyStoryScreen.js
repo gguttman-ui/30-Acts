@@ -12,7 +12,7 @@ import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
-import { buildActShareMessage, buildInviteMessage , buildSocialMessage, sameActText } from '../lib/shareMessage';
+import { buildActShareMessage, buildInviteMessage , buildSocialMessage, sameActText, buildEmailSubject } from '../lib/shareMessage';
 import { streakDayNumbers, dayNumberFixes } from '../lib/dayNumbers';
 import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
 import { copyImageToClipboard } from '../lib/shareClipboard';
@@ -425,6 +425,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const inviteCaption = () =>
     buildInviteMessage({ dayNumber, actTitle: completedTitle, story: completedStory, inviteUrl });
 
+  // Email: the act is the subject line; the body does not repeat it.
+  const emailCaption = () =>
+    buildInviteMessage({ dayNumber, actTitle: completedTitle, story: completedStory, inviteUrl, forEmail: true });
+
   const buildShareMessage = (channel = 'image') =>
     buildActShareMessage({
       dayNumber,
@@ -481,12 +485,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Messages.'));
   };
 
-  // Email shows the card INSIDE the message rather than attaching it.
-  //
-  // An <img> needs a real URL - email clients strip data: URIs - so the card is
-  // uploaded to the public act-media bucket first and the HTML points at it.
+  // Email: subject = the act, body = the invitation, card attached.
   // Three fallbacks, because every step here can fail on a given device:
-  //   1. Upload + Mail composer with an HTML body  -> picture renders inline.
+  //   1. Mail composer with the card attached      -> picture in the message.
   //   2. Share sheet with the file attached        -> picture as an attachment.
   //   3. Plain mailto:                             -> text only, no QR promise.
   //
@@ -495,12 +496,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const handleShareEmail = async () => {
     if (sharing) return;
     setSharing(true);
-    const subjectText = completedTitle || `Day ${dayNumber} of 30 Acts of Kindness™`;
+    const subjectText = buildEmailSubject({ dayNumber, actTitle: completedTitle, story: completedStory });
 
     try {
       const uri = await localShareUri();
 
-      // 1. Inline: host the card, then compose HTML mail pointing at it.
+      // 1. Mail composer with the card attached (shows as a picture).
       if (uri) {
         let MailComposer = null;
         try { MailComposer = require('expo-mail-composer'); } catch {}
@@ -513,30 +514,20 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         }
 
         if (mailAvailable) {
-          const publicUrl = await withTimeout(
-            uploadShareCard({
-              supabase,
-              readBase64: (u) => FileSystem.readAsStringAsync(u, { encoding: 'base64' }),
-              uri,
-              dayNumber,
-            }),
-            30000,
-            'card upload timed out',
-          ).catch((e) => { console.warn('Card upload skipped:', e && e.message); return null; });
-
-          if (publicUrl) {
-            const result = await MailComposer.composeAsync({
-              subject: subjectText,
-              body: buildShareEmailHtml({
-                imageUrl: publicUrl,
-                inviteUrl,
-                message: inviteCaption(),
-              }),
-              isHtml: true,
-            });
-            if (result?.status !== 'cancelled') goToCalendar();
-            return;
-          }
+          // The card goes in as an ATTACHMENT, which Mail shows as a picture
+          // in the message. (Staging test 21 Oct 2026: the old way - upload
+          // the card and point an HTML <img> at its web address - arrived in
+          // Gmail as just the words "My 30 Acts of Kindness card", because
+          // iPhone Mail did not load the web image. It also left a public
+          // copy of every card in storage - see backlog 5.)
+          const result = await MailComposer.composeAsync({
+            subject: subjectText,
+            body: emailCaption(),
+            isHtml: false,
+            attachments: [uri],
+          });
+          if (result?.status !== 'cancelled') goToCalendar();
+          return;
         }
       }
 
@@ -548,7 +539,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           RNShare.open({
             url: uri,
             subject: subjectText,
-            message: inviteCaption(),
+            message: emailCaption(),
             failOnCancel: false,
           }),
           SHARE_SHEET_TIMEOUT_MS,

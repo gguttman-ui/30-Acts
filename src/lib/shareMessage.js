@@ -215,9 +215,13 @@ export function buildInviteMessage({
   story = '',
   inviteUrl = '',
   completedAll = false,
+  forEmail = false,
 } = {}) {
   const lead    = buildLead({ actTitle, story });
-  const opening = buildOpening({ dayNumber, lead, completedAll });
+  // Email (Gary, 21 Oct 2026): the act goes in the SUBJECT line
+  // (buildEmailSubject), so the body starts with the challenge line instead
+  // of repeating it.
+  const opening = forEmail && lead ? CHALLENGE_LINE : buildOpening({ dayNumber, lead, completedAll });
 
   // Only add the story block when the story is not already the lead — a
   // story-only day would otherwise print the same words twice.
@@ -236,6 +240,18 @@ export function buildInviteMessage({
   const link = inviteUrl ? `\n\n${inviteUrl}` : '';
 
   return `${opening}${storyPart}\n\n${body}${link}`;
+}
+
+/**
+ * Email subject line (Gary, 21 Oct 2026): the act itself, e.g.
+ *   My act of kindness for Day 2: "Adopted a section of road to keep clean"
+ * Long stories are cut at a word so the subject stays readable.
+ */
+export function buildEmailSubject({ dayNumber, actTitle = '', story = '' } = {}) {
+  const lead = trimToWords(buildLead({ actTitle, story }), 90);
+  if (lead && dayNumber) return `My act of kindness for Day ${dayNumber}: "${lead}"`;
+  if (lead)              return `My act of kindness today: "${lead}"`;
+  return dayNumber ? `Day ${dayNumber} of 30 Acts of Kindness` : '30 Acts of Kindness';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

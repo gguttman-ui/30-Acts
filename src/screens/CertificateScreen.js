@@ -286,18 +286,19 @@ export default function CertificateScreen({ navigation }) {
     }
   };
 
-  // Email shows the certificate INSIDE the message rather than attaching it.
-  // An <img> needs a real URL — email clients strip data: URIs — so the JPEG is
-  // uploaded to the public act-media bucket first and the HTML points at it.
+  // Email: the certificate goes in as an ATTACHMENT, which Mail shows as a
+  // picture in the message - the same as the act card on MyStoryScreen
+  // (21 Oct 2026: the old uploaded web image showed as a blank box while
+  // writing, and left a public copy of every certificate in storage).
   // Three fallbacks, because any step can fail on a given device:
-  //   1. Upload + Mail composer with an HTML body -> certificate renders inline
+  //   1. Mail composer with the certificate attached -> picture in the message
   //   2. Share sheet with the file attached       -> certificate as attachment
   //   3. Plain mailto:                            -> text only, no QR promise
   const handleShareEmail = async () => {
     if (sharing) return;
     setSharing(true);
     try {
-      // 1. Inline.
+      // 1. Mail composer, certificate attached.
       const jpegUri = await withTimeout(certJpegUri(), CAPTURE_TIMEOUT_MS, 'certificate capture timed out')
         .catch(() => null);
 
@@ -313,29 +314,14 @@ export default function CertificateScreen({ navigation }) {
         }
 
         if (mailAvailable) {
-          const publicUrl = await withTimeout(
-            uploadShareCard({
-              supabase,
-              readBase64: (u) => FileSystem.readAsStringAsync(u, { encoding: 'base64' }),
-              uri: jpegUri,
-            }),
-            30000,
-            'certificate upload timed out',
-          ).catch((e) => { console.warn('Certificate upload skipped:', e && e.message); return null; });
-
-          if (publicUrl) {
-            const result = await MailComposer.composeAsync({
-              subject: SUBJECT,
-              body: buildShareEmailHtml({
-                imageUrl: publicUrl,
-                inviteUrl,
-                message: inviteCaption(),
-              }),
-              isHtml: true,
-            });
-            if (result?.status !== 'cancelled') goHome();
-            return;
-          }
+          const result = await MailComposer.composeAsync({
+            subject: SUBJECT,
+            body: inviteCaption(),
+            isHtml: false,
+            attachments: [jpegUri],
+          });
+          if (result?.status !== 'cancelled') goHome();
+          return;
         }
       }
 

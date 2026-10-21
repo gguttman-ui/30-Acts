@@ -30,11 +30,12 @@ describe('the certificate Email route reaches Mail, not a generic sheet', () => 
     expect(CERT).toContain('composeAsync(');
   });
 
-  test('it hosts the certificate so it renders inline', () => {
-    // An <img> needs a real URL; email clients strip data: URIs.
-    expect(CERT).toContain('uploadShareCard(');
-    expect(CERT).toContain('buildShareEmailHtml(');
-    expect(CERT).toContain('isHtml: true');
+  test('it attaches the certificate so it shows in the message', () => {
+    // 21 Oct 2026: attached, not an uploaded web image (that showed as a blank
+    // box while writing and left a public copy of every certificate).
+    expect(CERT).toMatch(/attachments: \[jpegUri\]/);
+    expect(CERT).not.toContain('uploadShareCard(');
+    expect(CERT).not.toContain('buildShareEmailHtml(');
   });
 
   test('it still has a plain mailto: fallback for a phone with no Mail app', () => {
@@ -48,8 +49,7 @@ describe('the certificate Email route reaches Mail, not a generic sheet', () => 
     for (const marker of [
       "require('expo-mail-composer')",
       'composeAsync(',
-      'uploadShareCard(',
-      'buildShareEmailHtml(',
+      'attachments: [',
       'mailto:?subject=',
     ]) {
       expect(MY_STORY).toContain(marker);
