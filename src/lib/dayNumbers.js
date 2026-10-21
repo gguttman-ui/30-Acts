@@ -44,6 +44,18 @@ export function streakDayNumbers(dates) {
 }
 
 /**
+ * Only the acts saved since a "Start over at Day 1" (profiles.last_restart_at).
+ * Gary, 21 Oct 2026: starting over makes TODAY Day 1 with nothing logged, so
+ * acts from before the marker - including one already logged today - are not
+ * part of the new streak. With no marker every row counts.
+ */
+export function rowsSince(rows, since) {
+  const t = since ? Date.parse(since) : NaN;
+  if (!Number.isFinite(t)) return (rows || []).filter(Boolean);
+  return (rows || []).filter((r) => r && Date.parse(r.completed_at) >= t);
+}
+
+/**
  * The rows whose stored day_number is wrong, with the number each should have.
  *
  * @param  {{id:any, local_date:string, day_number:number}[]} rows

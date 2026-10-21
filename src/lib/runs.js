@@ -192,14 +192,18 @@ export function actsInLap(run, lapIndex) {
  * Load every completion for a phone and return runs, oldest first.
  * Returns [] on any failure -- the caller just shows an empty dashboard.
  */
-export async function loadRuns(phone) {
+export async function loadRuns(phone, { since = null } = {}) {
   if (!phone) return [];
   try {
-    const { data, error } = await supabase
+    // `since` = profiles.last_restart_at. After "Start over at Day 1" the
+    // board shows only acts saved after it, so today is Day 1 with nothing
+    // logged (Gary, 21 Oct 2026). Nothing is deleted; Undo clears the marker.
+    let query = supabase
       .from('completions')
       .select('id, act_title, proof_type, completed_at, local_date')
-      .eq('user_phone', phone)
-      .order('completed_at', { ascending: true });
+      .eq('user_phone', phone);
+    if (since) query = query.gte('completed_at', since);
+    const { data, error } = await query.order('completed_at', { ascending: true });
 
     if (error || !data) {
       console.warn('loadRuns error:', error?.message);

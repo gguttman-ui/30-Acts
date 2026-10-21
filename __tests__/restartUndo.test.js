@@ -44,3 +44,35 @@ describe('wording and Undo are wired in', () => {
     expect(src).toMatch(/undo this from the Home screen for 24 hours/);
   });
 });
+
+// Gary, 21 Oct 2026: "Start over should make today Day 1 with no act in today
+// completed." Acts saved before the marker - even one from earlier today - are
+// left out of the new streak (not deleted; Undo brings them back).
+import { rowsSince, streakDayNumbers } from '../src/lib/dayNumbers';
+
+describe('start over: today is Day 1 with nothing logged', () => {
+  const rows = [
+    { id: 1, local_date: '2026-10-20', completed_at: '2026-10-20T17:00:00+00:00' },
+    { id: 2, local_date: '2026-10-21', completed_at: '2026-10-21T15:00:00+00:00' }, // today, before start over
+  ];
+  const marker = '2026-10-21T16:20:00.000Z';
+
+  test('acts before the marker are not part of the new streak', () => {
+    expect(rowsSince(rows, marker)).toEqual([]);
+  });
+
+  test('the act logged today after starting over is Day 1', () => {
+    const since = rowsSince(rows, marker).map((r) => r.local_date);
+    expect(streakDayNumbers([...since, '2026-10-21']).get('2026-10-21')).toBe(1);
+  });
+
+  test('no marker: every act counts', () => {
+    expect(rowsSince(rows, null)).toHaveLength(2);
+  });
+
+  test('the dashboard and the save both use the marker', () => {
+    expect(read('src/screens/DashboardView.js')).toMatch(/loadRuns\(phone, \{ since \}\)/);
+    expect(read('src/lib/runs.js')).toMatch(/gte\('completed_at', since\)/);
+    expect(read('src/screens/MyStoryScreen.js')).toMatch(/rowsSince\(rowsNow \|\| \[\], since\)/);
+  });
+});

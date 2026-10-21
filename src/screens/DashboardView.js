@@ -8,6 +8,7 @@ import {
   lapCount, actsInLap, rowLocalDate,
 } from '../lib/runs';
 import { buildPages, CHALLENGE_LEN } from '../lib/dashboardPages';
+import { supabase } from '../lib/supabase';
 
 const SCREEN_W = Dimensions.get('window').width;
 const FONT_BASE_W = 390;
@@ -124,7 +125,18 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [r, cnt] = await Promise.all([loadRuns(phone), lifetimeCompletionCount(phone)]);
+      // "Start over at Day 1" marker: the board starts fresh from it (today is
+      // Day 1, nothing logged). Lifetime still counts every act.
+      let since = null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser?.id) {
+          const { data: prof } = await supabase
+            .from('profiles').select('last_restart_at').eq('id', authUser.id).maybeSingle();
+          since = prof?.last_restart_at || null;
+        }
+      } catch (e) { /* no marker -> whole history */ }
+      const [r, cnt] = await Promise.all([loadRuns(phone, { since }), lifetimeCompletionCount(phone)]);
       if (!cancelled) { setRuns(r); setLifetimeCount(cnt); setLoading(false); }
     })();
     return () => { cancelled = true; };

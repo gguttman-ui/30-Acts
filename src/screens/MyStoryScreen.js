@@ -13,7 +13,7 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
 import { buildActShareMessage, buildInviteMessage , buildSocialMessage, sameActText, buildEmailSubject } from '../lib/shareMessage';
-import { streakDayNumbers, dayNumberFixes } from '../lib/dayNumbers';
+import { streakDayNumbers, dayNumberFixes, rowsSince } from '../lib/dayNumbers';
 import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
 import { copyImageToClipboard } from '../lib/shareClipboard';
 import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
@@ -1043,11 +1043,20 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       let dayNumberValue = targetDay.dayNumber || 1;
       let existingRows = [];
       try {
+        // After "Start over at Day 1" only acts since the marker belong to the
+        // new streak, so today's act is Day 1 (Gary, 21 Oct 2026).
+        let since = null;
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const { data: prof } = await supabase
+            .from('profiles').select('last_restart_at').eq('id', authUser?.id).maybeSingle();
+          since = prof?.last_restart_at || null;
+        } catch (e) { /* no marker -> whole history */ }
         const { data: rowsNow } = await supabase
           .from('completions')
-          .select('id, local_date, day_number')
+          .select('id, local_date, day_number, completed_at')
           .eq('user_phone', phone);
-        existingRows = rowsNow || [];
+        existingRows = rowsSince(rowsNow || [], since);
         const numbers = streakDayNumbers([...existingRows.map((r) => r.local_date), localDateValue]);
         dayNumberValue = numbers.get(localDateValue) || dayNumberValue;
       } catch (e) {
