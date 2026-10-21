@@ -51,7 +51,17 @@ export function fmtMonthDay(dateStr) {
 //     the interactive current page if it's the latest piece, otherwise packed
 //     together with other short fragments (30 tiles per page).
 // Chronological order: oldest left, current right.
-export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
+// YESTERDAY (backlog 83, 20 Oct 2026). The rule has always been "you may always
+// back-fill yesterday" (runs.js), but the dashboard only ever offered a "+" for
+// TODAY. Once today was logged, an empty yesterday had no tile at all, so it
+// could never be added (Bridget lost 10 Oct that way). When `yesterdayOpen` is
+// true the current board now carries a { type: 'yesterday' } "+" tile:
+//   - today logged, yesterday empty  -> [+ YESTERDAY] [today]
+//   - last act 2 days ago            -> the streak stays on the board, then
+//                                       [+ YESTERDAY] [+ TODAY]; filling
+//                                       yesterday keeps the streak alive
+//   - last act 3+ days ago           -> new board: [+ YESTERDAY] [+ TODAY]
+export function buildPages(runs, { today = '', hasLoggableDay = false, yesterdayOpen = false } = {}) {
   // Every completion row, de-duped by calendar date, oldest first.
   const byDate = new Map();
   runs.forEach((run) => (run.rows || []).forEach((r) => {
@@ -237,7 +247,20 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
     if (isCurrent) {
       const lastDate   = pc.dates[pc.dates.length - 1];
       const gapToToday = dayDiffDays(lastDate, today);
-      if (gapToToday <= 1) {
+      if (gapToToday === 0 && yesterdayOpen) {
+        // Today is logged but yesterday is still empty: offer yesterday first.
+        // (Today then stands alone, so it is day 1 until yesterday is filled.)
+        const cells = [{ type: 'yesterday', interactive: true }, ...fragmentCells(pc.dates, true)];
+        flush();
+        pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
+      } else if (gapToToday === 2 && yesterdayOpen) {
+        // Last act was the day before yesterday. Filling yesterday keeps this
+        // streak alive, so it stays on the board with yesterday and today after it.
+        const cells = [...fragmentCells(pc.dates, true), { type: 'yesterday', interactive: true }];
+        if (hasLoggableDay) cells.push({ type: 'next', interactive: true });
+        flush();
+        pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
+      } else if (gapToToday <= 1) {
         // Streak still alive — the last logged day is today (0) or yesterday (1),
         // so today continues THIS streak with no gap. It owns the 30-slot board.
         const cells = fragmentCells(pc.dates, true);
@@ -251,8 +274,11 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
         // short streaks, and today starts a brand-new board as Day 1.
         packInto(fragmentCells(pc.dates, false));
         flush();
-        if (hasLoggableDay) {
-          pages.push({ type: 'current', cells: padBoard([{ type: 'next', interactive: true }]), hasCurrent: true });
+        const fresh = [];
+        if (yesterdayOpen)  fresh.push({ type: 'yesterday', interactive: true });
+        if (hasLoggableDay) fresh.push({ type: 'next', interactive: true });
+        if (fresh.length) {
+          pages.push({ type: 'current', cells: padBoard(fresh), hasCurrent: true });
         }
       }
       currentPlaced = true;
@@ -264,9 +290,11 @@ export function buildPages(runs, { today = '', hasLoggableDay = false } = {}) {
 
   // Edge case: the latest piece was a 30+ challenge (a live long streak) and
   // today is still open -> give a small current page to log today.
-  if (hasLoggableDay && !currentPlaced) {
+  if ((hasLoggableDay || yesterdayOpen) && !currentPlaced) {
     // Fresh board after a completed 30-day challenge: today is day 1.
-    const cells = [{ type: 'next', interactive: true }];
+    const cells = [];
+    if (yesterdayOpen)  cells.push({ type: 'yesterday', interactive: true });
+    if (hasLoggableDay) cells.push({ type: 'next', interactive: true });
     pages.push({ type: 'current', cells: padBoard(cells), hasCurrent: true });
   }
 

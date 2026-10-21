@@ -461,6 +461,32 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
         Alert.alert('Please verify again', 'Your code has expired. Tap Continue to get a new one.');
         return;
       }
+      // Backlog 82 (19 Oct 2026): write the profile NOW, before the reminder
+      // step. It used to be written only after that step (App.js upsertProfile
+      // via onLogin), so anyone who left at the reminder screen had an account
+      // but no profile - Kathryn Fisher, 18 Oct. App.js still upserts the same
+      // row (with the real role) on login, so this never conflicts.
+      try {
+        const { error: profErr } = await supabase.from('profiles').upsert({
+          id:            data.user.id,
+          email:         proxyEmail,
+          first_name:    firstName || null,
+          last_name:     lastName  || null,
+          phone:         formatted,
+          country_code:  '+1',
+          state:         zipState  || null,
+          timezone:      timezone  || null,
+          iana_timezone: zipState ? (STATE_IANA_TZ[zipState] || null) : null,
+          role:          'CLIENT',
+        }, { onConflict: 'id' });
+        if (profErr) console.warn('Early profile upsert error:', profErr.message);
+      } catch (pe) {
+        console.warn('Early profile upsert failed:', pe.message);
+      }
+      // Same reason: an invite link must be applied before they can leave.
+      // finishLogin calls it again, which is a no-op once the referral is used.
+      applyPendingReferral(formatted).catch(() => {});
+
       setPendingFinish({
         email: proxyEmail, phone: formatted,
         firstName, lastName, isFirstLogin: true,

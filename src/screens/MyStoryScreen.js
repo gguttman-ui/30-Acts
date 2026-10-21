@@ -12,7 +12,8 @@ import { captureRef } from 'react-native-view-shot';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShareButtons, { buildSocialButtons } from '../components/ShareButtons';
-import { buildActShareMessage, buildInviteMessage , buildSocialMessage } from '../lib/shareMessage';
+import { buildActShareMessage, buildInviteMessage , buildSocialMessage, sameActText } from '../lib/shareMessage';
+import { streakDayNumbers, dayNumberFixes } from '../lib/dayNumbers';
 import { buildXIntentUrls, buildXShareAlert } from '../lib/xIntent';
 import { copyImageToClipboard } from '../lib/shareClipboard';
 import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
@@ -229,13 +230,15 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           // Fallback when the grid entry has no completionId. Key on the
           // calendar date, NOT day_number -- day_number is renumbered on every
           // restart, so it can resolve to a completely different act.
-          const { data } = await supabase
-            .from('completions')
-            .select('act_title, notes, day_number')
-            .eq('user_phone', phone)
-            .eq('local_date', dayObj?.scheduledDate)
-            .maybeSingle();
-          completion = data;
+          if (dayObj?.scheduledDate) {
+            const { data } = await supabase
+              .from('completions')
+              .select('act_title, notes, day_number')
+              .eq('user_phone', phone)
+              .eq('local_date', dayObj.scheduledDate)
+              .maybeSingle();
+            completion = data;
+          }
         }
         if (completion?.notes)     setCompletedStory(completion.notes);
         if (completion?.act_title) setCompletedTitle(completion.act_title);
@@ -1011,19 +1014,13 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         newCompletedAt = anchor.toISOString();
       }
 
-      let localDateValue = targetDay.scheduledDate;
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('iana_timezone')
-          .eq('id', authUser?.id)
-          .maybeSingle();
-        const tz = profile?.iana_timezone || null;
-        if (isToday && tz) localDateValue = localDateInTZ(tz, new Date());
-      } catch (e) {
-        console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
-      }
+      // The act is saved under the date of the tile that was tapped -- the date
+      // on the person's own phone, wherever they physically are (Gary, 21 Oct
+      // 2026). This used to be recalculated from the profile's HOME time zone:
+      // David (home Arizona, travelling in New York) logged acts after midnight
+      // that were filed under the PREVIOUS day, and the delete below then
+      // replaced that day's act. Backlog 83/85.
+      const localDateValue = targetDay.scheduledDate;
 
       // Key the upsert on the CALENDAR DATE, not day_number.
       //
@@ -1048,11 +1045,29 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       const actTitle     = preselectedAct?.title || 'My Story';
       const isSponsorAct = preselectedAct?.categoryId === 'sponsor';
 
+      // Day number = this act's position in its streak, worked out from the
+      // dates (backlog 83). Never trust the tile's number: the dashboard "+"
+      // passes 1, which stored Day 1 whenever today was logged before an empty
+      // yesterday, and those duplicate Day 1s later stopped acts from loading.
+      let dayNumberValue = targetDay.dayNumber || 1;
+      let existingRows = [];
+      try {
+        const { data: rowsNow } = await supabase
+          .from('completions')
+          .select('id, local_date, day_number')
+          .eq('user_phone', phone);
+        existingRows = rowsNow || [];
+        const numbers = streakDayNumbers([...existingRows.map((r) => r.local_date), localDateValue]);
+        dayNumberValue = numbers.get(localDateValue) || dayNumberValue;
+      } catch (e) {
+        console.warn('Day number calc failed, using tile number:', e.message);
+      }
+
       const { data: completionData, error: completionError } = await supabase
         .from('completions')
         .insert({
           user_phone:    phone,
-          day_number:    targetDay.dayNumber,
+          day_number:    dayNumberValue,
           act_title:     actTitle,
           proof_type:    'story',
           notes:         story.trim(),
@@ -1069,6 +1084,23 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         .single();
 
       if (completionError) throw completionError;
+
+      // Back-filling yesterday can join two streaks, so acts after it may need
+      // new numbers too (Bridget's "today" stuck at Day 1). Fire-and-forget:
+      // it must never hold up or break the save.
+      (async () => {
+        try {
+          const fixes = dayNumberFixes([
+            ...existingRows,
+            { id: completionData?.id, local_date: localDateValue, day_number: dayNumberValue },
+          ]);
+          for (const f of fixes) {
+            await supabase.from('completions').update({ day_number: f.day_number }).eq('id', f.id);
+          }
+        } catch (e) {
+          console.warn('Day number renumber failed:', e.message);
+        }
+      })();
 
       try {
         // The `user` PROP has no `id` (it's {email, firstName, lastName, phone,
@@ -1094,6 +1126,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       // Refresh the grid.
       onComplete?.({
         ...targetDay,
+        dayNumber:    dayNumberValue,
         title:        actTitle,
         proofType:    'story',
         status:       'COMPLETED',
@@ -1136,7 +1169,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
       setCompletedTitle(actTitle);
       setCompletedStory(story.trim());
-      setDayNumber(targetDay.dayNumber);
+      setDayNumber(dayNumberValue);
       setShareMode(true);
     } catch (e) {
       console.warn('Save story failed:', e.message);
@@ -1281,7 +1314,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               <Text style={s.successTitle}>Act Completed!</Text>
               <Text style={s.successSub}>You're making the world a kinder place.</Text>
 
-              {completedTitle ? (
+              {/* Backlog 84: when the story is the act's own words, show it once
+                  (the story box), not again as a title above it. */}
+              {completedTitle && !sameActText(completedTitle, completedStory) ? (
                 <Text style={s.completedActTitle} numberOfLines={3}>{completedTitle}</Text>
               ) : null}
               {completedStory.trim() ? (

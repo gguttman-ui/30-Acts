@@ -487,12 +487,16 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
             .eq('id', day.completionId)
             .maybeSingle();
           completion = data;
-        } else {
+        } else if (day.scheduledDate) {
+          // Look up by calendar date, never day_number (backlog 85): several
+          // acts can share a day_number, and maybeSingle() then returns nothing,
+          // so the act opened with its text missing (David, 19-20 Oct). The
+          // (user_phone, local_date) unique index makes this exactly one row.
           const { data } = await supabase
             .from('completions')
             .select('id, notes, completed_at')
             .eq('user_phone', phone)
-            .eq('day_number', day.dayNumber)
+            .eq('local_date', day.scheduledDate)
             .maybeSingle();
           completion = data;
         }
@@ -1151,22 +1155,11 @@ const today = todayStr();
       // This locks the date in at write-time so travel afterward never
       // shifts which calendar day an act belongs to. Falls back to the
       // grid's scheduledDate (already local) if profile timezone is missing.
-      let localDateValue = day.scheduledDate;
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('iana_timezone')
-          .eq('id', user.id)
-          .maybeSingle();
-        const tz = profile?.iana_timezone || null;
-        if (isToday && tz) {
-          // For today, compute "now in home TZ" so morning Japan = previous CT day.
-          localDateValue = localDateInTZ(tz, new Date());
-        }
-        // For yesterday backfill, day.scheduledDate is already correct.
-      } catch (e) {
-        console.warn('iana_timezone lookup failed, using scheduledDate:', e.message);
-      }
+      // Saved under the date of the tile that was tapped -- the date on the
+      // person's phone, wherever they are (Gary, 21 Oct 2026; backlog 83/85).
+      // It used to be recalculated from the profile's HOME time zone, which
+      // filed a traveller's after-midnight act under the previous day.
+      const localDateValue = day.scheduledDate;
 // (Removed the day_number "staleness" guardrail that used to live here: its
       // only job was to protect the day_number-based delete below, which is now
       // gone. We replace today's row by local_date/id instead, which is
@@ -1179,12 +1172,17 @@ const today = todayStr();
       // (user_phone, local_date); this check just avoids a raw error.
       const { data: existingToday } = await supabase
         .from('completions')
-        .select('day_number')
+        .select('id, day_number')
         .eq('user_phone', phone)
         .eq('local_date', localDateValue)
         .maybeSingle();
 
-      if (existingToday && existingToday.day_number !== day.dayNumber) {
+      // Same act being edited = same row id. (Comparing day_number stopped
+      // working once numbers are worked out from the dates - backlog 83.)
+      const editingThisAct = day.completionId
+        ? existingToday?.id === day.completionId
+        : day.status === 'COMPLETED';
+      if (existingToday && !editingThisAct) {
         Alert.alert(
           'Already logged today',
           "You've already logged an act of kindness today. Come back tomorrow for your next one!",

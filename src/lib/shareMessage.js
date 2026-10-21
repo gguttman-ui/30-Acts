@@ -78,7 +78,11 @@ export function buildActShareMessage({
   channel = 'image',
 } = {}) {
   const trimmed   = (story || '').trim();
-  const storyPart = trimmed ? `\n\nHere's what I did:\n"${trimmed}"` : '';
+  // Backlog 84: when the story IS the act (picked from the list, story left
+  // as the act's own words) the act line already says it - do not repeat it.
+  const storyPart = trimmed && !sameActText(trimmed, actTitle)
+    ? `\n\nHere's what I did:\n"${trimmed}"`
+    : '';
   const linkPart  = inviteUrl ? `\n\n${inviteUrl}` : '';
 
   return (
@@ -117,6 +121,24 @@ const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 // "Day 12: 'My Story'" tells a reader nothing about what was actually done.
 // When the title is one of these, the person's own story leads instead.
 const PLACEHOLDER_TITLES = ['my story', 'my act', 'untitled'];
+
+/**
+ * True when two pieces of act text say the same thing - ignoring case, extra
+ * spaces and trailing punctuation. Backlog 84 (21 Oct 2026, David): picking
+ * "Forgave myself for something small" from the list and saving it as the
+ * story ("Forgave myself for something small.") showed the act twice on the
+ * Act Completed screen and in every share. Only the story box should show.
+ */
+export function sameActText(a = '', b = '') {
+  const norm = (t) => String(t || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[\s.!?,;:\u2026"'\u201c\u201d\u2018\u2019-]+$/u, '')
+    .trim();
+  const x = norm(a);
+  return x !== '' && x === norm(b);
+}
 
 /** True when a title is real content rather than the app's own filler. */
 export function isRealActTitle(actTitle = '') {
@@ -200,7 +222,7 @@ export function buildInviteMessage({
   // Only add the story block when the story is not already the lead — a
   // story-only day would otherwise print the same words twice.
   const trimmedStory = (story || '').trim();
-  const storyPart = trimmedStory && trimmedStory !== lead
+  const storyPart = trimmedStory && !sameActText(trimmedStory, lead)
     ? `\n\nHere's what I did:\n"${trimmedStory}"`
     : '';
 

@@ -211,8 +211,15 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // streaks now log the same way live ones do: tap the "+" on today's tile.
   const hasLoggableDay   = canLogToday;
 
+  // An empty YESTERDAY can always be back-filled (backlog 83, 20 Oct 2026) --
+  // even after today is logged. Only offered to someone with history from
+  // before yesterday, so a brand-new member's first board is just today.
+  const allDates      = new Set(runs.flatMap((r) => (r.rows || []).map((row) => rowLocalDate(row))));
+  const earliestDate  = [...allDates].filter(Boolean).sort()[0];
+  const yesterdayOpen = !allDates.has(yesterday) && !!earliestDate && earliestDate < yesterday;
+
   // Build the swipe pages from consecutive-day blocks (see buildPages).
-  const pages = buildPages(runs, { today, hasLoggableDay });
+  const pages = buildPages(runs, { today, hasLoggableDay, yesterdayOpen });
   const initialIndex = pages.length - 1;
 
   // When the streak has ENDED there is no in-grid "+" tile, so the dashboard
@@ -252,6 +259,25 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             </Text>
           </View>
         </View>
+      );
+    }
+
+    // "+" for an empty YESTERDAY (backlog 83): back-fill it even when today is
+    // already logged. Saves under yesterday's date; the day number is worked
+    // out from the dates when it is saved.
+    if (cell.type === 'yesterday') {
+      return (
+        <TouchableOpacity
+          key={key}
+          onPress={() => startNewAct(yesterday)}
+          style={[s.dayCell, s.dayCellNext, s.dayCellYesterday]}
+        >
+          <Text style={s.dayNum}>{' '}</Text>
+          <View style={s.centerSlot}><Text style={s.nextGlyph} allowFontScaling={false}>+</Text></View>
+          <View style={s.bottomSlot}>
+            <Text style={[s.tileDate, s.tileDateDone]} numberOfLines={1} adjustsFontSizeToFit>YESTERDAY</Text>
+          </View>
+        </TouchableOpacity>
       );
     }
 
@@ -467,7 +493,9 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
         </View>
 
         <Text style={s.subtitle}>
-          {!isLive
+          {yesterdayOpen
+            ? 'Missed yesterday? Tap + on YESTERDAY to add it.'
+            : !isLive
             ? 'This streak ended — tap + to log today and start a new one.'
             : hasLoggableDay
               ? 'Tap + to log. Miss two days in a row and a new streak begins.'

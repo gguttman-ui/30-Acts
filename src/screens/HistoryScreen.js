@@ -276,12 +276,14 @@ return () => { cancelled = true; };
             .eq('id', day.completionId)
             .maybeSingle();
           completion = data;
-        } else {
+        } else if (day.scheduledDate) {
+          // By calendar date, never day_number (backlog 85): duplicate day
+          // numbers made maybeSingle() return nothing and the text vanished.
           const { data } = await supabase
             .from('completions')
             .select('id, notes')
             .eq('user_phone', phone)
-            .eq('day_number', day.dayNumber)
+            .eq('local_date', day.scheduledDate)
             .maybeSingle();
           completion = data;
         }
