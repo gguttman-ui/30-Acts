@@ -58,7 +58,7 @@ describe('wired in', () => {
   test('App.js checks for updates at launch and on returning to the front', () => {
     const src = read('App.js');
     expect(src).toMatch(/checkForUpdateInBackground\(\)/);
-    expect(src).toMatch(/next === 'active'\) checkForUpdateInBackground\(\)/);
+    expect(src).toMatch(/next === 'active'\)[\s\S]{0,30}checkForUpdateInBackground\(\)/);
   });
 
   test('the navigator reports the current screen to the gate', () => {

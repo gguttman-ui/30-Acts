@@ -20,6 +20,7 @@ import { supabase } from './src/lib/supabase';
 import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
 import { initBranch } from './src/lib/branch';
 import { checkForUpdateInBackground } from './src/lib/appUpdates';
+import { syncReminderTimezone } from './src/lib/reminderTimezone';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -159,10 +160,16 @@ useEffect(() => {
   // Backlog 78: look for a new update at launch and every time the app comes
   // back to the front, instead of only on a fresh start. A downloaded update
   // is switched to on the Home tab only (src/lib/updateGate.js).
+  // Backlog 86: reminders follow the phone's time zone, so a traveller is
+  // reminded on local time (src/lib/reminderTimezone.js).
   useEffect(() => {
     checkForUpdateInBackground();
+    syncReminderTimezone(supabase);
     const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') checkForUpdateInBackground();
+      if (next === 'active') {
+        checkForUpdateInBackground();
+        syncReminderTimezone(supabase);
+      }
     });
     return () => sub.remove();
   }, []);
