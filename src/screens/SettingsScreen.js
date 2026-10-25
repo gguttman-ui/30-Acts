@@ -525,15 +525,18 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     const t = REMINDER_TARGETS[which];
     if (!t) return;
 
-    // Switching the master OFF also clears the reminder. Otherwise switching it
-    // back on silently resumed whatever was scheduled before, so reminders
-    // arrived without anyone choosing a time -- turning it on must start from
-    // OFF and wait for the user to pick.
+    // The master switch carries the reminder with it. OFF clears the reminder
+    // (as before). ON now also switches the reminder on at the time shown, in
+    // the same tap (25 Oct 2026). It used to leave the reminder OFF until the
+    // small chip under the time was tapped too, so people saw the switch ON
+    // and 09:00 on screen with nothing scheduled - Ghenno, after the 22 Oct
+    // inactivity switch-off. Nobody is opted in without tapping the switch
+    // themselves: first visit still lands OFF.
     const overrides = { [t.key]: next };
-    if (which === 'master' && !next) overrides.reminder1Enabled = false;
+    if (which === 'master') overrides.reminder1Enabled = next;
 
     t.set(next);
-    if (which === 'master' && !next) setReminder1Enabled(false);
+    if (which === 'master') setReminder1Enabled(next);
     flashReminder(`${t.label} turned ${next ? 'ON' : 'OFF'}`);
 
     const ok = await handleSave(overrides);
