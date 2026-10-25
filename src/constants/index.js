@@ -547,9 +547,13 @@ export function localDateInTZ(tz, date = new Date()) {
 // and toll-free A2P). Shared by the Me/Settings screen and the signup flow so
 // the exact text a user agreed to is recorded identically wherever they opt in.
 // Bump the version whenever the wording below materially changes.
-export const SMS_CONSENT_VERSION = '2026-07-19';
+// 2026-10-25 (item 89): "the times you choose" -> "the time you choose" -
+// there is one reminder a day (item 28). "Up to 2 per day" is KEPT on purpose:
+// it is the ceiling in the approved Twilio toll-free registration and the HELP
+// reply, so changing it would mean re-registering with Twilio.
+export const SMS_CONSENT_VERSION = '2026-10-25';
 export const SMS_CONSENT_TEXT =
   'By turning this on you agree to receive recurring automated text ' +
   'reminders from 30 Acts of Kindness at your sign-up number — up to 2 ' +
-  'per day at the times you choose. Msg & data rates may apply. Reply ' +
+  'per day at the time you choose. Msg & data rates may apply. Reply ' +
   'STOP to cancel or HELP for help. Consent is not a condition of using the app.';
