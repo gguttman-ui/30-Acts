@@ -10,7 +10,7 @@ jest.mock('../src/lib/supabase', () => ({
   },
 }));
 
-import { notifyDay30 } from '../src/lib/day30';
+import { notifyDay30, DAY30_MESSAGE } from '../src/lib/day30';
 
 beforeEach(() => {
   mockRpc.mockReset();
@@ -58,4 +58,26 @@ test('no signed-in user → sends nothing', async () => {
   mockGetUser.mockResolvedValue({ data: { user: null } });
   await notifyDay30();
   expect(mockRpc).not.toHaveBeenCalled();
+});
+
+// Item 88 (25 Oct 2026): the text goes out before any recognition choice.
+describe('Day 30 message wording', () => {
+  test('promises neither a wristband/bracelet nor a certificate', () => {
+    expect(DAY30_MESSAGE).not.toMatch(/wristband|bracelet|certificate|send you/i);
+  });
+
+  test('names the program and stays one plain-ASCII SMS segment', () => {
+    expect(DAY30_MESSAGE.startsWith('30 Acts of Kindness:')).toBe(true);
+    expect(DAY30_MESSAGE.length).toBeLessThanOrEqual(160);
+    expect(/^[\x20-\x7E]*$/.test(DAY30_MESSAGE)).toBe(true);
+  });
+
+  test('the SMS sends exactly this message', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { email: '+15550100142@phone.30acts.app', user_metadata: {} } },
+    });
+    await notifyDay30();
+    expect(mockRpc).toHaveBeenCalledWith('send_sms_notification',
+      { phone_number: '+15550100142', message: DAY30_MESSAGE });
+  });
 });

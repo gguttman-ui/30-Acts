@@ -7,9 +7,13 @@
 // swallows its own errors.
 import { supabase } from './supabase';
 
-const DAY30_MESSAGE =
-  'Congratulations, you have gone the extra mile and are a truly certified Kind Person. ' +
-  'We will send you your Certified Kind Person wristband.';
+// Sent the moment Day 30 is saved - BEFORE the person chooses a certificate,
+// a bracelet or both - so it must not promise either (item 88, 25 Oct 2026:
+// it used to promise a wristband to everyone, including Gary, who chose the
+// certificate only). Plain ASCII and under 160 characters: one SMS segment.
+export const DAY30_MESSAGE =
+  '30 Acts of Kindness: Congratulations! You completed 30 days in a row and are a ' +
+  'Certified Kind Person. Thank you for making the world a kinder place.';
 
 export async function notifyDay30() {
   let authUser = null;
