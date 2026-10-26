@@ -68,7 +68,7 @@ module.exports = ({ config }) => {
 
     android: {
       ...config.android,
-      package: 'org.actsofkindness.app.staging',
+      package: 'org.thirtyactsofkindness.app.staging',
     },
   };
 };
