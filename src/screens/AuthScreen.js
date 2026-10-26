@@ -12,6 +12,7 @@ import { lookupZip } from '../lib/zip';
 import { nameErrors, cleanName } from '../lib/nameRules';
 import { supabase } from '../lib/supabase';
 import { applyPendingReferral } from '../lib/branch';
+import { applyOtpInput } from '../lib/otpInput';
 
 // Apple demo account bypass — documented in App Store Connect's
 // "App Review Information" field. Reviewers enter this phone + OTP
@@ -303,28 +304,16 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     }
   };
 
+  // Paste or autofill into ANY box fills all six (src/lib/otpInput.js).
   const handleDigitChange = (text, index) => {
-    if (text.length === 6 && index === 0) {
-      const digits = text.replace(/[^0-9]/g, '').slice(0, 6).split('');
-      const newCode = [...Array(6)].map((_, i) => digits[i] || '');
-      setOtpCode(newCode);
-      const lastIndex = digits.length - 1;
-      if (lastIndex < 5) {
-        inputs.current[lastIndex + 1]?.focus();
-      } else {
-        inputs.current[5]?.blur();
-      }
-      return;
-    }
-
-    const newCode = [...otpCode];
-    newCode[index] = text.replace(/[^0-9]/g, '').slice(-1);
+    const { code: newCode, next } = applyOtpInput(otpCode, index, text);
     setOtpCode(newCode);
-    if (text && index < 5) {
-      inputs.current[index + 1]?.focus();
-       } else if (text && index === 5) {
-         Keyboard.dismiss();
-       }
+    if (next === null) {
+      inputs.current[5]?.blur();
+      Keyboard.dismiss();
+    } else if (next !== index) {
+      inputs.current[next]?.focus();
+    }
   };
 
   const validate = () => {
@@ -755,7 +744,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
                 autoComplete="sms-otp"
-                maxLength={i === 0 ? 6 : 1}
+                maxLength={7}
                 autoFocus={i === 0}
                 inputAccessoryViewID={KB_DONE_ID}
                 style={[s.otpInput, { borderColor: digit ? C.primary : C.border }]}
