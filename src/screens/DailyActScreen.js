@@ -617,6 +617,24 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
       let RNShare = null;
       try { RNShare = require('react-native-share').default; } catch {}
       if (RNShare && !isExpoGo) {
+        // Android (item 92): go straight to the phone's texting app, as Text
+        // does on iPhone, instead of Android's share menu - where Messages can
+        // be buried below the fold on a phone that has not texted much yet
+        // (Moto G75, 26 Oct 2026). Falls back to the share menu if that fails.
+        if (Platform.OS === 'android' && RNShare.Social && RNShare.Social.SMS) {
+          const direct = await withTimeout(
+            RNShare.shareSingle({
+              social: RNShare.Social.SMS,
+              url: uri,
+              type: 'image/jpeg',
+              message: inviteCaption(),
+              failOnCancel: false,
+            }),
+            SHARE_SHEET_TIMEOUT_MS,
+            'sms share timed out',
+          ).then(() => true).catch((e) => { console.warn('SMS share:', e && e.message); return false; });
+          if (direct) return;
+        }
         await withTimeout(
           RNShare.open({
             url: uri,
