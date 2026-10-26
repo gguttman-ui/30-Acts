@@ -12,6 +12,7 @@ import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../compone
 import { Text } from '../components/scaledText';
 import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../constants';
 import { lookupZip } from '../lib/zip';
+import { reminderZoneForSave } from '../lib/reminderTimezone';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
 import { loadRuns, lapCount, actsInLap } from '../lib/runs';
@@ -414,9 +415,12 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     // fall back to deriving it from the state, so a user who set a state but no
     // ZIP still gets a valid IANA zone. (A missing zone silently blocks reminders.)
     const effectiveTz = timezone || (zipState ? (STATE_IANA_TZ[zipState] || null) : null);
+    // Reminders go by where the phone IS, not the home ZIP (item 86). The
+    // profile below keeps the home zone.
+    const reminderTz = reminderZoneForSave(effectiveTz);
 
     if (rEnabled) {
-      if (!effectiveTz) {
+      if (!reminderTz) {
         Alert.alert(
           'Add your ZIP code',
           'To send reminders we need your ZIP code so we know your time zone. Add it above, then Save.'
@@ -451,7 +455,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
           zip:      zip      || null,
           state:    zipState || null,
           city:     zipCity  || null,
-          timezone: effectiveTz,
+          timezone: reminderTz,
           contact_email: contactEmail.trim() || null,
           street1:       street1.trim() || null,
           street2:       street2.trim() || null,

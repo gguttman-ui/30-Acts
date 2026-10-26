@@ -1,5 +1,5 @@
 // Backlog 86: reminders follow the phone's time zone (travellers).
-import { isIanaZone, timezoneToSave, syncReminderTimezone } from '../src/lib/reminderTimezone';
+import { isIanaZone, timezoneToSave, syncReminderTimezone, reminderZoneForSave } from '../src/lib/reminderTimezone';
 const fs = require('fs');
 const path = require('path');
 
@@ -37,5 +37,23 @@ describe('reminder time zone follows the phone', () => {
   test('App.js syncs at launch and whenever the app comes back', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
     expect(src.match(/syncReminderTimezone\(supabase\)/g) || []).toHaveLength(2);
+  });
+
+  test('Ghenno, home ZIP in Illinois, saves Settings in Vienna: phone zone wins', () => {
+    expect(reminderZoneForSave('America/Chicago', 'Europe/Vienna')).toBe('Europe/Vienna');
+  });
+
+  test('Settings falls back to the home zone only when the phone gives none', () => {
+    expect(reminderZoneForSave('America/Chicago', null)).toBe('America/Chicago');
+    expect(reminderZoneForSave('America/Chicago', 'UTC')).toBe('America/Chicago');
+    expect(reminderZoneForSave(null, null)).toBeNull();
+  });
+
+  test('Settings saves the reminder zone, not the ZIP zone, to user metadata', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'screens', 'SettingsScreen.js'), 'utf8');
+    expect(src).toMatch(/const reminderTz = reminderZoneForSave\(effectiveTz\);/);
+    expect(src).toMatch(/timezone: reminderTz,/);
+    expect(src).not.toMatch(/\btimezone: effectiveTz,/);
+    expect(src).toMatch(/iana_timezone: effectiveTz,/);
   });
 });

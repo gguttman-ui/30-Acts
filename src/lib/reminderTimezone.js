@@ -34,6 +34,17 @@ export function timezoneToSave(stored, device) {
   return stored === device ? null : device;
 }
 
+/**
+ * The zone to save when Settings is saved. Settings knows only the HOME zone
+ * (from the ZIP); saving that over the phone's zone undid item 86 for anyone
+ * away from home (Ghenno in Vienna, 25 Oct 2026: reminder at 9 AM Chicago).
+ * Use the phone's zone; fall back to home only when the phone gives none.
+ */
+export function reminderZoneForSave(home, device = deviceTimeZone()) {
+  if (isIanaZone(device)) return device;
+  return home || null;
+}
+
 let syncing = false;
 
 /**
