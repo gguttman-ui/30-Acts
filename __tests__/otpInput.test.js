@@ -37,4 +37,16 @@ describe('sign-in code boxes', () => {
     expect(src).not.toMatch(/maxLength=\{i === 0 \? 6 : 1\}/);
     expect(src).toMatch(/applyOtpInput\(otpCode, index, text\)/);
   });
+
+  test('the whole text message pasted: only the 6-digit code is used', () => {
+    const msg = 'Your 30 Acts verification code is: 917615';
+    expect(applyOtpInput(EMPTY, 0, msg)).toEqual({ code: ['9', '1', '7', '6', '1', '5'], next: null });
+    expect(applyOtpInput(EMPTY, 2, msg).code.join('')).toBe('917615');
+  });
+
+  test('no box limits how much can be pasted', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'screens', 'AuthScreen.js'), 'utf8');
+    const boxes = src.slice(src.indexOf('otpCode.map((digit, i)'), src.indexOf('label="Verify"'));
+    expect(boxes).not.toMatch(/maxLength/);
+  });
 });

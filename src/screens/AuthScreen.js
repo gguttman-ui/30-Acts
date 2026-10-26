@@ -744,7 +744,6 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
                 autoComplete="sms-otp"
-                maxLength={7}
                 autoFocus={i === 0}
                 inputAccessoryViewID={KB_DONE_ID}
                 style={[s.otpInput, { borderColor: digit ? C.primary : C.border }]}

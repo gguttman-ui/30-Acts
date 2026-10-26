@@ -15,7 +15,19 @@
  *   next = box to focus, or null when all six are filled.
  */
 export function applyOtpInput(code, index, text) {
-  const digits = String(text || '').replace(/[^0-9]/g, '');
+  const raw = String(text || '');
+
+  // The whole text message pasted ("Your 30 Acts verification code is:
+  // 482913"): take the 6-digit code itself, not every digit in the text
+  // (the "30" in the message is not part of the code). Moto G75, 26 Oct 2026.
+  // A longer run (a code pasted over a digit already in the box, "7482913")
+  // keeps its last six.
+  const runs = raw.match(/\d{6,}/g);
+  if (runs) {
+    return { code: runs[runs.length - 1].slice(-6).split(''), next: null };
+  }
+
+  const digits = raw.replace(/[^0-9]/g, '');
 
   // A whole code - pasted, autofilled, or pasted over a digit already there.
   if (digits.length >= 6) {
