@@ -19,6 +19,8 @@ import { supabase } from '../lib/supabase';
 import { rowLocalDate, windowStartDate, currentWindowIndex } from '../lib/streak';
 import DashboardView from './DashboardView';
 import { canUndoRestart } from '../lib/restartUndo';
+import { createAfterClose } from '../lib/afterModalClose';
+import { useIsFocused } from '@react-navigation/native';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
 const PROOF_VIDEO_ICON  = require('../assets/proof/Video.png');
@@ -76,6 +78,11 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // add yesterday) never opens a second modal mid-navigation -- that left a
   // transparent-modal ghost overlay that froze the dashboard until a tab switch.
   const missedEverRef = useRef(false);
+  // Item 93: act only once a pop-up has finished closing (src/lib/afterModalClose.js),
+  // and show these pop-ups only while Home is the screen in front.
+  const afterMissedClose   = useRef(createAfterClose()).current;
+  const afterDocumentClose = useRef(createAfterClose()).current;
+  const isFocused = useIsFocused();
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
   // Newest tier is the live `days` prop; older tiers are fetched lazily.
@@ -261,7 +268,7 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // "Yes" → go straight to the new low-friction story screen.
   const handleDocumentYes = () => {
     setDocumentPrompt(false);
-    navigation.navigate('MyStory');
+    afterDocumentClose.schedule(() => navigation.navigate('MyStory'));
   };
   // "No" → stay on the calendar.
   const handleDocumentNo = () => setDocumentPrompt(false);
@@ -293,12 +300,14 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
       // Defer navigation one frame so the missed-yesterday modal has fully
       // dismissed first -- navigating while a transparent modal is still closing
       // can leave a ghost overlay that blocks taps on the dashboard.
-      requestAnimationFrame(() => {
+      // Item 93: one animation frame was not enough for the 300 ms fade
+      // (Janie, iPhone, 25-26 Oct) - wait until the pop-up has really closed.
+      afterMissedClose.schedule(() => {
         navigation.navigate('MyStory', { day: yesterdayDay, returnTo: 'MyStory' });
       });
     }
   };
-  const handleMissedRestart = () => { setMissedPrompt(false); setConfirmRestart(true); };
+  const handleMissedRestart = () => { setMissedPrompt(false); afterMissedClose.schedule(() => setConfirmRestart(true)); };
 
   const getUserPhone = async () => {
     const propPhone = extractPhone(user?.email);
@@ -797,7 +806,7 @@ const handleConfirmWipe = async () => {
         </View>
       </Modal>
 
-      <Modal visible={missedPrompt} transparent animationType="fade">
+      <Modal visible={missedPrompt && isFocused} transparent animationType="fade" onDismiss={afterMissedClose.onDismiss}>
         <View style={s.modalBg}>
           <View style={s.modalCard}>
             <Text style={{ fontSize: sf(44), textAlign: 'center', marginBottom: 12 }}>⏰</Text>
@@ -815,7 +824,7 @@ const handleConfirmWipe = async () => {
         </View>
       </Modal>
 
-      <Modal visible={documentPrompt} transparent animationType="fade">
+      <Modal visible={documentPrompt && isFocused} transparent animationType="fade" onDismiss={afterDocumentClose.onDismiss}>
         <View style={s.modalBg}>
           <View style={s.modalCard}>
             <Image source={APP_LOGO} style={s.docPromptLogo} resizeMode="contain" />

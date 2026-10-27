@@ -180,6 +180,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     return days?.find(d => d.scheduledDate === today) || null;
   }, [days, route?.params?.day]);
 
+  // Item 93: adding yesterday said "today" (Janie, 26 Oct 2026).
+  const isBackfill = !!(targetDay?.scheduledDate && targetDay.scheduledDate !== todayStr());
+
   // Are we opening an already-completed day? Then start in SHARE mode.
   const initiallyCompleted = route?.params?.day?.status === 'COMPLETED';
 
@@ -1288,7 +1291,9 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 style={s.storyBox}
                 value={story}
                 onChangeText={handleStoryChange}
-                placeholder="What act of kindness did you do today? Tell the story…"
+                placeholder={isBackfill
+                  ? 'What act of kindness did you do yesterday? Tell the story…'
+                  : 'What act of kindness did you do today? Tell the story…'}
                 placeholderTextColor={C.muted}
                 multiline
                 textAlignVertical="top"
