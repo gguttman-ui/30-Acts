@@ -19,6 +19,7 @@ import { copyImageToClipboard } from '../lib/shareClipboard';
 import { withTimeout, SHARE_SHEET_TIMEOUT_MS, CAPTURE_TIMEOUT_MS } from '../lib/withTimeout';
 import { nextStorySeed, applyStorySeed } from '../lib/storySeed';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
+import { canEditAct } from '../lib/editWindow';
 import { uploadShareCard, buildShareEmailHtml } from '../lib/shareCard';
 
 // Speech-to-text (native module — not available in Expo Go). Loaded defensively
@@ -208,6 +209,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const [completedTitle, setCompletedTitle] = useState(preselectedAct?.title || route?.params?.day?.title || 'My Story');
   const [completedStory, setCompletedStory] = useState('');
   const [dayNumber,      setDayNumber]      = useState(route?.params?.day?.dayNumber ?? targetDay?.dayNumber ?? null);
+  // Item 34: edit today's or yesterday's act. completedId is the saved act's
+  // row; editingId is set while its text is being changed.
+  const [completedId, setCompletedId] = useState(route?.params?.day?.completionId ?? null);
+  const [editingId,   setEditingId]   = useState(null);
+  const actDate = route?.params?.day?.scheduledDate || targetDay?.scheduledDate || null;
+  const canEdit = !!completedId && canEditAct(actDate, todayStr());
 
   const charCount  = story.trim().length;
   const storyValid = charCount >= STORY_MIN;
@@ -225,7 +232,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         if (dayObj?.completionId) {
           const { data } = await supabase
             .from('completions')
-            .select('act_title, notes, day_number')
+            .select('id, act_title, notes, day_number')
             .eq('id', dayObj.completionId)
             .maybeSingle();
           completion = data;
@@ -236,13 +243,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           if (dayObj?.scheduledDate) {
             const { data } = await supabase
               .from('completions')
-              .select('act_title, notes, day_number')
+              .select('id, act_title, notes, day_number')
               .eq('user_phone', phone)
               .eq('local_date', dayObj.scheduledDate)
               .maybeSingle();
             completion = data;
           }
         }
+        if (completion?.id)        setCompletedId(completion.id);
         if (completion?.notes)     setCompletedStory(completion.notes);
         if (completion?.act_title) setCompletedTitle(completion.act_title);
         // Backlog item 18: do NOT take the day number from the stored
@@ -946,9 +954,81 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
   // ── Save (CREATE → SHARE) ─────────────────────────────────────────────────
 
+  // ── Edit (item 34): change the text of today's or yesterday's act ─────────
+  // Updates the SAME row - same date, same day number, same group links - so
+  // streaks cannot change. The database also refuses older acts
+  // (supabase/migrations/20261028_guard_old_act_edits.sql).
+  const startEdit = () => {
+    if (!canEdit) return;
+    setStory(completedStory.trim());
+    setEditingId(completedId);
+    setShareMode(false);
+  };
+
+  const cancelEdit = () => {
+    cutDictation();
+    setEditingId(null);
+    setShareMode(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const phone = extractPhone(user?.email);
+    if (!phone) {
+      Alert.alert('Not signed in', 'Please log in again and retry.', [{ text: 'OK' }]);
+      return;
+    }
+    if (!canEditAct(actDate, todayStr())) {
+      Alert.alert('Too late to edit', "Only today's and yesterday's acts can be changed.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const textToCheck = [completedTitle, story].filter(Boolean).join(' ');
+      const blocked = await withTimeout(
+        isContentBlocked(textToCheck), 15000, 'moderation check timed out',
+      ).catch((e) => { console.warn('moderation check skipped:', e && e.message); return false; });
+      if (blocked) {
+        Alert.alert('Content Not Allowed', BLOCKED_MESSAGE);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('completions')
+        .update({ notes: story.trim() })
+        .eq('id', editingId)
+        .eq('user_phone', phone)
+        .select('id')
+        .maybeSingle();
+      if (error || !data) {
+        Alert.alert('Could not save your changes', (error && error.message) || 'Please try again.');
+        return;
+      }
+      Keyboard.dismiss();
+      setCompletedStory(story.trim());
+      setEditingId(null);
+      setShareMode(true);
+    } catch (e) {
+      Alert.alert('Could not save your changes', e?.message || 'Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (saving) return;
     cutDictation();   // item 54: Save ends any dictation still running
+
+    if (editingId) {
+      if (!storyValid) {
+        Alert.alert(
+          'Add a little more',
+          `Please write at least ${STORY_MIN} characters about your act (${charCount} so far).`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      await handleSaveEdit();
+      return;
+    }
 
     if (!storyValid) {
       Alert.alert(
@@ -1172,6 +1252,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
       setCompletedTitle(actTitle);
       setCompletedStory(story.trim());
+      if (completionData?.id) setCompletedId(completionData.id);
       setDayNumber(dayNumberValue);
       setShareMode(true);
     } catch (e) {
@@ -1216,7 +1297,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Document Your Act" onBack={goToCalendar} />
+      <ScreenHeader title={editingId ? 'Edit Your Act' : 'Document Your Act'} onBack={editingId ? cancelEdit : goToCalendar} />
 
       {/* Off-screen branded card for image capture (1px host, kept in-window). */}
       {shareMode && completedStory.trim() ? (
@@ -1310,8 +1391,14 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               >
                 {saving
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.saveBtnText}>Save My Act</Text>}
+                  : <Text style={s.saveBtnText}>{editingId ? 'Save Changes' : 'Save My Act'}</Text>}
               </TouchableOpacity>
+
+              {editingId ? (
+                <TouchableOpacity onPress={cancelEdit} style={s.skipShare}>
+                  <Text style={s.skipShareText}>Cancel</Text>
+                </TouchableOpacity>
+              ) : null}
             </>
           ) : (
             <View style={s.successCard}>
@@ -1343,6 +1430,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 onMore={handleShareAll}
                 disabled={sharing}
               />
+
+              {canEdit ? (
+                <TouchableOpacity onPress={startEdit} style={s.editBtn} activeOpacity={0.8}>
+                  <Text style={s.editBtnText}>✏️  Edit this act</Text>
+                </TouchableOpacity>
+              ) : null}
 
               <TouchableOpacity onPress={goToCalendar} style={s.skipShare}>
                 <Text style={s.skipShareText}>Done</Text>
@@ -1412,6 +1505,8 @@ const s = StyleSheet.create({
   successTitle: { color: C.text, fontSize: sf(22), fontWeight: '800', marginTop: 8 },
   successSub:   { color: C.sub, fontSize: sf(14), textAlign: 'center', marginTop: 4 },
   skipShare: { marginTop: 12, paddingVertical: 10, alignItems: 'center' },
+  editBtn: { marginTop: 16, borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', alignSelf: 'stretch' },
+  editBtnText: { color: C.primary, fontSize: sf(15), fontWeight: '700' },
   skipShareText: { color: C.primary, fontSize: sf(18), fontWeight: '800' },
 
   completedActTitle: {
