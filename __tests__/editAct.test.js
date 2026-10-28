@@ -51,6 +51,12 @@ describe('My Story screen wiring', () => {
     expect(body).not.toMatch(/\.insert\(/);
   });
 
+  test('after Save Changes the app returns to the dashboard', () => {
+    const body = SRC.slice(SRC.indexOf('const handleSaveEdit'), SRC.indexOf('const handleSave = async'));
+    expect(body).toMatch(/navigation\.navigate\('Main', \{ screen: 'Home' \}\)/);
+    expect(body).not.toMatch(/setShareMode\(true\)/);
+  });
+
   test('an edit goes through the same content check', () => {
     const body = SRC.slice(SRC.indexOf('const handleSaveEdit'), SRC.indexOf('const handleSave = async'));
     expect(body).toMatch(/isContentBlocked\(textToCheck\)/);

@@ -1002,10 +1002,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         Alert.alert('Could not save your changes', (error && error.message) || 'Please try again.');
         return;
       }
+      // Gary 28 Oct: after Save Changes go straight back to the dashboard.
       Keyboard.dismiss();
       setCompletedStory(story.trim());
       setEditingId(null);
-      setShareMode(true);
+      requestAnimationFrame(() => navigation.navigate('Main', { screen: 'Home' }));
     } catch (e) {
       Alert.alert('Could not save your changes', e?.message || 'Please try again.');
     } finally {
