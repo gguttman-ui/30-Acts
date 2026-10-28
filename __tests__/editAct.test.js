@@ -57,6 +57,11 @@ describe('My Story screen wiring', () => {
     expect(body).not.toMatch(/setShareMode\(true\)/);
   });
 
+  test('the keyboard Done bar is mounted together with the story box', () => {
+    expect(SRC).toMatch(/\{!shareMode \? <KeyboardDoneBar \/> : null\}/);
+    expect(SRC).not.toMatch(/^\s*<KeyboardDoneBar \/>\s*$/m);
+  });
+
   test('an edit goes through the same content check', () => {
     const body = SRC.slice(SRC.indexOf('const handleSaveEdit'), SRC.indexOf('const handleSave = async'));
     expect(body).toMatch(/isContentBlocked\(textToCheck\)/);

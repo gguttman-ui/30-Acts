@@ -1449,7 +1449,10 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <KeyboardDoneBar />
+      {/* Item 34 (Gary, 28 Oct): on iPhone the Done bar only attaches to a story
+          box that already exists when the bar mounts. Opening Edit from the
+          Act Completed screen creates the box later, so mount the bar with it. */}
+      {!shareMode ? <KeyboardDoneBar /> : null}
     </View>
   );
 }
