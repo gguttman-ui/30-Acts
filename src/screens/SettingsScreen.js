@@ -670,6 +670,18 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
         </Card>
 
         <Card style={s.mb}>
+          <Text style={s.cardTitle}>👨‍👩‍👧 Family</Text>
+          <Text style={s.cardSub}>
+            Add your children so they can do their own 30 acts on your phone.
+          </Text>
+          <Btn
+            label="My Family →"
+            variant="secondary"
+            onPress={() => navigation.navigate('Family')}
+          />
+        </Card>
+
+        <Card style={s.mb}>
           <Text style={s.cardTitle}>Profile</Text>
           <View style={s.emailRow}>
             <Text style={s.emailLabel} numberOfLines={1}>{user?.email?.includes('@phone.30acts.app') ? 'Phone' : 'Email'}</Text>

@@ -17,6 +17,7 @@ import MySponsorsScreen from '../screens/MySponsorsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import FeedbackScreen    from '../screens/FeedbackScreen';
 import HelpScreen        from '../screens/HelpScreen';
+import FamilyScreen      from '../screens/FamilyScreen';
 import { DayDetailScreen } from '../screens/HistoryScreen';
 import DailyActScreen    from '../screens/DailyActScreen';
 import AdminScreen       from '../screens/AdminScreen';
@@ -249,6 +250,9 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             <Stack.Screen name="BraceletForm" component={BraceletFormScreen} />
             <Stack.Screen name="BraceletPayment" component={BraceletPaymentScreen} />
             <Stack.Screen name="RecognitionAdmin" component={RecognitionAdminScreen} />
+            <Stack.Screen name="Family">
+              {(props) => <FamilyScreen {...props} user={user} />}
+            </Stack.Screen>
             <Stack.Screen name="Donation"  component={DonationScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen} />
             <Stack.Screen

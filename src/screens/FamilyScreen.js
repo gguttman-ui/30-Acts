@@ -1,0 +1,217 @@
+// FamilyScreen -- backlog 94, children's profiles Stage 1 (1 Nov 2026).
+//
+// Settings > Family. A parent lists, adds and removes their children.
+// Adding needs a first name, an age range and the consent box ticked.
+// Removing is permanent: the database trigger family_members_erase_acts
+// deletes every act filed under the child's member key.
+//
+// Not in this change (next steps): the text-code check when adding a child,
+// and the profile switcher on Home that lets a child log their act.
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { AppInput, Btn, Card, ScreenHeader } from '../components';
+import { Text } from '../components/scaledText';
+import { C } from '../constants';
+import { supabase } from '../lib/supabase';
+import { extractPhone } from '../lib/streak';
+import { cleanName } from '../lib/nameRules';
+import {
+  AGE_RANGES, MAX_CHILDREN, CHILD_NAME_MAX,
+  FAMILY_CONSENT_TEXT, FAMILY_CONSENT_VERSION,
+  childNameProblem, nextMemberKey,
+} from '../lib/family';
+
+export default function FamilyScreen({ navigation, user }) {
+  const parentPhone = extractPhone(user?.email);
+
+  const [children, setChildren] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [adding, setAdding]     = useState(false);
+  const [saving, setSaving]     = useState(false);
+
+  const [name, setName]         = useState('');
+  const [ageRange, setAgeRange] = useState(null);
+  const [consent, setConsent]   = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('family_members')
+      .select('id, first_name, age_range, member_key, created_at')
+      .order('created_at', { ascending: true });
+    if (error) {
+      Alert.alert('Could not load your family', error.message);
+    } else {
+      setChildren(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const resetForm = () => {
+    setName(''); setAgeRange(null); setConsent(false); setAdding(false);
+  };
+
+  const handleAdd = async () => {
+    const problem = childNameProblem(name);
+    if (problem) return Alert.alert('First name needed', problem);
+    if (!ageRange) return Alert.alert('Age range needed', 'Please choose an age range.');
+    if (!consent) return Alert.alert('Permission needed', 'Please tick the box to give your permission.');
+
+    const memberKey = nextMemberKey(parentPhone, children.map((c) => c.member_key));
+    if (!memberKey) {
+      return Alert.alert('Family is full', `You can add up to ${MAX_CHILDREN} children.`);
+    }
+
+    setSaving(true);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error('You are signed out. Please sign in again.');
+      const { error } = await supabase.from('family_members').insert({
+        parent_id:       authUser.id,
+        first_name:      cleanName(name),
+        age_range:       ageRange,
+        member_key:      memberKey,
+        consent_version: FAMILY_CONSENT_VERSION,
+      });
+      if (error) throw error;
+      resetForm();
+      await load();
+    } catch (e) {
+      Alert.alert('Could not add your child', e.message || String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = (child) => {
+    Alert.alert(
+      `Remove ${child.first_name}?`,
+      `This permanently erases ${child.first_name}'s profile and all of their acts. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove forever', style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('family_members').delete().eq('id', child.id);
+            if (error) return Alert.alert('Could not remove', error.message);
+            await load();
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader title="Family" onBack={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+
+        <Card style={s.mb}>
+          <Text style={s.cardTitle}>Your children</Text>
+          <Text style={s.cardSub}>
+            Children take part under your account, on your phone or a home tablet.
+            They don't need a phone number, and they never sign in on their own.
+          </Text>
+
+          {loading ? (
+            <ActivityIndicator color={C.primary} />
+          ) : children.length === 0 ? (
+            <Text style={s.empty}>No children added yet.</Text>
+          ) : (
+            children.map((c) => (
+              <View key={c.id} style={s.childRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.childName}>{c.first_name}</Text>
+                  <Text style={s.childAge}>Age {c.age_range}</Text>
+                </View>
+                <TouchableOpacity onPress={() => handleRemove(c)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={s.remove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </Card>
+
+        {!adding ? (
+          <Btn
+            label="+ Add a child"
+            onPress={() => setAdding(true)}
+            disabled={loading || children.length >= MAX_CHILDREN}
+          />
+        ) : (
+          <Card style={s.mb}>
+            <Text style={s.cardTitle}>Add a child</Text>
+
+            <AppInput
+              label="CHILD'S FIRST NAME"
+              value={name}
+              onChangeText={setName}
+              placeholder="First name only"
+              maxLength={CHILD_NAME_MAX}
+              autoCapitalize="words"
+            />
+
+            <Text style={s.label}>AGE RANGE</Text>
+            <View style={s.chips}>
+              {AGE_RANGES.map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  onPress={() => setAgeRange(r)}
+                  style={[s.chip, ageRange === r && s.chipOn]}
+                >
+                  <Text style={[s.chipText, ageRange === r && s.chipTextOn]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={s.consentRow} onPress={() => setConsent(!consent)} activeOpacity={0.7}>
+              <View style={[s.box, consent && s.boxOn]}>
+                {consent && <Text style={s.tick}>✓</Text>}
+              </View>
+              <Text style={s.consentText}>{FAMILY_CONSENT_TEXT}</Text>
+            </TouchableOpacity>
+
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Btn label="Cancel" variant="secondary" onPress={resetForm} style={{ flex: 1 }} />
+              <Btn label="Add child" onPress={handleAdd} loading={saving} style={{ flex: 1 }} />
+            </View>
+          </Card>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  scroll:    { padding: 16, paddingBottom: 40 },
+  mb:        { marginBottom: 14 },
+  cardTitle: { color: C.text, fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  cardSub:   { color: C.sub, fontSize: 13, marginBottom: 14, lineHeight: 18 },
+  empty:     { color: C.muted, fontSize: 13, fontStyle: 'italic' },
+  childRow: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: C.card2,
+    borderRadius: 10, padding: 12, marginBottom: 8,
+  },
+  childName: { color: C.text, fontSize: 15, fontWeight: '700' },
+  childAge:  { color: C.sub, fontSize: 12, marginTop: 2 },
+  remove:    { color: C.error, fontSize: 13, fontWeight: '700' },
+  label:     { color: C.primary, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  chips:     { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  chip: {
+    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1.5, borderColor: C.border,
+  },
+  chipOn:     { borderColor: C.primary, backgroundColor: C.primary + '22' },
+  chipText:   { color: C.sub, fontSize: 14, fontWeight: '700' },
+  chipTextOn: { color: C.primary },
+  consentRow: { flexDirection: 'row', gap: 10, marginBottom: 16, alignItems: 'flex-start' },
+  box: {
+    width: 22, height: 22, borderRadius: 5, borderWidth: 1.5, borderColor: C.primary,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  boxOn:       { backgroundColor: C.primary },
+  tick:        { color: C.bg, fontSize: 14, fontWeight: '900' },
+  consentText: { color: C.sub, fontSize: 12, lineHeight: 17, flex: 1 },
+});
