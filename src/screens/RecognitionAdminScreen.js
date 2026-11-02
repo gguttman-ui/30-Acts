@@ -5,14 +5,23 @@ import {
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
+import * as Clipboard from 'expo-clipboard';
+import {
+  TABS, ordersForTab, orderStage, nextStepText, mailingLabel, addressBlock, isChildOrder,
+} from '../lib/braceletOrders';
 
 // Admin fulfillment view for bracelet orders. Reads/updates recognition_orders
-// directly; RLS grants access to admins via the is_admin() policy. Shows each
-// order's address + payment method, and lets an admin mark it Paid then Shipped.
+// directly; RLS grants access to admins via the is_admin() policy.
+// 2 Nov 2026 (Gary: "need a better way to deal with shipping bracelets"):
+// opens on a To do list, each order says what to do next and which payment to
+// look for, and Copy label puts a ready-to-paste address on the clipboard.
+// New orders also text Gary (trigger recognition_orders_notify).
 export default function RecognitionAdminScreen({ navigation }) {
   const [orders, setOrders]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId]   = useState(null);
+  const [tab, setTab]         = useState('todo');
+  const [copiedId, setCopiedId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,11 +58,18 @@ export default function RecognitionAdminScreen({ navigation }) {
   const markPaid    = (o) => update(o.id, { payment_status: 'paid', paid_at: new Date().toISOString() });
   const markShipped = (o) => update(o.id, { fulfillment_status: 'shipped', shipped_at: new Date().toISOString() });
 
-  const addressOf = (o) => [
-    o.ship_street1,
-    o.ship_street2,
-    `${o.ship_city || ''}, ${o.ship_state || ''} ${o.ship_zip || ''}`.trim(),
-  ].filter(Boolean).join('\n');
+  const copyLabel = async (o) => {
+    try {
+      await Clipboard.setStringAsync(mailingLabel(o));
+      setCopiedId(o.id);
+      setTimeout(() => setCopiedId((cur) => (cur === o.id ? null : cur)), 2500);
+    } catch (e) {
+      Alert.alert('Could not copy', e.message);
+    }
+  };
+
+  const shown = ordersForTab(orders, tab);
+  const todoCount = ordersForTab(orders, 'todo').length;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -66,18 +82,36 @@ export default function RecognitionAdminScreen({ navigation }) {
         contentContainerStyle={s.scroll}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.primary} />}
       >
+        <View style={s.tabs}>
+          {TABS.map((t) => (
+            <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} style={[s.tab, tab === t.key && s.tabOn]}>
+              <Text style={[s.tabText, tab === t.key && s.tabTextOn]}>
+                {t.key === 'todo' ? `${t.label} (${todoCount})` : t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {loading && orders.length === 0 ? (
           <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
-        ) : orders.length === 0 ? (
-          <Text style={s.empty}>No bracelet orders yet.</Text>
+        ) : shown.length === 0 ? (
+          <Text style={s.empty}>{tab === 'todo' ? 'Nothing to do - every order is shipped.' : 'No bracelet orders here.'}</Text>
         ) : (
-          orders.map((o) => {
+          shown.map((o) => {
             const paid    = o.payment_status === 'paid';
             const shipped = o.fulfillment_status === 'shipped';
+            const stage   = orderStage(o);
             return (
               <Card key={o.id} style={s.mb}>
+                <Text style={[s.next, stage === 'done' && s.nextDone]}>{nextStepText(o)}</Text>
                 <Text style={s.name}>{o.ship_name || '(no name)'}</Text>
-                <Text style={s.addr}>{addressOf(o)}</Text>
+                {isChildOrder(o) ? <Text style={s.child}>For a child on this account - mail to the parent</Text> : null}
+                <Text selectable style={s.addr}>{addressBlock(o)}</Text>
+                {!shipped && (
+                  <TouchableOpacity onPress={() => copyLabel(o)} style={s.copyBtn} activeOpacity={0.75}>
+                    <Text style={s.copyText}>{copiedId === o.id ? 'Label copied ✓' : 'Copy label'}</Text>
+                  </TouchableOpacity>
+                )}
                 <View style={s.metaRow}>
                   <Text style={s.meta}>Phone: {o.user_phone}</Text>
                   <Text style={s.meta}>Paid via: {o.payment_method || '—'}</Text>
@@ -95,7 +129,11 @@ export default function RecognitionAdminScreen({ navigation }) {
                     <Btn label="Mark Shipped" onPress={() => markShipped(o)} loading={busyId === o.id} style={{ flex: 1 }} />
                   )}
                 </View>
-                <Text style={s.date}>Ordered {new Date(o.created_at).toLocaleDateString()}</Text>
+                <Text style={s.date}>
+                  Ordered {new Date(o.created_at).toLocaleDateString()}
+                  {o.paid_at ? ` · paid ${new Date(o.paid_at).toLocaleDateString()}` : ''}
+                  {o.shipped_at ? ` · shipped ${new Date(o.shipped_at).toLocaleDateString()}` : ''}
+                </Text>
               </Card>
             );
           })
@@ -121,4 +159,14 @@ const s = StyleSheet.create({
   badgeInfo: { color: C.text, backgroundColor: C.surface },
   btnRow: { flexDirection: 'row', gap: 10 },
   date: { color: C.muted, fontSize: 11.5, marginTop: 10 },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.5, borderColor: C.border },
+  tabOn: { borderColor: C.primary, backgroundColor: C.primary + '22' },
+  tabText: { color: C.sub, fontSize: 13.5, fontWeight: '700' },
+  tabTextOn: { color: C.primary },
+  next: { color: '#e0b352', fontSize: 13, fontWeight: '700', marginBottom: 8, lineHeight: 18 },
+  nextDone: { color: C.muted },
+  child: { color: C.primary, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  copyBtn: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: C.primary },
+  copyText: { color: C.primary, fontSize: 13, fontWeight: '700' },
 });
