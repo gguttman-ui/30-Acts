@@ -28,11 +28,10 @@ const isExpoGo =
   Constants.appOwnership === 'expo' ||
   Constants.executionEnvironment === 'storeClient';
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone, getActingMember } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 // Opens an app's URL scheme, falling back to the web URL if the app link fails.
 const openOrFallback = async (appUrl, webUrl, appName) => {
@@ -106,6 +105,9 @@ export default function CertificateScreen({ navigation }) {
             .maybeSingle();
           fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
         }
+        // Backlog 94: a child's certificate carries the child's first name.
+        const child = getActingMember();
+        if (child) fullName = child.first_name;
         if (!cancelled) setName(fullName || 'A Kind Person');
         const url = await generateInviteLink({ phone });
         if (!cancelled) setInviteUrl(url || '');

@@ -6,11 +6,10 @@ import { Btn, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 // Shipping-address form for the bracelet. Saves into recognition_orders
 // (bracelet_requested = true, plus certificate_requested when the user picked

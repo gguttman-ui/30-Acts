@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C, DONATIONS } from '../constants';
 import { supabase } from '../lib/supabase';
+import { actingPhone } from '../lib/actingAs';
 
 const SHIP_AMOUNT_NUM = '6.95';
 const SHIP_AMOUNT     = `$${SHIP_AMOUNT_NUM}`;
@@ -81,12 +82,16 @@ export default function BraceletPaymentScreen({ navigation, route }) {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
+      // Backlog 94: one order per phone OR child key, so tag only this order
+      // (a parent may have their own order and one per child).
+      const phone = actingPhone(user?.email);
+      if (user?.id && phone) {
         // Records the method; payment_status stays 'pending' until verified.
         await supabase
           .from('recognition_orders')
           .update({ payment_method: selected || null })
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .eq('user_phone', phone);
       }
     } catch (e) {
       // Non-fatal: the order already exists; we just couldn't tag the method.

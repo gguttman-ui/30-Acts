@@ -102,6 +102,18 @@ describe('wiring', () => {
     expect(home).toContain("user?.role === 'OWNER' && !acting");
   });
 
+  test("a child's Day 30: certificate in the child's name, bracelet as a separate order", () => {
+    const cert = read('src', 'screens', 'CertificateScreen.js');
+    expect(cert).toContain('const extractPhone = (email) => actingPhone(email);');
+    expect(cert).toContain('if (child) fullName = child.first_name;');
+    // order rows are one per user_phone, so a child's order must use the child key
+    const form = read('src', 'screens', 'BraceletFormScreen.js');
+    expect(form).toContain('const extractPhone = (email) => actingPhone(email);');
+    expect(form).toContain("upsert(payload, { onConflict: 'user_phone' })");
+    const pay = read('src', 'screens', 'BraceletPaymentScreen.js');
+    expect(pay).toContain(".eq('user_phone', phone)");
+  });
+
   test('restart markers: child on family_members, adult on profiles', () => {
     const m = read('src', 'lib', 'restartMarker.js');
     expect(m).toContain("from('family_members')");
