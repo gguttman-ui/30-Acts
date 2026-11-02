@@ -16,7 +16,7 @@ const TERMS_OF_SERVICE = [
   },
   {
     heading: '1.3 Eligibility',
-    body: 'You may use the Service only if:\n\n• You are at least 13 years old\n• You are legally able to enter into a binding agreement, or have permission from a parent or legal guardian where permitted by law\n• You comply with these Terms and applicable law\n\nUsers under 13 are not permitted to use the Service.',
+    body: 'You may use the Service only if:\n\n• You are at least 13 years old\n• You are legally able to enter into a binding agreement, or have permission from a parent or legal guardian where permitted by law\n• You comply with these Terms and applicable law\n\nUsers under 13 may not have their own account. Children take part only through a family profile added by their parent or legal guardian (see Privacy Policy 2.10).',
   },
   {
     heading: '1.4 Accounts',
@@ -88,7 +88,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.2 Information We Collect',
-    body: 'Information you provide:\n• Mobile phone number\n• Name or display name\n• ZIP code, and the state, city, and timezone derived from it\n• Act entries, titles, stories, comments, and feedback\n• Mailing information for bracelets or recognition items, if applicable\n\nWe do not collect or store a password. Signing in uses your mobile number and a one-time code sent by text.\n\nIf you share an act by text or email, the message is composed in your own messaging or mail app. We do not collect the recipient’s phone number or email address.\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
+    body: 'Information you provide:\n• Mobile phone number\n• Name or display name\n• ZIP code, and the state, city, and timezone derived from it\n• Act entries, titles, stories, comments, and feedback\n• Mailing information for bracelets or recognition items, if applicable\n• Family profiles: if you add your children, each child\'s first name and age range, the acts logged for them, and when you gave consent.\n\nWe do not collect or store a password. Signing in uses your mobile number and a one-time code sent by text.\n\nIf you share an act by text or email, the message is composed in your own messaging or mail app. We do not collect the recipient’s phone number or email address.\n\nInformation collected automatically:\n• Device type, operating system, app version, and language\n• IP address, device identifiers, push tokens, and app activity logs\n• Usage analytics, crash data, and session data\n• Reminder settings and notification interactions',
   },
   {
     heading: '2.3 How We Use Information',
@@ -112,7 +112,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.7 Data Retention',
-    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain activity history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.\n\nShipping addresses. If you order a bracelet or other recognition item, we use your mailing address only to send it, and we delete the address 30 days after the order ships.\n\nWhen you delete your account. You can delete your account at any time in the app. We delete your name, mobile number, ZIP code, profile, reminder settings and reminder history, and what you wrote about your acts. The acts themselves stay in our totals with no name or number attached, so the people who invited you keep their counts. Feedback you sent is kept without your contact details. If you replied STOP to our texts, we keep that record so you are not texted again if you rejoin. Picture cards of acts you shared by email may remain at their link until we remove them. Deletion cannot be undone.',
+    body: 'We retain personal information only as long as reasonably necessary to provide the Service, maintain activity history, administer contests and bracelets, investigate fraud and safety issues, and comply with legal obligations.\n\nShipping addresses. If you order a bracelet or other recognition item, we use your mailing address only to send it, and we delete the address 30 days after the order ships.\n\nWhen you delete your account. You can delete your account at any time in the app. We delete your name, mobile number, ZIP code, profile, reminder settings and reminder history, and what you wrote about your acts. The acts themselves stay in our totals with no name or number attached, so the people who invited you keep their counts. Feedback you sent is kept without your contact details. If you replied STOP to our texts, we keep that record so you are not texted again if you rejoin. Picture cards of acts you shared by email may remain at their link until we remove them. Deletion cannot be undone.\n\nFamily profiles. If you remove a child in Settings > Family, we permanently delete the child\'s profile and every act logged for them. Unlike adult acts, a child\'s acts are not kept in our totals. Deleting your account deletes your children\'s profiles and acts too.',
   },
   {
     heading: '2.8 Security',
@@ -125,7 +125,7 @@ const PRIVACY_POLICY = [
   },
   {
     heading: '2.10 Children\'s Privacy / COPPA',
-    body: '30 Acts of Kindness™ is not directed to children under 13, and users under 13 are not allowed to use the Service.\n\nWe do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided personal information to us, please contact: privacy@30actsofkindness.org',
+    body: 'Children cannot create their own accounts; every account holder must be at least 13. A parent or legal guardian may add children aged 6 to 17 as family profiles under their own account. To add a child, the parent confirms they are the child\'s parent or legal guardian, gives consent, and confirms with a code texted to their phone.\n\nWe collect only the child\'s first name, age range, and the acts the parent logs for them. We do not collect a child\'s phone number, email, photo, location or address, and we never contact a child. A child\'s acts are never shared on social media and are not shown to other users. The same content checks apply to what is written for a child.\n\nA parent can see a child\'s profile and acts at any time, and can remove the child in Settings > Family, which permanently deletes the child\'s profile and acts. Questions about a child\'s information: privacy@30actsofkindness.org. We do not knowingly collect personal information directly from children under 13 outside a family profile; if you believe that has happened, contact us at the same address.',
     email: 'privacy@30actsofkindness.org',
   },
   {
@@ -219,8 +219,8 @@ const CONTENT_MODERATION = [
 ];
 
 export const LEGAL_DOCS = {
-  terms:      { title: 'Terms of Service',         sections: TERMS_OF_SERVICE },
-  privacy:    { title: 'Privacy Policy',            sections: PRIVACY_POLICY, effective: 'October 1, 2026' },
+  terms:      { title: 'Terms of Service',         sections: TERMS_OF_SERVICE, effective: 'November 2, 2026' },
+  privacy:    { title: 'Privacy Policy',            sections: PRIVACY_POLICY, effective: 'November 2, 2026' },
   guidelines: { title: 'Community Guidelines',      sections: COMMUNITY_GUIDELINES },
   moderation: { title: 'Content Moderation Policy', sections: CONTENT_MODERATION },
 };

@@ -159,3 +159,26 @@ describe('text-code check before adding a child', () => {
     expect(FAMILY).toMatch(/Send code again/);
   });
 });
+
+describe('Privacy Policy and Terms describe family profiles (approved 2 Nov 2026)', () => {
+  const root = path.join(__dirname, '..');
+  const LEGAL = fs.readFileSync(path.join(root, 'src', 'screens', 'LegalScreen.js'), 'utf8');
+  const SITE  = fs.readFileSync(path.join(root, 'website', 'privacy.html'), 'utf8');
+  const TERMS = fs.readFileSync(path.join(root, 'website', 'terms.html'), 'utf8');
+
+  test('the old "under 13 not allowed" wording is gone from app and website', () => {
+    expect(LEGAL).not.toContain('users under 13 are not allowed to use the Service');
+    expect(SITE).not.toContain('users under 13 are not allowed to use the Service');
+    expect(LEGAL).not.toContain('Users under 13 are not permitted to use the Service');
+    expect(TERMS).not.toContain('Users under 13 are not permitted to use the Service');
+  });
+
+  test('app and website both carry the family-profile sections', () => {
+    for (const src of [LEGAL, SITE]) {
+      expect(src).toMatch(/add children aged 6 to 17 as family profiles/);
+      expect(src).toMatch(/we never contact a child/);
+      expect(src).toMatch(/Unlike adult acts, a child(&#x27;|\\'|')s acts are not kept in our totals/);
+    }
+    expect(TERMS).toMatch(/Children take part only through a family profile/);
+  });
+});

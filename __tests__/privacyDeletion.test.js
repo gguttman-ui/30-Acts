@@ -15,7 +15,8 @@ const APP      = read('App.js');
 describe('privacy policy, app and website say the same thing', () => {
   for (const [name, text] of [['app', LEGAL], ['website', SITE]]) {
     describe(name, () => {
-      test('effective 1 October 2026', () => expect(text).toContain('October 1, 2026'));
+      // Item 94 (2 Nov 2026): family profiles moved the date from October 1, 2026.
+      test('effective 2 November 2026', () => expect(text).toContain('November 2, 2026'));
       test('2.7 explains shipping addresses and deletion', () => {
         expect(text).toContain('we delete the address 30 days after the order ships');
         expect(text).toContain('what you wrote about your acts');
@@ -41,8 +42,9 @@ describe('privacy policy, app and website say the same thing', () => {
     expect(SITE).toContain('We do not collect or store a password');
   });
 
-  test('only the privacy policy moved its date; other legal docs keep theirs', () => {
-    expect(LEGAL).toContain("effective: 'October 1, 2026'");
+  test('privacy policy and terms moved to 2 Nov 2026 (item 94); other legal docs keep theirs', () => {
+    expect(LEGAL).toContain("sections: PRIVACY_POLICY, effective: 'November 2, 2026'");
+    expect(LEGAL).toContain("sections: TERMS_OF_SERVICE, effective: 'November 2, 2026'");
     expect(LEGAL).toContain("doc.effective || 'April 2026'");
   });
 });
