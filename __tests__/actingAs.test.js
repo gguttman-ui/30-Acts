@@ -118,8 +118,18 @@ describe('wiring', () => {
     const form = read('src', 'screens', 'BraceletFormScreen.js');
     expect(form).toContain('const extractPhone = (email) => actingPhone(email);');
     expect(form).toContain("upsert(payload, { onConflict: 'user_phone' })");
+    // "Certificate only" also writes an order row (found 2 Nov: it used the parent phone)
+    const rec = read('src', 'screens', 'RecognitionScreen.js');
+    expect(rec).toContain('const extractPhone = (email) => actingPhone(email);');
+    expect(rec).toContain("{ onConflict: 'user_phone' }");
     const pay = read('src', 'screens', 'BraceletPaymentScreen.js');
     expect(pay).toContain(".eq('user_phone', phone)");
+  });
+
+  test("Me > My 30 Acts card follows the selected person (count and Start over)", () => {
+    const set = read('src', 'screens', 'SettingsScreen.js');
+    expect(set).toContain('const phone = actingPhone(user?.email);');
+    expect(set).toContain("acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'");
   });
 
   test('restart markers: child on family_members, adult on profiles', () => {

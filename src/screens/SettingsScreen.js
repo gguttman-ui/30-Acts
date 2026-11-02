@@ -16,6 +16,8 @@ import { reminderZoneForSave } from '../lib/reminderTimezone';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
 import { loadRuns, lapCount, actsInLap } from '../lib/runs';
+import { actingPhone } from '../lib/actingAs';
+import { useActingMember } from '../components/ProfileSwitcher';
 import QRCode from 'react-native-qrcode-svg';
 import * as Updates from 'expo-updates';
 import * as Sentry from '@sentry/react-native';
@@ -339,9 +341,13 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   // shows.
   const windowCompleted = challenge?.filter(d => d.status === 'COMPLETED').length ?? 0;
   const [streakActs, setStreakActs] = useState(null);
+  // Backlog 94: this card (count + Start over) follows the person selected on
+  // Home, so a child's Start over is never shown under the parent's count.
+  const acting = useActingMember();
   useEffect(() => {
     let cancelled = false;
-    const phone = extractPhone(user?.email);
+    setStreakActs(null);
+    const phone = actingPhone(user?.email);
     if (!phone) return;
     (async () => {
       try {
@@ -353,7 +359,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       } catch (_) { /* keep the fallback count */ }
     })();
     return () => { cancelled = true; };
-  }, [user?.email, challenge]);
+  }, [user?.email, challenge, acting]);
   const completedCount = streakActs != null ? streakActs : windowCompleted;
 
   // Restart must call onRestart (App.handleRestart), which writes the
@@ -634,7 +640,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
 
        <Card style={s.mb}>
-          <Text style={s.cardTitle}>My 30 Acts</Text>
+          <Text style={s.cardTitle}>{acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'}</Text>
           <Text style={s.cardSub}>
             {challenge ? `Day ${completedCount}/30 complete` : 'Not started yet'}
           </Text>

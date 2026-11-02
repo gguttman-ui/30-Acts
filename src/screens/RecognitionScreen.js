@@ -8,11 +8,11 @@ import { supabase } from '../lib/supabase';
 
 // Login is phone-based: the synthetic email <+E.164>@phone.30acts.app carries
 // the phone. Same helper other screens use.
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, the order belongs to
+// the child's member key (one row per phone OR child key), so it never
+// changes the parent's own order.
+import { actingPhone } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 // After the Day-30 celebration, the user chooses how they want their
 // recognition as a Certified Kind Person: a mailed bracelet, a shareable
