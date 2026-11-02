@@ -181,4 +181,9 @@ describe('Privacy Policy and Terms describe family profiles (approved 2 Nov 2026
     }
     expect(TERMS).toMatch(/Children take part only through a family profile/);
   });
+
+  test('item 89a: website says "the time you choose", like the app', () => {
+    expect(SITE).toContain('at the time you choose');
+    expect(SITE).not.toContain('at the times you choose');
+  });
 });
