@@ -58,3 +58,37 @@ export function nextMemberKey(parentPhone, existingKeys = []) {
 export function isMemberKey(value) {
   return typeof value === 'string' && /^\+\d{11,15}-\d{2}$/.test(value);
 }
+
+// ── Text-code check before adding a child (1 Nov 2026) ─────────────────
+// The database refuses a new child unless the parent's phone passed a code
+// check in the last 10 minutes (policy "parent adds child after code check",
+// function parent_recently_verified). These two accounts never receive real
+// texts; for them the app accepts DEMO_CODE and the database exempts them.
+// Keep this list in step with parent_recently_verified() and AuthScreen.
+export const CODE_EXEMPT_PHONES = ['+15550100100', '+15550100142'];
+export const DEMO_CODE = '123456';
+export const CODE_WINDOW_MINUTES = 10;
+
+export function isCodeExempt(phone) {
+  return CODE_EXEMPT_PHONES.includes(phone);
+}
+
+/** Keep digits only, at most 6. */
+export function cleanCode(text) {
+  return String(text == null ? '' : text).replace(/\D/g, '').slice(0, 6);
+}
+
+/** True when send_phone_otp reports the text was sent. */
+export function codeWasSent(data) {
+  return data?.status === 200 || data?.status === 201;
+}
+
+/** True when verify_phone_otp reports the code is correct. */
+export function codeApproved(data) {
+  if (!data) return false;
+  let body = data.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { return false; }
+  }
+  return body?.status === 'approved';
+}

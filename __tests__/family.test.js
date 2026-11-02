@@ -10,6 +10,7 @@ const path = require('path');
 import {
   AGE_RANGES, MAX_CHILDREN, FAMILY_CONSENT_TEXT, FAMILY_CONSENT_VERSION,
   childNameProblem, nextMemberKey, isMemberKey,
+  CODE_EXEMPT_PHONES, DEMO_CODE, isCodeExempt, cleanCode, codeWasSent, codeApproved,
 } from '../src/lib/family';
 
 const P = '+19177218269';
@@ -105,5 +106,56 @@ describe('Settings > Family wiring', () => {
   test('removal warns that it is permanent', () => {
     expect(FAMILY).toMatch(/permanently erases/);
     expect(FAMILY).toContain("from('family_members').delete()");
+  });
+});
+
+describe('text-code check before adding a child', () => {
+  const root = path.join(__dirname, '..');
+  const FAMILY = fs.readFileSync(path.join(root, 'src', 'screens', 'FamilyScreen.js'), 'utf8');
+  const AUTH   = fs.readFileSync(path.join(root, 'src', 'screens', 'AuthScreen.js'), 'utf8');
+
+  test('only the two test accounts skip the real text, and they use 123456', () => {
+    expect(CODE_EXEMPT_PHONES).toEqual(['+15550100100', '+15550100142']);
+    expect(DEMO_CODE).toBe('123456');
+    expect(isCodeExempt('+15550100142')).toBe(true);
+    expect(isCodeExempt('+19177218269')).toBe(false);
+  });
+
+  test('the demo code matches the one sign-in uses', () => {
+    expect(AUTH).toContain(`const DEMO_OTP       = '${DEMO_CODE}'`);
+  });
+
+  test('cleanCode keeps up to six digits', () => {
+    expect(cleanCode(' 12-34 56 7')).toBe('123456');
+    expect(cleanCode(null)).toBe('');
+  });
+
+  test('codeWasSent reads send_phone_otp', () => {
+    expect(codeWasSent({ status: 201 })).toBe(true);
+    expect(codeWasSent({ status: 200 })).toBe(true);
+    expect(codeWasSent({ status: 400 })).toBe(false);
+    expect(codeWasSent(null)).toBe(false);
+  });
+
+  test('codeApproved reads verify_phone_otp (body as text or object)', () => {
+    expect(codeApproved({ status: 200, body: '{"status":"approved"}' })).toBe(true);
+    expect(codeApproved({ status: 200, body: { status: 'approved' } })).toBe(true);
+    expect(codeApproved({ status: 200, body: '{"status":"pending"}' })).toBe(false);
+    expect(codeApproved({ status: 200, body: 'not json' })).toBe(false);
+    expect(codeApproved(null)).toBe(false);
+  });
+
+  test('the screen sends a code, checks it, and only then saves the child', () => {
+    const send   = FAMILY.indexOf("rpc('send_phone_otp'");
+    const verify = FAMILY.indexOf("rpc('verify_phone_otp'");
+    const insert = FAMILY.indexOf("from('family_members').insert(");
+    expect(send).toBeGreaterThan(-1);
+    expect(verify).toBeGreaterThan(send);
+    expect(insert).toBeGreaterThan(verify);
+  });
+
+  test('a refusal from the database rule tells the parent to send a new code', () => {
+    expect(FAMILY).toContain("error.code === '42501'");
+    expect(FAMILY).toMatch(/Send code again/);
   });
 });
