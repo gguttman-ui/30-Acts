@@ -21,6 +21,8 @@ import DashboardView from './DashboardView';
 import { canUndoRestart } from '../lib/restartUndo';
 import { createAfterClose } from '../lib/afterModalClose';
 import { useIsFocused } from '@react-navigation/native';
+import ProfileSwitcher, { useActingMember } from '../components/ProfileSwitcher';
+import { getRestartMarker, setRestartMarker } from '../lib/restartMarker';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
 const PROOF_VIDEO_ICON  = require('../assets/proof/Video.png');
@@ -49,11 +51,10 @@ function fmtMonthDay(scheduledDate) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone, isActingAsChild } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 // Shows the "Document your act?" prompt once per app session (the first time
 // the calendar grid loads). Resets on a full app restart, not on tab switches.
@@ -101,7 +102,10 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   const tierStart = days?.[0]?.dayNumber ?? 1;
   const tierEnd   = tierStart + 29;
   const tierLabel = tierStart === 1 ? '' : `Days ${tierStart}–${tierEnd}`;
-  const isOwner   = user?.role === 'OWNER';
+  // Backlog 94: the child selected on Home, or null for the parent.
+  const acting    = useActingMember();
+  // Owner test tools (seed / wipe) only on the owner's own board, never a child's.
+  const isOwner   = user?.role === 'OWNER' && !acting;
 
   useEffect(() => { hasScrolled.current = false; }, [days]);
   // Build past tiers (everything before the current tier window).
@@ -214,27 +218,26 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
 
   // Backlog 70: a start-over can be undone for 24 hours. Restart only writes
   // profiles.last_restart_at (no act is deleted), so Undo just clears it.
+  // Backlog 94: a child's marker is on family_members (restartMarker.js).
   const [restartAt, setRestartAt] = useState(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser?.id) return;
-        const { data: prof } = await supabase
-          .from('profiles').select('last_restart_at').eq('id', authUser.id).maybeSingle();
-        if (!cancelled) setRestartAt(prof?.last_restart_at || null);
+        const phone = await getUserPhone();
+        if (!phone) return;
+        const marker = await getRestartMarker(phone);
+        if (!cancelled) setRestartAt(marker);
       } catch (e) { /* no undo offered if this fails */ }
     })();
     return () => { cancelled = true; };
-  }, [days]);
+  }, [days, acting]);
 
   const handleUndoRestart = async () => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser?.id) return;
-      const { error } = await supabase
-        .from('profiles').update({ last_restart_at: null }).eq('id', authUser.id);
+      const phone = await getUserPhone();
+      if (!phone) return;
+      const error = await setRestartMarker(phone, null);
       if (error) { Alert.alert('Could not undo', error.message); return; }
       setRestartAt(null);
       if (onReloadDays) await onReloadDays();
@@ -328,7 +331,7 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
       if (!cancelled) setDashPhone(ph);
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, acting]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -387,12 +390,7 @@ const handleConfirmSeed = async () => {
     await supabase.from('completions').delete().eq('user_phone', phone);
 
     // Clear any restart marker so seeded data shows in the active grid.
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser?.id) {
-      await supabase.from('profiles')
-        .update({ last_restart_at: null })
-        .eq('id', authUser.id);
-    }
+    await setRestartMarker(phone, null);
 
     const rows = [];
     for (let i = 0; i < 29; i++) {
@@ -490,12 +488,7 @@ const handleConfirmWipe = async () => {
     }
 
     // Also clear restart marker so subsequent seeds aren't hidden.
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser?.id) {
-      await supabase.from('profiles')
-        .update({ last_restart_at: null })
-        .eq('id', authUser.id);
-    }
+    await setRestartMarker(phone, null);
 
     if (onReloadDays) await onReloadDays();
     setConfirmWipe(false);
@@ -546,7 +539,7 @@ const handleConfirmWipe = async () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader
-        title="My 30 Acts"
+        title={acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'}
         right={
           <TouchableOpacity
             onPress={() => navigation.navigate('Me')}
@@ -556,6 +549,7 @@ const handleConfirmWipe = async () => {
           </TouchableOpacity>
         }
       />
+      <ProfileSwitcher parentName={user?.firstName} />
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>

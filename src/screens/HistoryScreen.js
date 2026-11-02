@@ -35,11 +35,10 @@ const APP_HASHTAG = '#30ActsOfKindness';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone, isActingAsChild } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 const saveToCameraRoll = async (uri) => {
   try {
@@ -796,7 +795,7 @@ return () => { cancelled = true; };
           </TouchableOpacity>
         )}
 
-        {isCompleted && (
+        {isCompleted && !isActingAsChild() && (
           <Card style={{ marginTop: 12 }}>
 
             <Text style={s.shareHeader}>Share this Act</Text>

@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { actingPhone, isActingAsChild } from './actingAs';
+import { getRestartMarker } from './restartMarker';
 
 // ── Local-time date helpers ────────────────────────────────────────────────
 // IMPORTANT: JavaScript's Date.toISOString() returns UTC, which can be a
@@ -175,7 +177,8 @@ export function currentWindowIndex(anchorDateStr, todayStrValue = localDateStr(n
  */
 export async function loadGridReadOnly(email, buildFreshDays) {
   try {
-    const phone = extractPhone(email);
+    // Backlog 94: the selected child's member key, or the parent's own phone.
+    const phone = actingPhone(email);
     if (!phone) return buildFreshDays();
 
     // Look up the user's last_restart_at marker. Completions before this
@@ -187,17 +190,8 @@ export async function loadGridReadOnly(email, buildFreshDays) {
     // the restart filter and surface every lifetime completion. getSession()
     // reads the persisted session synchronously — and the completions query
     // below already proves the session is valid.
-    const { data: { session } } = await supabase.auth.getSession();
-    const authUserId = session?.user?.id;
-    let lastRestartAt = null;
-    if (authUserId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('last_restart_at')
-        .eq('id', authUserId)
-        .maybeSingle();
-      lastRestartAt = profile?.last_restart_at || null;
-    }
+    // Backlog 94: a child's marker lives on family_members (restartMarker.js).
+    const lastRestartAt = await getRestartMarker(phone);
 
     let query = supabase
       .from('completions')
@@ -242,6 +236,7 @@ export function deletionBreaksStreak(days, deletedDayNumber) {
  */
 export async function getActiveSponsorIds(authUserId) {
   if (!authUserId) return [];
+  if (isActingAsChild()) return [];   // backlog 94: children are not in groups
   try {
     const { data, error } = await supabase
       .from('sponsor_members')
@@ -266,6 +261,7 @@ export async function getActiveSponsorIds(authUserId) {
  */
 export async function getActiveSponsors(authUserId) {
   if (!authUserId) return [];
+  if (isActingAsChild()) return [];   // backlog 94: children are not in groups
   try {
     const { data, error } = await supabase
       .from('sponsor_members')

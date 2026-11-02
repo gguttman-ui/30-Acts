@@ -36,11 +36,10 @@ const COST_MIDPOINT_BY_ID = {
   major:       750,
 };
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone, isActingAsChild } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 export default function CreateNewActScreen({ navigation, route, user, onComplete }) {
   const insets = useSafeAreaInsets();

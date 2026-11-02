@@ -51,8 +51,12 @@ describe('the Restart button reaches the handler that writes the marker', () => 
     // way — the dialog still appears and still does nothing.
     const block = APP.match(/const handleRestart = async \(\) => \{[\s\S]*?\n  \};/);
     expect(block).not.toBeNull();
-    expect(block[0]).toContain('last_restart_at');
-    expect(block[0]).toContain("from('profiles')");
+    // Backlog 94 (1 Nov 2026): the write moved into restartMarker.js so a
+    // child's Start over sets the child's marker, not the parent's.
+    expect(block[0]).toMatch(/setRestartMarker\(actingPhone\(user\.email\), new Date\(\)\.toISOString\(\)\)/);
+    const MARKER = fs.readFileSync(path.join(root, 'src', 'lib', 'restartMarker.js'), 'utf8');
+    expect(MARKER).toContain("from('profiles').update({ last_restart_at: value })");
+    expect(MARKER).toContain("from('family_members').update({ last_restart_at: value })");
   });
 });
 

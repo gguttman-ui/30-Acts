@@ -64,6 +64,10 @@ export const buildSocialButtons = ({ onTikTok, onInstagram, onX, onFacebook }) =
   { name: 'Facebook',  faIcon: 'facebook',  onPress: onFacebook,  brand: '#1877F2' },
 ];
 
+// Backlog 94: no social sharing for children. While a child profile is
+// selected on Home, every share row in the app renders nothing.
+import { isActingAsChild } from '../lib/actingAs';
+
 export default function ShareButtons({
   social,
   onText,
@@ -73,6 +77,7 @@ export default function ShareButtons({
   prompt = SHARE_PROMPT,
   style,
 }) {
+  if (isActingAsChild()) return null;
   return (
     <View style={[s.wrap, style]}>
       {prompt ? <Text style={s.sharePrompt}>{prompt}</Text> : null}

@@ -18,6 +18,8 @@ import AppNavigator from './src/navigation';
 import { C, buildFreshDays, STATE_IANA_TZ } from './src/constants';
 import { supabase } from './src/lib/supabase';
 import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
+import { actingPhone, setActingMember, subscribeActing } from './src/lib/actingAs';
+import { setRestartMarker } from './src/lib/restartMarker';
 import { initBranch } from './src/lib/branch';
 import { checkForUpdateInBackground } from './src/lib/appUpdates';
 import { syncReminderTimezone } from './src/lib/reminderTimezone';
@@ -186,6 +188,13 @@ useEffect(() => {
     });
     return () => sub.remove();
       }, [user?.email]);
+  // Backlog 94: switching between the parent and a child on Home reloads the
+  // board for whoever is now selected.
+  useEffect(() => {
+    if (!user?.email) return undefined;
+    return subscribeActing(() => { reloadDays(user.email); });
+  }, [user?.email]);
+
   // Reload the grid from Supabase using the streak-collapse logic.
   // Exposed to children as onReloadDays so test-seed and delete can refresh.
 const reloadDays = async (email) => {
@@ -315,6 +324,7 @@ const reloadDays = async (email) => {
 // reason 'deleted'. The account is gone, so forget the phone and biometric
 // unlock - otherwise Welcome Back would try to unlock a deleted account.
 const handleLogout = async (reason) => {
+  setActingMember(null);   // backlog 94: always come back as the parent
   if (reason === 'deleted') {
     try { await AsyncStorage.multiRemove(['remembered_phone', 'biometric_enabled']); } catch {}
     setGoodbye('deleted');
@@ -342,6 +352,7 @@ const handleLogout = async (reason) => {
   // AuthScreen comes up as a clean entry form on next launch.
   // Reachable from LockScreen's "Log out instead" button.
   const handleHardLogout = async () => {
+    setActingMember(null);   // backlog 94
     try { await AsyncStorage.removeItem('remembered_phone'); } catch {}
     setUser(null);
     setDays(null);
@@ -373,7 +384,8 @@ const handleComplete = async (completedDay) => {
   const handleDelete = async (day) => {
     if (!user?.email) return;
     try {
-      const phone = extractPhone(user.email);
+      // Backlog 94: the selected child's key, or the parent's own phone.
+      const phone = actingPhone(user.email);
       // Delete the ONE act by its unique completion id, or failing that its
       // calendar date (unique per user via the one-act-per-day index). NEVER
       // delete by day_number — that number is reused across streaks, so it can
@@ -411,16 +423,9 @@ const handleComplete = async (completedDay) => {
   const handleRestart = async () => {
     if (!user?.email) return;
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser?.id) {
-        console.warn('Restart: could not identify auth user');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ last_restart_at: new Date().toISOString() })
-        .eq('id', authUser.id);
+      // Backlog 94: a child's Start over writes the child's own marker
+      // (family_members), never the parent's (restartMarker.js).
+      const error = await setRestartMarker(actingPhone(user.email), new Date().toISOString());
 
       if (error) {
         console.warn('Restart marker write failed:', error.message);

@@ -44,6 +44,7 @@ import { getActiveSponsorIds } from '../lib/streak';
 import { generateInviteLink } from '../lib/branch';
 import { notifyDay30 } from '../lib/day30';
 import { loadRuns } from '../lib/runs';
+import { getRestartMarker } from '../lib/restartMarker';
 
 const STORY_MIN = 10;
 // Hard cap matched to the StoryCard image. With the title line removed, the
@@ -75,11 +76,10 @@ function KeyboardDoneBar() {
   );
 }
 
-const extractPhone = (email) => {
-  if (!email || typeof email !== 'string') return null;
-  if (!email.endsWith('@phone.30acts.app')) return null;
-  return email.replace('@phone.30acts.app', '');
-};
+// Backlog 94: while a child profile is selected on Home, acts belong to the
+// child's member key, so "whose acts" comes from src/lib/actingAs.js.
+import { actingPhone, isActingAsChild } from '../lib/actingAs';
+const extractPhone = (email) => actingPhone(email);
 
 // Local ISO timestamp with timezone offset (mirrors DailyActScreen.localISOString).
 function localISOString(date = new Date()) {
@@ -1129,13 +1129,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       try {
         // After "Start over at Day 1" only acts since the marker belong to the
         // new streak, so today's act is Day 1 (Gary, 21 Oct 2026).
-        let since = null;
-        try {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          const { data: prof } = await supabase
-            .from('profiles').select('last_restart_at').eq('id', authUser?.id).maybeSingle();
-          since = prof?.last_restart_at || null;
-        } catch (e) { /* no marker -> whole history */ }
+        // Backlog 94: a child's marker is on family_members (restartMarker.js).
+        const since = await getRestartMarker(phone);
         const { data: rowsNow } = await supabase
           .from('completions')
           .select('id, local_date, day_number, completed_at')
@@ -1244,7 +1239,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
       if (justCertified) {
         Keyboard.dismiss();
         setSaving(false);
-        notifyDay30().catch(() => {});
+        // Backlog 94: never text the parent's phone for a child's Day 30.
+        if (!isActingAsChild()) notifyDay30().catch(() => {});
         requestAnimationFrame(() => navigation.navigate('Celebration'));
         return;
       }

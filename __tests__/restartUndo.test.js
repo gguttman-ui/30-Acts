@@ -35,7 +35,11 @@ describe('wording and Undo are wired in', () => {
     expect(src).not.toMatch(/label="↺ Restart"/);
     expect(src).not.toMatch(/label="Restart"/);
     expect(src).toMatch(/canUndoRestart\(restartAt\)/);
-    expect(src).toMatch(/update\(\{ last_restart_at: null \}\)/);
+    // Backlog 94: Undo clears the marker of whoever is selected (parent or
+    // child) through restartMarker.js, which does the actual update.
+    expect(src).toMatch(/setRestartMarker\(phone, null\)/);
+    const marker = read('src/lib/restartMarker.js');
+    expect(marker).toMatch(/update\(\{ last_restart_at: value \}\)/);
   });
 
   test('Settings: renamed and mentions the 24-hour undo', () => {
