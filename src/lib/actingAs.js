@@ -57,6 +57,16 @@ export function actingPhone(email) {
   return parentPhone;
 }
 
+/**
+ * The signed-in parent's own phone, whoever is selected. For things that
+ * belong to the account rather than the act - e.g. the invite QR on a
+ * certificate, so a child's certificate credits the parent's tree.
+ */
+export function accountPhone(email) {
+  if (!email || typeof email !== 'string' || !email.endsWith(PROXY_DOMAIN)) return null;
+  return email.slice(0, -PROXY_DOMAIN.length);
+}
+
 /** Test helper: forget the selection. */
 export function _resetActingForTests() {
   acting = null;

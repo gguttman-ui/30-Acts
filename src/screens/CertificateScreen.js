@@ -30,7 +30,7 @@ const isExpoGo =
 
 // Backlog 94: while a child profile is selected on Home, acts belong to the
 // child's member key, so "whose acts" comes from src/lib/actingAs.js.
-import { actingPhone, getActingMember } from '../lib/actingAs';
+import { actingPhone, accountPhone, getActingMember } from '../lib/actingAs';
 const extractPhone = (email) => actingPhone(email);
 
 // Opens an app's URL scheme, falling back to the web URL if the app link fails.
@@ -95,7 +95,9 @@ export default function CertificateScreen({ navigation }) {
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const phone = extractPhone(user?.email);
+        // Backlog 94: the invite QR always credits the signed-in parent's tree,
+        // even on a child's certificate (a child is not in the tree).
+        const phone = accountPhone(user?.email);
         let fullName = '';
         if (user?.id) {
           const { data: profile } = await supabase
@@ -641,7 +643,9 @@ export default function CertificateScreen({ navigation }) {
           disabled={sharing}
         />
         <Text style={s.note}>
-          Share your certificate. Anyone who scans your QR and signs up is added to your tree.
+          {getActingMember()
+            ? 'Save or print this certificate. Anyone who scans the QR and signs up is added to your tree.'
+            : 'Share your certificate. Anyone who scans your QR and signs up is added to your tree.'}
         </Text>
         <Btn label="Done" onPress={goHome} variant="secondary" style={{ marginTop: 4 }} />
       </ScrollView>

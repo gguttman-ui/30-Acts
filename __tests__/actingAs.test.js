@@ -7,7 +7,7 @@
 const fs   = require('fs');
 const path = require('path');
 import {
-  actingPhone, getActingMember, setActingMember, isActingAsChild,
+  actingPhone, accountPhone, getActingMember, setActingMember, isActingAsChild,
   subscribeActing, _resetActingForTests,
 } from '../src/lib/actingAs';
 
@@ -36,6 +36,12 @@ describe('actingPhone', () => {
   test("never another parent's child (stale choice after a different sign-in)", () => {
     setActingMember({ member_key: '+15550100142-01', first_name: 'Other' });
     expect(actingPhone(PARENT)).toBe('+19177218269');
+  });
+
+  test('accountPhone is always the parent, even with a child selected', () => {
+    setActingMember(KID);
+    expect(accountPhone(PARENT)).toBe('+19177218269');
+    expect(accountPhone('someone@example.com')).toBeNull();
   });
 
   test('a non-phone email still gives null, like the old extractPhone', () => {
@@ -106,6 +112,8 @@ describe('wiring', () => {
     const cert = read('src', 'screens', 'CertificateScreen.js');
     expect(cert).toContain('const extractPhone = (email) => actingPhone(email);');
     expect(cert).toContain('if (child) fullName = child.first_name;');
+    // the QR credits the parent's tree, never the child key
+    expect(cert).toContain('const phone = accountPhone(user?.email);');
     // order rows are one per user_phone, so a child's order must use the child key
     const form = read('src', 'screens', 'BraceletFormScreen.js');
     expect(form).toContain('const extractPhone = (email) => actingPhone(email);');
