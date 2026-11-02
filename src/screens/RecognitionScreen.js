@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 // the child's member key (one row per phone OR child key), so it never
 // changes the parent's own order.
 import { actingPhone } from '../lib/actingAs';
+import { useActingMember } from '../components/ProfileSwitcher';
 const extractPhone = (email) => actingPhone(email);
 
 // After the Day-30 celebration, the user chooses how they want their
@@ -20,6 +21,10 @@ const extractPhone = (email) => actingPhone(email);
 // in the recognition_orders table (one row per person, upserted on phone).
 export default function RecognitionScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
+  // Backlog 94: wording for a child's Day 30 - no sharing for children, and
+  // the bracelet is mailed to the parent.
+  const child = useActingMember();
+  const kid = child?.first_name;
 
   const goBracelet = (withCertificate) => {
     navigation.navigate('BraceletForm', { withCertificate });
@@ -63,23 +68,28 @@ export default function RecognitionScreen({ navigation }) {
       <ScreenHeader title="Your Recognition" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={s.scroll}>
         <Text style={s.emoji}>🏆</Text>
-        <Text style={s.title}>You're a Certified Kind Person!</Text>
-        <Text style={s.sub}>Choose how you'd like to receive your recognition.</Text>
+        <Text style={s.title}>{kid ? `${kid} is a Certified Kind Person!` : "You're a Certified Kind Person!"}</Text>
+        <Text style={s.sub}>
+          {kid ? `Choose how ${kid} would like to receive their recognition.` : "Choose how you'd like to receive your recognition."}
+        </Text>
 
         <TouchableOpacity style={s.card} activeOpacity={0.85} onPress={() => goBracelet(false)} disabled={saving}>
           <Text style={s.cardEmoji}>📿</Text>
-          <Text style={s.cardTitle}>Send me a bracelet</Text>
+          <Text style={s.cardTitle}>{kid ? `A bracelet for ${kid}` : 'Send me a bracelet'}</Text>
           <Text style={s.cardBody}>
-            A kindness bracelet mailed to you. Just covers $6.95 shipping &amp; handling.
+            {kid
+              ? `A kindness bracelet for ${kid}, mailed to you. Just covers $6.95 shipping & handling.`
+              : 'A kindness bracelet mailed to you. Just covers $6.95 shipping & handling.'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={s.card} activeOpacity={0.85} onPress={chooseCertificateOnly} disabled={saving}>
           <Text style={s.cardEmoji}>📜</Text>
-          <Text style={s.cardTitle}>Send me a certificate</Text>
+          <Text style={s.cardTitle}>{kid ? `A certificate for ${kid}` : 'Send me a certificate'}</Text>
           <Text style={s.cardBody}>
-            A shareable "Certified Kind Person" certificate with your own QR code — anyone who
-            scans it and joins is added to your tree. Free.
+            {kid
+              ? `A printable "Certified Kind Person" certificate in ${kid}'s name, with a QR code - anyone who scans it and joins is added to your tree. Free.`
+              : 'A shareable "Certified Kind Person" certificate with your own QR code — anyone who scans it and joins is added to your tree. Free.'}
           </Text>
         </TouchableOpacity>
 
@@ -92,7 +102,9 @@ export default function RecognitionScreen({ navigation }) {
         {saving && <ActivityIndicator style={{ marginTop: 18 }} color={C.primary} />}
 
         <Text style={s.footnote}>
-          You earned this by completing 30 back-to-back days of kindness. 💚
+          {kid
+            ? `${kid} earned this by completing 30 back-to-back days of kindness. 💚`
+            : 'You earned this by completing 30 back-to-back days of kindness. 💚'}
         </Text>
       </ScrollView>
     </View>

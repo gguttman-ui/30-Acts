@@ -122,6 +122,9 @@ describe('wiring', () => {
     const rec = read('src', 'screens', 'RecognitionScreen.js');
     expect(rec).toContain('const extractPhone = (email) => actingPhone(email);');
     expect(rec).toContain("{ onConflict: 'user_phone' }");
+    // child wording: no "shareable", bracelet mailed to the parent
+    expect(rec).toContain('A kindness bracelet for ${kid}, mailed to you.');
+    expect(rec).toContain('A printable "Certified Kind Person" certificate in ${kid}');
     const pay = read('src', 'screens', 'BraceletPaymentScreen.js');
     expect(pay).toContain(".eq('user_phone', phone)");
   });
