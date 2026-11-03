@@ -14,10 +14,10 @@ const path = require('path');
 const src = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'screens', 'MyStoryScreen.js'), 'utf8');
 
-function body(fnHead) {
+function body(fnHead, len = 600) {
   const i = src.indexOf(fnHead);
   expect(i).toBeGreaterThan(-1);
-  return src.slice(i, i + 600);
+  return src.slice(i, i + len);
 }
 
 describe('dictation stops when the person takes over (item 54)', () => {
@@ -50,8 +50,11 @@ describe('dictation stops when the person takes over (item 54)', () => {
   });
 
   test('the 2 Sep baseline in startListening is untouched', () => {
-    const b = body('const startListening = async () => {');
-    expect(b).toMatch(/dictationBaseRef\.current = story;/);
+    const b = body('const startListening = async () => {', 900);
+    // 3 Nov 2026: the base is now the story split at the cursor (spoken words
+    // go where the cursor is). The start sequence itself is unchanged.
+    expect(b).toMatch(/dictationBaseRef\.current = splitAtCursor\(story, selectionRef\.current\);/);
+    expect(b).toMatch(/setListening\(true\);/);
     expect(b).not.toMatch(/discardResultsRef/);
   });
 });

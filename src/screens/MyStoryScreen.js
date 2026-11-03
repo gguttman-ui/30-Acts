@@ -44,6 +44,7 @@ import { getActiveSponsorIds } from '../lib/streak';
 import { generateInviteLink } from '../lib/branch';
 import { notifyDay30 } from '../lib/day30';
 import { loadRuns } from '../lib/runs';
+import { splitAtCursor, joinDictation } from '../lib/dictationInsert';
 import { getRestartMarker } from '../lib/restartMarker';
 
 const STORY_MIN = 10;
@@ -196,8 +197,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     || '';
   const [story,   setStory]   = useState(initialStory);
   const [listening, setListening] = useState(false);
-  // Text present when dictation started, so streaming results append cleanly.
-  const dictationBaseRef = useRef('');
+  // Text present when dictation started, split at the cursor.
+  // 3 Nov 2026: the story box is split at the cursor when the mic starts, and
+  // spoken words go between the halves (src/lib/dictationInsert.js).
+  const dictationBaseRef = useRef({ before: '', after: '' });
+  const selectionRef = useRef(null);
   // Item 54: set when typing or Save cuts dictation off; see cutDictation.
   const discardResultsRef = useRef(false);
   const [saving,  setSaving]  = useState(false);
@@ -278,17 +282,16 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   // unfixed: see the backlog. Do not change this again without a way to
   // reproduce it and watch it fail.
   //
-  // Append the live transcript to whatever was in the box when we started,
-  // clamped to the character cap.
+  // Put the live transcript at the cursor position the box had when we started
+  // (3 Nov 2026; it used to always append), clamped to the character cap.
   useSpeechEvent('result', (event) => {
     // Item 54: once dictation was cut off by typing or Save, late results from
     // that session must not overwrite the box.
     if (discardResultsRef.current) return;
     const transcript = event?.results?.[0]?.transcript ?? '';
     if (!transcript) return;
-    const base = dictationBaseRef.current;
-    const joined = base ? `${base.trimEnd()} ${transcript}` : transcript;
-    setStory(joined.slice(0, STORY_MAX));
+    const { before, after } = dictationBaseRef.current;
+    setStory(joinDictation({ before, after, transcript, max: STORY_MAX }));
   });
   useSpeechEvent('end', () => setListening(false));
   useSpeechEvent('error', (event) => {
@@ -310,7 +313,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         );
         return;
       }
-      dictationBaseRef.current = story;
+      dictationBaseRef.current = splitAtCursor(story, selectionRef.current);
       setListening(true);
       ExpoSpeechRecognitionModule.start({
         lang: 'en-US',
@@ -1369,6 +1372,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                 style={s.storyBox}
                 value={story}
                 onChangeText={handleStoryChange}
+                onSelectionChange={(e) => { selectionRef.current = e.nativeEvent.selection; }}
                 placeholder={isBackfill
                   ? 'What act of kindness did you do yesterday? Tell the story…'
                   : 'What act of kindness did you do today? Tell the story…'}
