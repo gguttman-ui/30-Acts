@@ -29,8 +29,21 @@ export function splitAtCursor(text, selection) {
  * the text the person had already written after the cursor.
  */
 export function joinDictation({ before = '', after = '', transcript = '', max = Infinity } = {}) {
-  const words = String(transcript || '').trim();
+  let words = String(transcript || '').trim();
   if (!words) return before + after;
+
+  // 3 Nov 2026 (Gary): speech recognition capitalizes the first word as if a
+  // new sentence starts. Mid-sentence, lower-case it - except "I", "I'm"...
+  // and all-capital words like "USA". After . ! ? or at the very start, keep it.
+  const midSentence = /\S/.test(before) && !/[.!?]["')\]]*\s*$/.test(before);
+  if (midSentence) {
+    const first = words.split(/\s+/)[0];
+    const keep = /^I($|['’])/.test(first) || (first.length > 1 && first === first.toUpperCase());
+    if (!keep) words = words.charAt(0).toLowerCase() + words.slice(1);
+  }
+  // Inserted in front of more of the same sentence: drop a trailing period
+  // the recognizer added ("groceries. and then" -> "groceries and then").
+  if (/^\s*[a-z]/.test(after)) words = words.replace(/[.]+$/, '');
 
   const lead  = before && !/\s$/.test(before) ? ' ' : '';
   const trail = after && !/^[\s.,!?;:)]/.test(after) ? ' ' : '';

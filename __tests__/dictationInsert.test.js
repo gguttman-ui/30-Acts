@@ -41,6 +41,22 @@ describe('joinDictation', () => {
     expect(out).toBe('ab 123 xyz');
     expect(out.length).toBe(10);
   });
+  test('mid-sentence: first letter lower-cased (Gary, 3 Nov)', () => {
+    expect(joinDictation({ before: 'I helped my', after: ' neighbor.', transcript: 'Elderly' })).toBe('I helped my elderly neighbor.');
+  });
+  test('mid-sentence: "I", "I\'m" and all-capital words keep their capitals', () => {
+    expect(joinDictation({ before: 'Today', after: ' helped.', transcript: 'I really' })).toBe('Today I really helped.');
+    expect(joinDictation({ before: 'Today', after: '', transcript: "I'm glad" })).toBe("Today I'm glad");
+    expect(joinDictation({ before: 'We went to the', after: ' store', transcript: 'USA' })).toBe('We went to the USA store');
+  });
+  test('start of a sentence keeps the capital', () => {
+    expect(joinDictation({ before: 'I helped.', after: ' She smiled.', transcript: 'It was fun.' })).toBe('I helped. It was fun. She smiled.');
+    expect(joinDictation({ before: '', after: 'rest', transcript: 'Hello' })).toBe('Hello rest');
+  });
+  test('trailing period dropped when the same sentence continues after the cursor', () => {
+    expect(joinDictation({ before: 'I carried her', after: ' and then left.', transcript: 'Groceries.' })).toBe('I carried her groceries and then left.');
+  });
+
   test('empty transcript leaves the text unchanged', () => {
     expect(joinDictation({ before: 'a', after: 'b', transcript: '  ' })).toBe('ab');
   });
