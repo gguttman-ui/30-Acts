@@ -139,7 +139,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   if (loading) {
     return (
       <View style={s.centerBox}>
-        <ActivityIndicator color={C.primary} />
+        <ActivityIndicator color={C.primaryText} />
       </View>
     );
   }
@@ -343,9 +343,10 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
           isYesterday  && s.dayCellYesterday,
           isNextSlot   && s.dayCellNext,
           !isDone && !isNextSlot && s.dayCellEmpty,
+          isDone && s.dayCellDone,
         ]}
       >
-        <Text style={[s.dayNum, isToday && s.dayNumToday]}>{day.dayNumber}</Text>
+        <Text style={[s.dayNum, isToday && s.dayNumToday, isDone && s.dayNumDone]}>{day.dayNumber}</Text>
 
         {isDone ? (
           <>
@@ -354,7 +355,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
             </View>
             <View style={s.bottomSlot}>
               <Text
-                style={[s.tileDate, s.tileDateDone]}
+                style={[s.tileDate, s.tileDateOnDone]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
@@ -559,7 +560,7 @@ const s = StyleSheet.create({
     color: C.sub, fontSize: sf(10), fontWeight: '900',
     letterSpacing: 1.2, marginBottom: 2,
   },
-  runBig:       { color: C.primary, fontSize: sf(34), fontWeight: '900' },
+  runBig:       { color: C.primaryText, fontSize: sf(34), fontWeight: '900' },
   runOfThirty:  { color: C.sub, fontSize: sf(14), fontWeight: '700' },
 
   statsRight: { alignItems: 'flex-end' },
@@ -589,7 +590,7 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 28,
     minWidth: 220, alignItems: 'center',
   },
-  logCtaText: { color: C.bg, fontSize: sf(15), fontWeight: '900' },
+  logCtaText: { color: C.onPrimary, fontSize: sf(15), fontWeight: '900' },
   logCtaAlt: {
     color: C.muted, fontSize: sf(12), fontWeight: '700',
     marginTop: 8, textDecorationLine: 'underline',
@@ -637,7 +638,7 @@ const s = StyleSheet.create({
     fontSize: sf(11), fontWeight: '700', color: C.sub,
     alignSelf: 'flex-start', paddingLeft: 4,
   },
-  dayNumToday: { color: C.primary },
+  dayNumToday: { color: C.primaryText },
 
   centerSlot: { alignItems: 'center', justifyContent: 'center', flex: 1, alignSelf: 'stretch' },
   // No explicit lineHeight / includeFontPadding here: on iOS a fixed lineHeight
@@ -645,11 +646,11 @@ const s = StyleSheet.create({
   // size the line box (and centering it in the flex slot) keeps it whole.
   doneCheck:  {
     fontSize: 20, fontWeight: '900',
-    color: C.primary, textAlign: 'center',
+    color: C.doneText, textAlign: 'center',
   },
   nextGlyph:  {
     fontSize: 24, fontWeight: '900',
-    color: C.primary + 'aa', textAlign: 'center',
+    color: C.primaryText + 'aa', textAlign: 'center',
     // The "+" glyph sits low in its line box (unlike the top-heavy check),
     // so nudge it up to visually center it in the tile like the checkmarks.
     transform: [{ translateY: -3 }],
@@ -657,7 +658,10 @@ const s = StyleSheet.create({
 
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
   tileDate:     { fontSize: sf(11), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
-  tileDateDone: { color: C.primary },
+  tileDateDone: { color: C.primaryText },
+  tileDateOnDone: { color: C.doneText },
+  dayCellDone:  { backgroundColor: C.doneBg },
+  dayNumDone:   { color: C.doneText },
 
   // A long-running user accumulates lap pages, so wrap the dots onto extra rows
   // instead of letting the row run off the edge of the screen.

@@ -359,7 +359,7 @@ const s = StyleSheet.create({
     borderColor: C.primary,
   },
   checkboxMark: {
-    color: C.bg,
+    color: C.onPrimary,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -370,7 +370,7 @@ const s = StyleSheet.create({
     flex: 1,
   },
   checkLabelActive: {
-    color: C.primary,
+    color: C.primaryText,
     fontWeight: '800',
   },
 
@@ -407,7 +407,7 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   dropdownTextActive: {
-    color: C.primary,
+    color: C.primaryText,
     fontWeight: '800',
   },
   dropdownTextRequired: {
@@ -480,7 +480,7 @@ const s = StyleSheet.create({
   },
   rowIcon:   { width: 26, height: 26 },
   rowIconLarge: { width: 38, height: 38 },
-  checkMark: { color: C.primary, fontSize: 22, fontWeight: '900' },
+  checkMark: { color: C.primaryText, fontSize: 22, fontWeight: '900' },
 
   rowTitle: {
     flex: 1,
@@ -527,7 +527,7 @@ footerRow: {
     alignItems: 'center',
   },
   orLabel: {
-    color: C.primary,
+    color: C.primaryText,
     fontWeight: '700',
     fontSize: 14,
     marginHorizontal: 12,
@@ -573,11 +573,11 @@ footerRow: {
     fontWeight: '600',
   },
   pickerOptionTextActive: {
-    color: C.primary,
+    color: C.primaryText,
     fontWeight: '800',
   },
   pickerCheck: {
-    color: C.primary,
+    color: C.primaryText,
     fontSize: 18,
     fontWeight: '900',
   },

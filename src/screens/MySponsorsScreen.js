@@ -116,7 +116,7 @@ const confirmDelete = (challenge) => {
 
       <ScrollView contentContainerStyle={s.scroll}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 60 }} />
+          <ActivityIndicator size="large" color={C.primaryText} style={{ marginTop: 60 }} />
         ) : (
           <>
             <Text style={s.sectionLabel}>GROUPS I CREATED</Text>
@@ -130,6 +130,11 @@ const confirmDelete = (challenge) => {
                     <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.join_code}</Text>
                   </View>
                   <Text style={s.metaSub}>Started {c.start_date}</Text>
+                  <Btn
+                    label="View members & activity →"
+                    onPress={() => navigation.navigate('SponsorDetail', { challengeId: c.id })}
+                    style={{ marginTop: 12 }}
+                  />
                   <Btn
                     label="Delete Group"
                     variant="danger"
@@ -151,6 +156,12 @@ const confirmDelete = (challenge) => {
                     <Text style={s.metaText}>{c.type} · {c.length_days} days · {c.join_code}</Text>
                   </View>
                   <Text style={s.metaSub}>Started {c.start_date}</Text>
+                  <Btn
+                    label="View group →"
+                    variant="secondary"
+                    onPress={() => navigation.navigate('SponsorDetail', { challengeId: c.id })}
+                    style={{ marginTop: 12 }}
+                  />
                   <Btn
                     label="Leave Group"
                     variant="secondary"
@@ -178,7 +189,7 @@ const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40 },
 
   sectionLabel: {
-    color: C.primary,
+    color: C.primaryText,
     fontSize: 11, fontWeight: '900',
     letterSpacing: 1, marginBottom: 12,
   },

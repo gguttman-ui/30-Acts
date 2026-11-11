@@ -243,8 +243,8 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         }}
       >
-        <Text style={{ color: C.primary, fontWeight: '800', fontSize: 14 }}>💡 Review Suggested Acts</Text>
-        <Text style={{ color: C.primary, fontWeight: '800', fontSize: 16 }}>{'→'}</Text>
+        <Text style={{ color: C.primaryText, fontWeight: '800', fontSize: 14 }}>💡 Review Suggested Acts</Text>
+        <Text style={{ color: C.primaryText, fontWeight: '800', fontSize: 16 }}>{'→'}</Text>
       </TouchableOpacity>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}>
 
@@ -253,7 +253,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
           onPress={() => setShowFilters(v => !v)}
           style={[s.filterToggle, hasFilters && { borderColor: C.primary }]}
         >
-          <Text style={[s.filterToggleText, hasFilters && { color: C.primary }]}>
+          <Text style={[s.filterToggleText, hasFilters && { color: C.primaryText }]}>
             🔍 Filters & Sort {hasFilters ? '(active)' : ''} {showFilters ? '▲' : '▼'}
           </Text>
           {hasFilters && (
@@ -352,7 +352,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
 
         {loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator color={C.primary} />
+            <ActivityIndicator color={C.primaryText} />
             <Text style={{ color: C.muted, marginTop: 8 }}>Loading acts…</Text>
           </View>
         ) : filteredActs.length === 0 ? (
@@ -406,7 +406,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
 
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
                     {submitting === act.id ? (
-                      <ActivityIndicator color={C.primary} />
+                      <ActivityIndicator color={C.primaryText} />
                     ) : (
                       <TouchableOpacity onPress={() => handleSubmit(act)} disabled={!sel}
                         style={[s.submitBtn, !sel && { opacity: 0.4 }]}>
@@ -427,7 +427,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
           <View style={s.modalHeader}>
             {addStep === 'newCategory' ? (
               <TouchableOpacity onPress={() => setAddStep('category')}>
-                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '700' }}>← Back</Text>
+                <Text style={{ color: C.primaryText, fontSize: 15, fontWeight: '700' }}>← Back</Text>
               </TouchableOpacity>
             ) : (
               <Text style={s.modalTitle}>Add to Act List</Text>
@@ -465,11 +465,11 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
                   >
                     <Text style={{ fontSize: 24, marginRight: 12 }}>{item.emoji}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.catPickLabel, item.id === '__new__' && { color: C.primary }]}>{item.label}</Text>
+                      <Text style={[s.catPickLabel, item.id === '__new__' && { color: C.primaryText }]}>{item.label}</Text>
                       {item.acts && <Text style={s.catPickCount}>{item.acts.length} acts</Text>}
                     </View>
                     {selectedCatId === item.id && item.id !== '__new__' && (
-                      <Text style={{ color: C.primary, fontSize: 16 }}>✓</Text>
+                      <Text style={{ color: C.primaryText, fontSize: 16 }}>✓</Text>
                     )}
                   </TouchableOpacity>
                 )}
@@ -481,7 +481,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
                       style={[s.confirmBtn, addingToList && { opacity: 0.5 }]}
                     >
                       {addingToList
-                        ? <ActivityIndicator color={C.bg} />
+                        ? <ActivityIndicator color={C.onPrimary} />
                         : <Text style={s.confirmBtnText}>Add to This Category ✓</Text>
                       }
                     </TouchableOpacity>
@@ -525,7 +525,7 @@ export default function ReviewerScreen({ navigation, user, actCategories }) {
                 style={[s.confirmBtn, (addingToList || !newCatLabel.trim()) && { opacity: 0.5 }]}
               >
                 {addingToList
-                  ? <ActivityIndicator color={C.bg} />
+                  ? <ActivityIndicator color={C.onPrimary} />
                   : <Text style={s.confirmBtnText}>Create Category & Add Act ✓</Text>
                 }
               </TouchableOpacity>
@@ -555,18 +555,18 @@ const s = StyleSheet.create({
   badgeLbl: { color: C.muted, fontSize: 10, marginTop: 2 },
   actTitle:   { color: C.text, fontSize: 14, fontWeight: '700', flex: 1, marginRight: 8 },
   status:     { fontSize: 11, fontWeight: '700' },
-  actMeta:    { color: C.primary, fontSize: 11, marginBottom: 2 },
+  actMeta:    { color: C.primaryText, fontSize: 11, marginBottom: 2 },
   actDate:    { color: C.muted, fontSize: 11 },
   actNotes:   { color: C.sub, fontSize: 11, fontStyle: 'italic', marginBottom: 4 },
   reviewedBy: { color: C.muted, fontSize: 10, marginBottom: 8 },
-  fromListBadge: { color: C.primary, fontSize: 10, fontWeight: '700', backgroundColor: C.primary + '22', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  fromListBadge: { color: C.primaryText, fontSize: 10, fontWeight: '700', backgroundColor: C.primary + '22', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   customBadge:   { color: C.muted,   fontSize: 10, fontWeight: '700', backgroundColor: C.surface,        paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   addToListBtn: {
     backgroundColor: C.primary + '18', borderWidth: 1, borderColor: C.primary + '44',
     borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12,
     alignSelf: 'flex-start', marginBottom: 10,
   },
-  addToListText: { color: C.primary, fontSize: 12, fontWeight: '700' },
+  addToListText: { color: C.primaryText, fontSize: 12, fontWeight: '700' },
   checkRow:   { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 16 },
   checkItem:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkbox: {
@@ -577,7 +577,7 @@ const s = StyleSheet.create({
   checkmark:    { color: '#fff', fontSize: 14, fontWeight: '900' },
   checkLabel:   { color: C.muted, fontSize: 13, fontWeight: '600' },
   submitBtn:    { backgroundColor: C.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  submitBtnText: { color: C.bg, fontWeight: '700', fontSize: 13 },
+  submitBtnText: { color: C.onPrimary, fontWeight: '700', fontSize: 13 },
   // Modal
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -596,7 +596,7 @@ const s = StyleSheet.create({
     backgroundColor: C.primary, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center', marginTop: 8,
   },
-  confirmBtnText: { color: C.bg, fontWeight: '800', fontSize: 15 },
+  confirmBtnText: { color: C.onPrimary, fontWeight: '800', fontSize: 15 },
 });
 
 const styles = StyleSheet.create({
@@ -606,5 +606,5 @@ const styles = StyleSheet.create({
   },
   chipActive:     { backgroundColor: C.primary + '33', borderColor: C.primary },
   chipText:       { color: C.muted, fontSize: 12, fontWeight: '600' },
-  chipTextActive: { color: C.primary, fontWeight: '700' },
+  chipTextActive: { color: C.primaryText, fontWeight: '700' },
 });

@@ -23,6 +23,7 @@ import DailyActScreen    from '../screens/DailyActScreen';
 import AdminScreen       from '../screens/AdminScreen';
 import ReviewerScreen    from '../screens/ReviewerScreen';
 import OnboardingScreen  from '../screens/OnboardingScreen';
+import SearchActsScreen  from '../screens/SearchActsScreen';
 import DonationScreen    from '../screens/DonationScreen';
 import LegalScreen       from '../screens/LegalScreen';
 import ChooseActScreen  from '../screens/ChooseActScreen';
@@ -73,7 +74,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: C.card, borderTopColor: C.border, borderTopWidth: 1 },
+        tabBarStyle: { backgroundColor: C.header, borderTopColor: C.border, borderTopWidth: 1 },
         tabBarActiveTintColor:   C.primary,
         tabBarInactiveTintColor: C.muted,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
@@ -255,6 +256,12 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             </Stack.Screen>
             <Stack.Screen name="Donation"  component={DonationScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen} />
+            <Stack.Screen name="SearchActs">
+              {(props) => <SearchActsScreen {...props} user={user} />}
+            </Stack.Screen>
+            <Stack.Screen name="Tour">
+              {(props) => <OnboardingScreen onDone={() => props.navigation.navigate('Main', { screen: 'Home' })} />}
+            </Stack.Screen>
             <Stack.Screen
               name="SponsorDetail"
               component={SponsorDetailScreen}

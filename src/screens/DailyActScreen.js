@@ -328,12 +328,12 @@ function Dropdown({ value, options, onChange, placeholder, title = 'Select' }) {
                   <Text
                     style={[
                       s.dropdownModalRowText,
-                      isActive && { color: C.primary, fontWeight: '700' },
+                      isActive && { color: C.primaryText, fontWeight: '700' },
                     ]}
                   >
                     {opt.label}
                   </Text>
-                  {isActive && <Text style={{ color: C.primary }}>✓</Text>}
+                  {isActive && <Text style={{ color: C.primaryText }}>✓</Text>}
                 </TouchableOpacity>
               );
             })}
@@ -1498,7 +1498,7 @@ const today = todayStr();
                 <TouchableOpacity key={pt} disabled={done} onPress={() => { setProofType(pt); setMediaUri(null); }}
                   style={[s.proofTab, proofType === pt && s.proofTabActive]}>
                   <Text style={{ fontSize: sf(22) }}>{icon}</Text>
-                  <Text style={[s.proofTabLabel, proofType === pt && { color: C.primary }]}>
+                  <Text style={[s.proofTabLabel, proofType === pt && { color: C.primaryText }]}>
                     {pt.charAt(0).toUpperCase() + pt.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -1925,13 +1925,13 @@ const today = todayStr();
           <View style={s.modalHeader}>
             {selectedCategory ? (
               <TouchableOpacity onPress={() => setSelectedCategory(null)} style={s.backBtn}>
-                <Text style={{ color: C.primary, fontSize: sf(15), fontWeight: '700' }}>← Back</Text>
+                <Text style={{ color: C.primaryText, fontSize: sf(15), fontWeight: '700' }}>← Back</Text>
               </TouchableOpacity>
             ) : (
               <Text style={s.modalTitle}>Choose a Category</Text>
             )}
             <TouchableOpacity onPress={closePicker}>
-              <Text style={{ color: C.primary, fontSize: sf(16), fontWeight: '700' }}>Done</Text>
+              <Text style={{ color: C.primaryText, fontSize: sf(16), fontWeight: '700' }}>Done</Text>
             </TouchableOpacity>
           </View>
 
@@ -1954,7 +1954,7 @@ const today = todayStr();
               renderItem={({ item }) => (
                 <TouchableOpacity onPress={() => selectAct(item)} style={s.actRow}>
                   <Text style={s.actText}>{item.title}</Text>
-                  <Text style={{ color: C.primary }}>→</Text>
+                  <Text style={{ color: C.primaryText }}>→</Text>
                 </TouchableOpacity>
               )}
             />
@@ -1969,7 +1969,7 @@ const today = todayStr();
               renderItem={({ item }) => (
                 <TouchableOpacity onPress={() => selectAct(item)} style={s.actRow}>
                   <Text style={s.actText}>{item.title}</Text>
-                  <Text style={{ color: C.primary }}>→</Text>
+                  <Text style={{ color: C.primaryText }}>→</Text>
                 </TouchableOpacity>
               )}
             />
@@ -1986,7 +1986,7 @@ const today = todayStr();
                     <Text style={s.categoryLabel}>{item.label}</Text>
                     <Text style={s.categoryCount}>{item.acts.length} acts</Text>
                   </View>
-                  <Text style={{ color: C.primary, fontSize: sf(18) }}>›</Text>
+                  <Text style={{ color: C.primaryText, fontSize: sf(18) }}>›</Text>
                 </TouchableOpacity>
               )}
             />
@@ -2023,7 +2023,7 @@ challengeBadge: {
     marginBottom: 12,
   },
   challengeBadgeLabel: {
-    color: C.primary,
+    color: C.primaryText,
     fontSize: sf(9),
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -2040,7 +2040,7 @@ challengeBadge: {
     borderWidth: 1, borderColor: C.primary + '44',
     borderRadius: 10, padding: 10, marginBottom: 14,
   },
-  preselLabel: { color: C.primary, fontSize: sf(10), fontWeight: '800', letterSpacing: 0.8 },
+  preselLabel: { color: C.primaryText, fontSize: sf(10), fontWeight: '800', letterSpacing: 0.8 },
   preselTitle: { color: C.text, fontSize: sf(12), fontWeight: '700', marginTop: 2, lineHeight: 16 },
   preselMeta:  { color: C.sub,  fontSize: sf(11), marginTop: 2 },
 
@@ -2056,7 +2056,7 @@ challengeBadge: {
     paddingVertical: 3,
   },
   nextStepText: {
-    color: C.bg,
+    color: C.onPrimary,
     fontSize: sf(9),
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -2069,7 +2069,7 @@ challengeBadge: {
     backgroundColor: C.primary + '22', borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.primary + '44',
   },
-  pickBtnText: { color: C.primary, fontSize: sf(11), fontWeight: '700' },
+  pickBtnText: { color: C.primaryText, fontSize: sf(11), fontWeight: '700' },
   proofTabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   proofTab: {
     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', gap: 4,
@@ -2187,7 +2187,7 @@ challengeBadge: {
     width: '100%',
   },
   addressBtnText: {
-    color: C.bg,
+    color: C.onPrimary,
     fontSize: sf(14),
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -2220,7 +2220,7 @@ challengeBadge: {
   preselIcon:    { width: 32, height: 32 },
   categoryLabel: { color: C.text, fontSize: sf(15), fontWeight: '700' },
   categoryCount: { color: C.muted, fontSize: sf(12), marginTop: 2 },
-  categoryHeader: { color: C.primary, fontSize: sf(15), fontWeight: '800', padding: 16, paddingBottom: 8 },
+  categoryHeader: { color: C.primaryText, fontSize: sf(15), fontWeight: '800', padding: 16, paddingBottom: 8 },
   actRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
@@ -2241,7 +2241,7 @@ challengeBadge: {
     borderWidth: 2, borderColor: C.primary, width: '100%',
   },
   day30Title: {
-    color: C.primary, fontSize: sf(18), fontWeight: '900',
+    color: C.primaryText, fontSize: sf(18), fontWeight: '900',
     textAlign: 'center', letterSpacing: 0.5, marginBottom: 10,
   },
   day30Body: { color: C.text, fontSize: sf(14), lineHeight: 20, textAlign: 'center', marginBottom: 14 },
@@ -2312,7 +2312,7 @@ challengeBadge: {
     alignItems: 'center',
   },
   directionsBtnText: {
-    color: C.bg,
+    color: C.onPrimary,
     fontSize: sf(14),
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -2335,7 +2335,7 @@ challengeBadge: {
   balloon: { position: 'absolute' },
   balloonMsg: { marginBottom: 120, alignItems: 'center' },
   balloonTitle: {
-    color: C.primary, fontSize: sf(22), fontWeight: '900',
+    color: C.primaryText, fontSize: sf(22), fontWeight: '900',
     letterSpacing: 2, textAlign: 'center',
     textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
@@ -2365,7 +2365,7 @@ challengeBadge: {
   padding: 16, borderBottomWidth: 1, borderBottomColor: C.border,
 },
 dropdownModalTitle: { color: C.text, fontSize: sf(18), fontWeight: '800' },
-dropdownModalDone:  { color: C.primary, fontSize: sf(16), fontWeight: '700' },
+dropdownModalDone:  { color: C.primaryText, fontSize: sf(16), fontWeight: '700' },
 dropdownModalRow: {
   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   paddingHorizontal: 16, paddingVertical: 14,

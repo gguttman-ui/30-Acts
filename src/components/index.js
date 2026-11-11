@@ -11,8 +11,8 @@ import { C } from '../constants';
 // ── Button ─────────────────────────────────────────────────────────
 export function Btn({ label, onPress, variant = 'primary', disabled, loading, style }) {
   const vs = {
-    primary:   { bg: disabled ? C.surface : C.primary, color: C.bg, borderWidth: 0 },
-    secondary: { bg: 'transparent', color: C.primary, borderWidth: 1.5, borderColor: C.primary },
+    primary:   { bg: disabled ? C.surface : C.primary, color: C.onPrimary, borderWidth: 0 },
+    secondary: { bg: 'transparent', color: C.primaryText, borderWidth: 1.5, borderColor: C.primary },
     ghost:     { bg: 'transparent', color: C.sub, borderWidth: 0 },
     danger:    { bg: 'transparent', color: C.error, borderWidth: 1.5, borderColor: C.error },
   };
@@ -168,7 +168,7 @@ export function ScreenHeader({ title, onBack, right }) {
       <View style={styles.headerSide}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ color: C.primary, fontSize: 24 }}>←</Text>
+            <Text style={{ color: C.primaryText, fontSize: 24 }}>←</Text>
           </TouchableOpacity>
         ) : (
           <Image
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border,
     paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end',
   },
-  kbAccessoryDone: { color: C.primary, fontSize: 16, fontWeight: '800' },
+  kbAccessoryDone: { color: C.primaryText, fontSize: 16, fontWeight: '800' },
 
   eyeBtn: {
     position: 'absolute', right: 12, top: 0, bottom: 0,
@@ -233,7 +233,7 @@ badge: {
 
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingBottom: 12,
+    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: C.header,
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   headerSide: {

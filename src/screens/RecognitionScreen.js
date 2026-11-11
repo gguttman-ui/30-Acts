@@ -99,7 +99,7 @@ export default function RecognitionScreen({ navigation }) {
           <Text style={s.cardBody}>The bracelet and the certificate.</Text>
         </TouchableOpacity>
 
-        {saving && <ActivityIndicator style={{ marginTop: 18 }} color={C.primary} />}
+        {saving && <ActivityIndicator style={{ marginTop: 18 }} color={C.primaryText} />}
 
         <Text style={s.footnote}>
           {kid

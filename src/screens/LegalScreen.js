@@ -267,12 +267,12 @@ const s = StyleSheet.create({
     borderBottomColor: C.border + '44', paddingBottom: 20,
   },
   heading: {
-    color: C.primary, fontSize: 14, fontWeight: '800',
+    color: C.primaryText, fontSize: 14, fontWeight: '800',
     marginBottom: 10, letterSpacing: 0.3,
   },
   body: { color: C.sub, fontSize: 14, lineHeight: 22 },
   emailLink: {
-    color: C.primary, fontSize: 13, fontWeight: '600',
+    color: C.primaryText, fontSize: 13, fontWeight: '600',
     marginTop: 6, textDecorationLine: 'underline',
   },
   footer: { alignItems: 'center', paddingTop: 16, gap: 8 },

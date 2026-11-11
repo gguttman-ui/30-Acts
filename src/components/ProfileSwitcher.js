@@ -73,7 +73,7 @@ export default function ProfileSwitcher({ parentName }) {
 
 const s = StyleSheet.create({
   wrap:  { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-  label: { color: C.primary, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  label: { color: C.primaryText, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
   row:   { gap: 8 },
   pill: {
     paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20,
@@ -81,5 +81,5 @@ const s = StyleSheet.create({
   },
   pillOn:     { borderColor: C.primary, backgroundColor: C.primary + '22' },
   pillText:   { color: C.sub, fontSize: 14, fontWeight: '700' },
-  pillTextOn: { color: C.primary },
+  pillTextOn: { color: C.primaryText },
 });

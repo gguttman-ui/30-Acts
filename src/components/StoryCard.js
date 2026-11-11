@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   howTo: { color: C.accent, fontSize: 40, fontWeight: '800', textAlign: 'center', marginTop: 28, lineHeight: 52 },
   logo: { width: 64, height: 64, marginRight: 4 },
   brand: { color: C.text, fontSize: 38, fontWeight: '800' },
-  hashtag: { color: C.primary, fontSize: 32, fontWeight: '700', marginTop: 4 },
+  hashtag: { color: C.primaryText, fontSize: 32, fontWeight: '700', marginTop: 4 },
 });
 
 export default StoryCard;

@@ -1481,7 +1481,7 @@ const s = StyleSheet.create({
 
   label: { color: C.sub, fontSize: 13, fontWeight: '700', marginBottom: 6 },
   suggestBtn: { borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 16 },
-  suggestBtnText: { color: C.primary, fontSize: 15, fontWeight: '700' },
+  suggestBtnText: { color: C.primaryText, fontSize: 15, fontWeight: '700' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },  storyBox: {
     minHeight: 160,
     backgroundColor: C.card,
@@ -1510,8 +1510,8 @@ const s = StyleSheet.create({
   successSub:   { color: C.sub, fontSize: sf(14), textAlign: 'center', marginTop: 4 },
   skipShare: { marginTop: 12, paddingVertical: 10, alignItems: 'center' },
   editBtn: { marginTop: 16, borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', alignSelf: 'stretch' },
-  editBtnText: { color: C.primary, fontSize: sf(15), fontWeight: '700' },
-  skipShareText: { color: C.primary, fontSize: sf(18), fontWeight: '800' },
+  editBtnText: { color: C.primaryText, fontSize: sf(15), fontWeight: '700' },
+  skipShareText: { color: C.primaryText, fontSize: sf(18), fontWeight: '800' },
 
   completedActTitle: {
     color: C.text, fontSize: sf(17), fontWeight: '800',
@@ -1537,6 +1537,6 @@ const s = StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 16,
     alignItems: 'flex-end',
   },
-  kbDone: { color: C.primary, fontSize: 16, fontWeight: '700' },
+  kbDone: { color: C.primaryText, fontSize: 16, fontWeight: '700' },
 });
 

@@ -3,6 +3,8 @@ import {
   View, Text, Image, ScrollView, StyleSheet, Alert, Linking, Platform,
 } from 'react-native';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { extractPhone } from '../lib/streak';
@@ -16,7 +18,7 @@ const SUPPORT_EMAIL = 'info@30actsofkindness.org';
 // over-the-air — it only works once compiled into a build.)
 const APP_BUILD = '96';
 
-export default function HelpScreen({ user }) {
+export default function HelpScreen({ user, navigation }) {
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const handleReportProblem = () => {
@@ -52,6 +54,18 @@ export default function HelpScreen({ user }) {
         </Card>
 
         <Card style={s.card}>
+          <Text style={s.cardTitle}>How it works</Text>
+          <Text style={s.cardSub}>
+            A quick tour of picking an act, filling your 30 days and growing your tree.
+          </Text>
+          <Btn
+            label="Show me how"
+            onPress={() => navigation?.navigate('Tour')}
+            style={{ alignSelf: 'stretch' }}
+          />
+        </Card>
+
+        <Card style={s.card}>
           <Text style={s.cardTitle}>Need help?</Text>
           <Text style={s.cardSub}>
             Found a problem or have a question? Send us a note and we'll get right back to you.
@@ -62,6 +76,36 @@ export default function HelpScreen({ user }) {
             style={{ alignSelf: 'stretch' }}
           />
         </Card>
+
+        {Updates.channel === 'preview' ? (
+          <Card style={s.card}>
+            <Text style={s.cardTitle}>🧪 Staging test</Text>
+            <Text style={s.cardSub}>
+              Make this phone act like a new install next time the app opens: the welcome
+              tour, then sign-in. Your account and acts are not touched. Only shows in the
+              staging app.
+            </Text>
+            <Btn
+              label="Replay first-time start"
+              variant="secondary"
+              onPress={() => Alert.alert(
+                'Replay first-time start?',
+                'After this: Me > Log Out, then close the app fully and reopen it.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Replay',
+                    onPress: async () => {
+                      try { await AsyncStorage.multiRemove(['hasSeenOnboarding', 'remembered_phone']); } catch {}
+                      Alert.alert('Done', 'Now go to Me > Log Out, then close the app fully and reopen it.');
+                    },
+                  },
+                ],
+              )}
+              style={{ alignSelf: 'stretch' }}
+            />
+          </Card>
+        ) : null}
 
         <Text selectable style={s.version}>Version {appVersion} (build {APP_BUILD})</Text>
       </ScrollView>

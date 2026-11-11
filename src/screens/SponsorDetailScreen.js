@@ -178,7 +178,7 @@ export default function SponsorDetailScreen({ route, navigation }) {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScreenHeader title="Group"  />
         <View style={s.centerWrap}>
-          <ActivityIndicator color={C.primary} />
+          <ActivityIndicator color={C.primaryText} />
           <Text style={s.loadingText}>Loading group…</Text>
         </View>
       </View>
@@ -333,7 +333,7 @@ export default function SponsorDetailScreen({ route, navigation }) {
                 >
                   <Text style={s.leaderRank}>{idx + 1}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.leaderName, isMe && { color: C.primary, fontWeight: '800' }]}>
+                    <Text style={[s.leaderName, isMe && { color: C.primaryText, fontWeight: '800' }]}>
                       {p.displayName}{isMe ? ' (you)' : ''}
                     </Text>
                     {noActs ? (
@@ -395,7 +395,7 @@ const s = StyleSheet.create({
   cardTitle: { color: C.text, fontSize: 17, fontWeight: '800', marginBottom: 10 },
   headerRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   typePill: {
-    color: C.primary, backgroundColor: C.primary + '22',
+    color: C.primaryText, backgroundColor: C.primary + '22',
     fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
     textTransform: 'uppercase',
@@ -413,8 +413,8 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: C.card2, borderRadius: 12,
     paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center',
   },
-  statValue:   { color: C.primary, fontSize: 22, fontWeight: '900' },
-  statValueSm: { color: C.primary, fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  statValue:   { color: C.primaryText, fontSize: 22, fontWeight: '900' },
+  statValueSm: { color: C.primaryText, fontSize: 13, fontWeight: '800', marginBottom: 2 },
   statLabel:   { color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 2 },
   totalsRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   totalCard: {
@@ -430,7 +430,7 @@ const s = StyleSheet.create({
     color: C.muted, fontSize: 10, fontWeight: '800',
     letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6,
   },
-  totalNum: { color: C.primary, fontSize: 32, fontWeight: '900', lineHeight: 34, marginBottom: 4 },
+  totalNum: { color: C.primaryText, fontSize: 32, fontWeight: '900', lineHeight: 34, marginBottom: 4 },
   totalSub: { color: C.muted, fontSize: 11 },
   inviteRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -439,8 +439,8 @@ const s = StyleSheet.create({
     padding: 12, gap: 10,
   },
   inviteLabel: { color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
-  inviteCode:  { color: C.primary, fontSize: 16, fontWeight: '900', flex: 1, letterSpacing: 1 },
-  inviteShare: { color: C.primary, fontSize: 13, fontWeight: '700' },
+  inviteCode:  { color: C.primaryText, fontSize: 16, fontWeight: '900', flex: 1, letterSpacing: 1 },
+  inviteShare: { color: C.primaryText, fontSize: 13, fontWeight: '700' },
 
   cheerText: { color: C.sub, fontSize: 13, lineHeight: 18, fontStyle: 'italic' },
 
@@ -448,7 +448,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 10,
   },
-  exportLink: { color: C.primary, fontSize: 13, fontWeight: '700' },
+  exportLink: { color: C.primaryText, fontSize: 13, fontWeight: '700' },
 
   leaderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -459,7 +459,7 @@ const s = StyleSheet.create({
   leaderName:  { color: C.text,  fontSize: 14, fontWeight: '700' },
   leaderSub:   { color: C.sub,   fontSize: 11, marginTop: 2 },
   leaderSubMuted: { color: C.muted, fontSize: 11, marginTop: 2, fontStyle: 'italic' },
-  leaderCount: { color: C.primary, fontSize: 18, fontWeight: '900', minWidth: 32, textAlign: 'right' },
+  leaderCount: { color: C.primaryText, fontSize: 18, fontWeight: '900', minWidth: 32, textAlign: 'right' },
 
   emptyText: { color: C.muted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
 });

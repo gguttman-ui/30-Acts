@@ -112,7 +112,7 @@ export default function FeedbackScreen({ navigation }) {
                 onPress={() => setRating(star)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={[s.star, rating >= star && { color: C.primary }]}>★</Text>
+                <Text style={[s.star, rating >= star && { color: C.primaryText }]}>★</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -180,7 +180,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 14,
   },
   successBtnText: {
-    color: C.bg, fontWeight: '700', fontSize: 15,
+    color: C.onPrimary, fontWeight: '700', fontSize: 15,
   },
   successBtnAlt: {
     marginTop: 14, paddingHorizontal: 20, paddingVertical: 10,

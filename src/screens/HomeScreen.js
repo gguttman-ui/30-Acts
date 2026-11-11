@@ -466,6 +466,26 @@ const handleConfirmSeed = async () => {
   }
 };
 
+// Owner test tool (10 Nov 2026): make THIS phone behave like a new install
+// on its next launch - the welcome tour shows again and sign-in starts with
+// an empty phone box. Nothing on the server changes; the account and acts stay.
+const handleReplayFirstRun = () => {
+  Alert.alert(
+    'Replay first-time start?',
+    'Next time the app opens it will show the welcome tour, then sign-in. After this: Me > Log Out, then close the app fully and reopen it.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Replay',
+        onPress: async () => {
+          try { await AsyncStorage.multiRemove(['hasSeenOnboarding', 'remembered_phone']); } catch {}
+          Alert.alert('Done', 'Now go to Me > Log Out, then close the app fully and reopen it.');
+        },
+      },
+    ],
+  );
+};
+
 // Wipe All Completions. Tapping the button opens TypedConfirmModal;
 // the actual destructive work runs in handleConfirmWipe below.
 const handleResetTest = () => {
@@ -507,7 +527,7 @@ const handleConfirmWipe = async () => {
     if (daysReloading) {
       return (
         <View style={s.empty}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <ActivityIndicator size="large" color={C.primaryText} />
         </View>
       );
     }
@@ -550,6 +570,15 @@ const handleConfirmWipe = async () => {
         }
       />
       <ProfileSwitcher parentName={user?.firstName} />
+      <TouchableOpacity
+        onPress={() => navigation.navigate('SearchActs')}
+        style={s.searchBar}
+        accessibilityRole="button"
+        accessibilityLabel="Search my acts"
+      >
+        <Text style={s.searchBarIcon}>🔍</Text>
+        <Text style={s.searchBarText}>Search my acts</Text>
+      </TouchableOpacity>
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>
@@ -636,9 +665,10 @@ const handleConfirmWipe = async () => {
                           isToday     && s.dayCellToday,
                           isYesterday && s.dayCellYesterday,
                           isFuture    && s.dayCellFuture,
+                          day.status === 'COMPLETED' && s.dayCellDone,
                         ]}
                       >
-                        <Text style={[s.dayNum, isToday && s.dayNumToday]}>
+                        <Text style={[s.dayNum, isToday && s.dayNumToday, day.status === 'COMPLETED' && s.dayNumDone]}>
                           {day.dayNumber}
                         </Text>
 
@@ -769,6 +799,12 @@ const handleConfirmWipe = async () => {
               onPress={handleResetTest}
               loading={resettingTest}
               variant="secondary"
+              style={{ marginBottom: 8 }}
+            />
+            <Btn
+              label="🔄 Replay first-time start"
+              onPress={handleReplayFirstRun}
+              variant="secondary"
             />
           </View>
         )}
@@ -873,6 +909,14 @@ const handleConfirmWipe = async () => {
 }
 
 const s = StyleSheet.create({
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginTop: 8, marginBottom: 4,
+    paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: C.card2, borderColor: C.primary, borderWidth: 1.5, borderRadius: 12,
+  },
+  searchBarIcon: { fontSize: 15 },
+  searchBarText: { color: C.text, fontSize: 15, fontWeight: '700' },
   // Reduced horizontal padding so 6-across cells fit comfortably with
   // tight margins on either side.
   scroll: { paddingHorizontal: 6, paddingTop: 4, paddingBottom: 24 },
@@ -896,13 +940,13 @@ const s = StyleSheet.create({
   progressTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   progressLabel: { color: C.muted, fontSize: sf(10), fontWeight: '800', letterSpacing: 0.8, marginBottom: 2 },
   progressStats: { color: C.text },
-  progressBig: { fontSize: sf(20), fontWeight: '900', color: C.primary },
+  progressBig: { fontSize: sf(20), fontWeight: '900', color: C.primaryText },
   progressOfThirty: { fontSize: sf(14), color: C.sub, fontWeight: '600' },
   percentPill: {
     backgroundColor: C.primary + '22', borderWidth: 1, borderColor: C.primary + '55',
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
-  percentPillText: { color: C.primary, fontSize: sf(15), fontWeight: '800' },
+  percentPillText: { color: C.primaryText, fontSize: sf(15), fontWeight: '800' },
   progressBarTrack: { height: 8, backgroundColor: C.surface, borderRadius: 4, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: C.primary, borderRadius: 4 },
 
@@ -919,7 +963,7 @@ const s = StyleSheet.create({
   },
   abPillOn: { backgroundColor: C.primary, borderColor: C.primary },
   abText:   { color: C.sub, fontSize: sf(12), fontWeight: '800' },
-  abTextOn: { color: C.bg },
+  abTextOn: { color: C.onPrimary },
 
   // ── Grid ────────────────────────────────────────────────────────────────
   // 6 cells per row with a tight 4px column gap and 4px row gap.
@@ -976,6 +1020,12 @@ grid: {
     borderColor: C.primary + '88',
     borderWidth: 1.5,
   },
+  dayCellDone: {
+    backgroundColor: C.doneBg,
+  },
+  dayNumDone: {
+    color: C.doneText,
+  },
   dayCellFuture: {
     opacity: 0.45,
   },
@@ -988,7 +1038,7 @@ grid: {
     paddingLeft: 4,
   },
   dayNumToday: {
-    color: C.primary,
+    color: C.primaryText,
   },
 
   centerSlot: {
@@ -1002,8 +1052,8 @@ grid: {
   // Day-of-month shown in the center of each non-today tile.
   domNum:       { fontSize: sf(20), fontWeight: '800', color: C.sub },
   domNumDate:   { fontSize: sf(13), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
-  domNumDone:   { color: C.primary },
-  doneCheck:    { fontSize: 18, fontWeight: '900', color: C.primary, lineHeight: 26, textAlign: 'center', includeFontPadding: false },
+  domNumDone:   { color: C.doneText },
+  doneCheck:    { fontSize: 18, fontWeight: '900', color: C.doneText, lineHeight: 26, textAlign: 'center', includeFontPadding: false },
   domNumMissed: { color: C.error },
   missedGlyph:   { fontSize: sf(14), color: C.error, fontWeight: '900' },
 
@@ -1017,7 +1067,11 @@ grid: {
   todayLabel: {
     fontSize: sf(8),
     fontWeight: '900',
-    color: C.primary,
+    color: C.onPrimary,
+    backgroundColor: C.primary,
+    paddingHorizontal: 5,
+    borderRadius: 5,
+    overflow: 'hidden',
     letterSpacing: 0.3,
   },
 

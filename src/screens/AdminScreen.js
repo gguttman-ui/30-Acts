@@ -151,10 +151,10 @@ function ManageList({ items, loading, onAdd, onRemove, phone, setPhone, adding, 
         />
         <TouchableOpacity onPress={onAdd} disabled={adding || !valid}
           style={{ backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center', opacity: !valid ? 0.4 : 1 }}>
-          {adding ? <ActivityIndicator size="small" color={C.bg} /> : <Text style={{ color: C.bg, fontWeight: '700' }}>Add</Text>}
+          {adding ? <ActivityIndicator size="small" color={C.onPrimary} /> : <Text style={{ color: C.onPrimary, fontWeight: '700' }}>Add</Text>}
         </TouchableOpacity>
       </View>
-      {loading ? <ActivityIndicator color={C.primary} /> : items.length === 0 ? (
+      {loading ? <ActivityIndicator color={C.primaryText} /> : items.length === 0 ? (
         <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No {label.toLowerCase()} found</Text>
       ) : items.map(item => {
         const isPhone = isProxyEmail(item.email);
@@ -532,7 +532,7 @@ export default function AdminScreen({ navigation }) {
             <StatTile icon="🔑" label="Signed in"        value={growth?.signins     ?? '—'} color={C.accent} />
             <StatTile icon="🌱" label="Did 1+ act"       value={growth?.did_one_act ?? '—'} color={C.success} />
             <StatTile icon="🔥" label="30 days in a row" value={growth?.streak_30   ?? '—'} color={C.gold} />
-            <StatTile icon="⏰" label="Using reminders"  value={growth?.reminders   ?? '—'} color={C.primary} />
+            <StatTile icon="⏰" label="Using reminders"  value={growth?.reminders   ?? '—'} color={C.primaryText} />
           </View>
         </Card>
 
@@ -560,7 +560,7 @@ export default function AdminScreen({ navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Text style={s.section}>🔍 Review Acts of Kindness</Text>
               <TouchableOpacity onPress={fetchCompletions} style={s.refreshBtn}>
-                <Text style={{ color: C.primary, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
+                <Text style={{ color: C.primaryText, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
               </TouchableOpacity>
             </View>
             <View style={s.sortRow}>
@@ -575,7 +575,7 @@ export default function AdminScreen({ navigation }) {
             <TextInput value={compSearch} onChangeText={setCompSearch} placeholder="Search by email or act title..." placeholderTextColor={C.muted} style={s.searchInput} />
             {loadingCompletions ? (
               <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-                <ActivityIndicator color={C.primary} />
+                <ActivityIndicator color={C.primaryText} />
                 <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>Loading acts…</Text>
               </View>
             ) : filteredCompletions.length === 0 ? (
@@ -609,7 +609,7 @@ export default function AdminScreen({ navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Text style={s.section}>🗂 Manage Users</Text>
               <TouchableOpacity onPress={fetchUsers} style={s.refreshBtn}>
-                <Text style={{ color: C.primary, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
+                <Text style={{ color: C.primaryText, fontSize: 12, fontWeight: '700' }}>↻ Refresh</Text>
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 }}>
@@ -625,7 +625,7 @@ export default function AdminScreen({ navigation }) {
             </View>
             {loadingUsers ? (
               <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-                <ActivityIndicator color={C.primary} />
+                <ActivityIndicator color={C.primaryText} />
                 <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>Loading users…</Text>
               </View>
             ) : filteredUsers.length === 0 ? (
@@ -657,7 +657,7 @@ export default function AdminScreen({ navigation }) {
         {activeTab === 'groups' && (
           <Card>
             <Text style={s.section}>🏆 Groups</Text>
-            {loadingGroups ? <ActivityIndicator color={C.primary} style={{ marginTop: 12 }} /> : groups.length === 0 ? (
+            {loadingGroups ? <ActivityIndicator color={C.primaryText} style={{ marginTop: 12 }} /> : groups.length === 0 ? (
               <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No groups found</Text>
             ) : groups.map(g => (
               <View key={g.id} style={s.userRow}>
@@ -675,7 +675,7 @@ export default function AdminScreen({ navigation }) {
         {activeTab === 'zips' && (
           <Card>
             <Text style={s.section}>📍 ZIP Codes Covered</Text>
-            {loadingZips ? <ActivityIndicator color={C.primary} style={{ marginTop: 12 }} /> : zips.length === 0 ? (
+            {loadingZips ? <ActivityIndicator color={C.primaryText} style={{ marginTop: 12 }} /> : zips.length === 0 ? (
               <Text style={{ color: C.muted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No ZIP data found</Text>
             ) : zips.map((z, i) => (
               <View key={z.zip || i} style={s.userRow}>
@@ -736,7 +736,7 @@ const s = StyleSheet.create({
   tabBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', backgroundColor: C.card2, borderWidth: 1, borderColor: C.border },
   tabBtnActive:  { backgroundColor: C.primary, borderColor: C.primary },
   tabText:       { color: C.muted, fontWeight: '700', fontSize: 12 },
-  tabTextActive: { color: C.bg },
+  tabTextActive: { color: C.onPrimary },
   refreshBtn: { backgroundColor: C.primary + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   badge: { backgroundColor: C.surface, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   badgeText: { fontSize: 11, fontWeight: '700' },
@@ -745,7 +745,7 @@ const s = StyleSheet.create({
   sortBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: C.card2, borderWidth: 1, borderColor: C.border, marginRight: 8 },
   sortBtnActive:  { backgroundColor: C.primary + '33', borderColor: C.primary },
   sortText:       { color: C.muted, fontSize: 12, fontWeight: '600' },
-  sortTextActive: { color: C.primary, fontWeight: '700' },
+  sortTextActive: { color: C.primaryText, fontWeight: '700' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border + '44' },
   userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   userEmail: { color: C.text, fontSize: 13, fontWeight: '600' },
@@ -754,7 +754,7 @@ const s = StyleSheet.create({
   compRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border + '44' },
   compIcon: { width: 36, height: 36, borderRadius: 10, marginTop: 2, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   compTitle:  { color: C.text, fontSize: 13, fontWeight: '600' },
-  compMeta:   { color: C.primary, fontSize: 11, marginTop: 2 },
+  compMeta:   { color: C.primaryText, fontSize: 11, marginTop: 2 },
   compDate:   { color: C.muted, fontSize: 11, marginTop: 2 },
   compNotes:  { color: C.sub, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },

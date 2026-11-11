@@ -93,7 +93,7 @@ export default function RecognitionAdminScreen({ navigation }) {
         </View>
 
         {loading && orders.length === 0 ? (
-          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={C.primaryText} style={{ marginTop: 32 }} />
         ) : shown.length === 0 ? (
           <Text style={s.empty}>{tab === 'todo' ? 'Nothing to do - every order is shipped.' : 'No bracelet orders here.'}</Text>
         ) : (
@@ -145,7 +145,7 @@ export default function RecognitionAdminScreen({ navigation }) {
 
 const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 48 },
-  refresh: { color: C.primary, fontWeight: '700', fontSize: 15 },
+  refresh: { color: C.primaryText, fontWeight: '700', fontSize: 15 },
   empty: { color: C.sub, textAlign: 'center', marginTop: 40, fontSize: 15 },
   mb: { marginBottom: 14 },
   name: { color: C.text, fontSize: 18, fontWeight: '800' },
@@ -163,10 +163,10 @@ const s = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.5, borderColor: C.border },
   tabOn: { borderColor: C.primary, backgroundColor: C.primary + '22' },
   tabText: { color: C.sub, fontSize: 13.5, fontWeight: '700' },
-  tabTextOn: { color: C.primary },
+  tabTextOn: { color: C.primaryText },
   next: { color: '#e0b352', fontSize: 13, fontWeight: '700', marginBottom: 8, lineHeight: 18 },
   nextDone: { color: C.muted },
-  child: { color: C.primary, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  child: { color: C.primaryText, fontSize: 12, fontWeight: '700', marginTop: 2 },
   copyBtn: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: C.primary },
-  copyText: { color: C.primary, fontSize: 13, fontWeight: '700' },
+  copyText: { color: C.primaryText, fontSize: 13, fontWeight: '700' },
 });

@@ -158,7 +158,7 @@ export default function FamilyScreen({ navigation, user }) {
           </Text>
 
           {loading ? (
-            <ActivityIndicator color={C.primary} />
+            <ActivityIndicator color={C.primaryText} />
           ) : children.length === 0 ? (
             <Text style={s.empty}>No children added yet.</Text>
           ) : (
@@ -266,7 +266,7 @@ const s = StyleSheet.create({
   childName: { color: C.text, fontSize: 15, fontWeight: '700' },
   childAge:  { color: C.sub, fontSize: 12, marginTop: 2 },
   remove:    { color: C.error, fontSize: 13, fontWeight: '700' },
-  label:     { color: C.primary, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  label:     { color: C.primaryText, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
   chips:     { flexDirection: 'row', gap: 8, marginBottom: 16 },
   chip: {
     flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
@@ -274,15 +274,15 @@ const s = StyleSheet.create({
   },
   chipOn:     { borderColor: C.primary, backgroundColor: C.primary + '22' },
   chipText:   { color: C.sub, fontSize: 14, fontWeight: '700' },
-  chipTextOn: { color: C.primary },
+  chipTextOn: { color: C.primaryText },
   consentRow: { flexDirection: 'row', gap: 10, marginBottom: 16, alignItems: 'flex-start' },
   box: {
     width: 22, height: 22, borderRadius: 5, borderWidth: 1.5, borderColor: C.primary,
     alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
   boxOn:       { backgroundColor: C.primary },
-  tick:        { color: C.bg, fontSize: 14, fontWeight: '900' },
+  tick:        { color: C.onPrimary, fontSize: 14, fontWeight: '900' },
   consentText: { color: C.sub, fontSize: 12, lineHeight: 17, flex: 1 },
   codeNote:    { color: C.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
-  resend:      { color: C.primary, fontSize: 13, fontWeight: '700' },
+  resend:      { color: C.primaryText, fontSize: 13, fontWeight: '700' },
 });

@@ -622,7 +622,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       <ScreenHeader title="Settings"
         right={user?.role === 'OWNER' && (
           <TouchableOpacity onPress={() => navigate('admin')}>
-            <Text style={{ color: C.primary, fontSize: 13, fontWeight: '700' }}>Admin</Text>
+            <Text style={{ color: C.primaryText, fontSize: 13, fontWeight: '700' }}>Admin</Text>
           </TouchableOpacity>
         )}
       />
@@ -652,6 +652,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                 <Btn label="Go to Today's Act →" onPress={handleGoToChallenge} style={{ flex: 1 }} />
                 <Btn label="Log Out" variant="secondary" onPress={() => navigate('logout')} style={{ flex: 1, borderColor: C.error + '66' }} />
               </View>
+              <Btn label="🔍 Search my acts" variant="secondary" onPress={() => navigation.navigate('SearchActs')} />
               <Btn label="Start over at Day 1" variant="danger" onPress={handleRestart} />
             </View>
           )}
@@ -1036,7 +1037,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     <View style={s.modalHeader}>
       <Text style={s.modalTitle}>Select Age</Text>
       <TouchableOpacity onPress={() => setShowAgeBrackets(false)}>
-        <Text style={{ color: C.primary, fontSize: 16, fontWeight: '700' }}>Done</Text>
+        <Text style={{ color: C.primaryText, fontSize: 16, fontWeight: '700' }}>Done</Text>
       </TouchableOpacity>
     </View>
     {AGE_BRACKETS.map(b => (
@@ -1045,10 +1046,10 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
         onPress={() => { setAgeBracket(b.value); setShowAgeBrackets(false); }}
         style={[s.ageRow, ageBracket === b.value && { backgroundColor: C.primary + '22' }]}
       >
-        <Text style={[s.ageRowText, ageBracket === b.value && { color: C.primary, fontWeight: '700' }]}>
+        <Text style={[s.ageRowText, ageBracket === b.value && { color: C.primaryText, fontWeight: '700' }]}>
           {b.label}
         </Text>
-        {ageBracket === b.value && <Text style={{ color: C.primary }}>✓</Text>}
+        {ageBracket === b.value && <Text style={{ color: C.primaryText }}>✓</Text>}
       </TouchableOpacity>
     ))}
   </View>
@@ -1090,7 +1091,7 @@ const s = StyleSheet.create({
     borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.primary + '44', marginBottom: 12,
   },
   tzLabel: { color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
-  tzValue: { color: C.primary, fontSize: 14, fontWeight: '700' },
+  tzValue: { color: C.primaryText, fontSize: 14, fontWeight: '700' },
   helperText:    { color: C.muted, fontSize: 11, marginTop: -6, marginBottom: 12, fontStyle: 'italic' },
   helperTextTop: { color: C.muted, fontSize: 11, marginBottom: 12, fontStyle: 'italic', lineHeight: 16 },
   savedBanner: {
@@ -1102,7 +1103,7 @@ const s = StyleSheet.create({
     marginTop: 8, marginBottom: 14,
   },
   sectionHeader: {
-    color: C.primary, fontSize: 11, fontWeight: '900',
+    color: C.primaryText, fontSize: 11, fontWeight: '900',
     letterSpacing: 1, marginBottom: 6,
   },
   toggleRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
@@ -1114,7 +1115,7 @@ const s = StyleSheet.create({
     marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border,
   },
   reminderTimeLabel: {
-    color: C.primary, fontSize: 11, fontWeight: '900',
+    color: C.primaryText, fontSize: 11, fontWeight: '900',
     letterSpacing: 1, marginBottom: 10,
   },
   reminderTimeRow: {
@@ -1127,7 +1128,7 @@ const s = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 14,
   },
   reminderArrow: { paddingVertical: 10, paddingHorizontal: 16, minWidth: 44, alignItems: 'center' },
-  reminderArrowText: { color: C.primary, fontSize: 14, fontWeight: '900' },
+  reminderArrowText: { color: C.primaryText, fontSize: 14, fontWeight: '900' },
   reminderValue: {
     color: C.text, fontSize: 26, fontWeight: '800',
     fontVariant: ['tabular-nums'], minWidth: 36, textAlign: 'center',
@@ -1143,7 +1144,7 @@ const s = StyleSheet.create({
     backgroundColor: C.primary + '22', borderColor: C.primary,
   },
   reminderPeriodText: { color: C.muted, fontSize: 13, fontWeight: '700' },
-  reminderPeriodTextActive: { color: C.primary },
+  reminderPeriodTextActive: { color: C.primaryText },
   reminderSetRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, marginTop: 14,
@@ -1163,7 +1164,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 16,
   },
   reminderFlashText: {
-    color: C.bg, fontSize: 15, fontWeight: '900', textAlign: 'center',
+    color: C.onPrimary, fontSize: 15, fontWeight: '900', textAlign: 'center',
   },
 
   buildStamp: {
@@ -1186,7 +1187,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6,
   },
   smsConsentLink: {
-    color: C.primary, fontSize: 11, fontWeight: '700', textDecorationLine: 'underline',
+    color: C.primaryText, fontSize: 11, fontWeight: '700', textDecorationLine: 'underline',
   },
   smsConsentDot: { color: C.muted, fontSize: 11 },
   smsConsentStamp: {

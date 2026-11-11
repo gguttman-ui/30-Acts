@@ -731,7 +731,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           <Text style={s.otpTitle}>Check your texts</Text>
           <Text style={s.otpSub}>
             We sent a 6-digit code to{'\n'}
-            <Text style={{ color: C.primary, fontWeight: '700' }}>{phone}</Text>
+            <Text style={{ color: C.primaryText, fontWeight: '700' }}>{phone}</Text>
             {'\n\n'}Enter it below to verify your account.
           </Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
@@ -752,7 +752,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           </View>
           <Btn label="Verify" onPress={handleVerifyOtp} loading={loading} style={{ width: '100%', marginBottom: 14 }} />
           <TouchableOpacity onPress={handleResend} disabled={loading}>
-            <Text style={{ color: C.primary, fontWeight: '600', fontSize: 14 }}>
+            <Text style={{ color: C.primaryText, fontWeight: '600', fontSize: 14 }}>
               Didn't get it? Resend code
             </Text>
           </TouchableOpacity>
@@ -768,7 +768,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
             style={[{ marginTop: 14 }, voiceNudge && s.callMeBtn]}
           >
             <Text style={[
-              { color: C.primary, fontWeight: voiceNudge ? '800' : '600', fontSize: 14 },
+              { color: C.primaryText, fontWeight: voiceNudge ? '800' : '600', fontSize: 14 },
               voiceNudge && { textAlign: 'center' },
             ]}>
               📞  Call me with the code instead
@@ -858,7 +858,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
           activeOpacity={0.7}
         >
           <View style={[s.checkbox, showMission && s.checkboxChecked]}>
-            {showMission && <Text style={{ color: C.bg, fontSize: 12, fontWeight: '900' }}>✓</Text>}
+            {showMission && <Text style={{ color: C.onPrimary, fontSize: 12, fontWeight: '900' }}>✓</Text>}
           </View>
           <Text style={s.checkLabel}>Show our mission before continuing</Text>
         </TouchableOpacity>
@@ -901,7 +901,7 @@ const s = StyleSheet.create({
   toggleBtn:        { flex: 1, paddingVertical: 11, borderRadius: 11, alignItems: 'center' },
   toggleActive:     { backgroundColor: C.primary },
   toggleText:       { color: C.muted, fontWeight: '700', fontSize: 14 },
-  toggleTextActive: { color: C.bg },
+  toggleTextActive: { color: C.onPrimary },
   inputLabel: { color: C.sub, fontSize: 12, fontWeight: '700', marginBottom: 7, letterSpacing: 0.5, textTransform: 'uppercase' },
   phoneHelper: { color: C.muted, fontSize: 11, marginTop: -6, marginBottom: 12, fontStyle: 'italic' },
   newHint: { color: C.sub, fontSize: 13, lineHeight: 19, marginTop: 4, marginBottom: 14 },
@@ -909,7 +909,7 @@ const s = StyleSheet.create({
   errorText: { color: C.error, fontSize: 11, marginTop: 3, marginBottom: 10 },
   tzPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.primary + '44', marginBottom: 16 },
   tzLabel: { color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
-  tzValue: { color: C.primary, fontSize: 14, fontWeight: '700' },
+  tzValue: { color: C.primaryText, fontSize: 14, fontWeight: '700' },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 4 },
   checkbox: {
     width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: C.primary,
@@ -919,7 +919,7 @@ const s = StyleSheet.create({
   checkLabel: { color: C.sub, fontSize: 14, flex: 1 },
   terms: { color: C.muted, fontSize: 11, textAlign: 'center', marginTop: 20, marginBottom: 6 },
   legalLinks: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 8 },
-  legalLink: { color: C.primary, fontSize: 11, fontWeight: '600', textDecorationLine: 'underline' },
+  legalLink: { color: C.primaryText, fontSize: 11, fontWeight: '600', textDecorationLine: 'underline' },
   otpWrap:  { flexGrow: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 32 },
   otpTitle: { color: C.text, fontSize: 22, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
   otpSub:   { color: C.sub, fontSize: 15, textAlign: 'center', lineHeight: 24, marginBottom: 28 },
@@ -934,19 +934,19 @@ const s = StyleSheet.create({
   remTimeRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
   remCol:       { alignItems: 'center' },
   remArrow:     { padding: 6 },
-  remArrowTxt:  { color: C.primary, fontSize: 18, fontWeight: '900' },
+  remArrowTxt:  { color: C.primaryText, fontSize: 18, fontWeight: '900' },
   remValue:     { color: C.text, fontSize: 34, fontWeight: '900', minWidth: 54, textAlign: 'center', fontVariant: ['tabular-nums'] },
   remColon:     { color: C.text, fontSize: 30, fontWeight: '900', marginHorizontal: 2 },
   remPeriodWrap:{ marginLeft: 10, gap: 6 },
   remPeriodBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: C.border },
   remPeriodBtnActive: { backgroundColor: C.primary + '22', borderColor: C.primary },
   remPeriodTxt: { color: C.sub, fontSize: 14, fontWeight: '800' },
-  remPeriodTxtActive: { color: C.primary },
+  remPeriodTxtActive: { color: C.primaryText },
   remConsent:   { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 17, marginTop: 4 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   modalTitle: { color: C.text, fontSize: 18, fontWeight: '800' },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border + '44' },
-  stateCode: { color: C.primary, fontWeight: '700', fontSize: 14, width: 40 },
+  stateCode: { color: C.primaryText, fontWeight: '700', fontSize: 14, width: 40 },
   stateName: { color: C.text, fontSize: 14, flex: 1 },
 
   kbBar: {

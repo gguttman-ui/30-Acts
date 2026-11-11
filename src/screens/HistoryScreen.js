@@ -156,7 +156,7 @@ export function HistoryScreen({ route, navigation, days }) {
               style={[s.row, { borderColor: isCompleted ? C.primary + '44' : C.border }]}
             >
               <View style={[s.circle, { backgroundColor: isCompleted ? C.primary + '33' : C.surface }]}>
-                <Text style={[s.circleNum, isCompleted && { color: C.primary }]}>{day.dayNumber}</Text>
+                <Text style={[s.circleNum, isCompleted && { color: C.primaryText }]}>{day.dayNumber}</Text>
               </View>
               {icon && (
                 <Text style={s.categoryIcon}>{icon}</Text>
@@ -720,7 +720,7 @@ return () => { cancelled = true; };
             <View style={s.mediaWrap}>
               {mediaLoading ? (
                 <View style={s.mediaPlaceholder}>
-                  <ActivityIndicator color={C.primary} />
+                  <ActivityIndicator color={C.primaryText} />
                   <Text style={s.mediaPlaceholderText}>Loading {day.proofType}…</Text>
                 </View>
               ) : mediaUri && !mediaError && day.proofType === 'photo' ? (

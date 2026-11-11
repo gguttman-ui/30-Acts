@@ -77,7 +77,7 @@ export default function TreeScreen({ user }) {
       <ScreenHeader title="My Tree" />
       <ScrollView contentContainerStyle={s.scroll}>
         {loading ? (
-          <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 100 }} />
+          <ActivityIndicator size="large" color={C.primaryText} style={{ marginTop: 100 }} />
         ) : (
           <>
             <View style={s.treeWrap}>
@@ -116,7 +116,7 @@ const s = StyleSheet.create({
   },
   tree: { width: '100%', height: '100%' },
   stageLabel: {
-    color: C.primary, fontSize: 12, fontWeight: '900',
+    color: C.primaryText, fontSize: 12, fontWeight: '900',
     letterSpacing: 1.5, marginTop: -8, marginBottom: 24,
   },
   statsRow: {

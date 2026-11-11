@@ -347,12 +347,12 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
                   <Text
                     style={[
                       s.pickerRowText,
-                      isActive && { color: C.primary, fontWeight: '700' },
+                      isActive && { color: C.primaryText, fontWeight: '700' },
                     ]}
                   >
                     {cat.label}
                   </Text>
-                  {isActive && <Text style={{ color: C.primary }}>✓</Text>}
+                  {isActive && <Text style={{ color: C.primaryText }}>✓</Text>}
                 </TouchableOpacity>
               );
             })}
@@ -388,12 +388,12 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
                 <Text
                   style={[
                     s.pickerRowText,
-                    isActive && { color: C.primary, fontWeight: '700' },
+                    isActive && { color: C.primaryText, fontWeight: '700' },
                   ]}
                 >
                   {b.label}
                 </Text>
-                {isActive && <Text style={{ color: C.primary }}>✓</Text>}
+                {isActive && <Text style={{ color: C.primaryText }}>✓</Text>}
               </TouchableOpacity>
             );
           })}
@@ -440,12 +440,12 @@ const DropdownRow = ({ value, placeholder, onPress }) => (
                 <Text
                   style={[
                     s.pickerRowText,
-                    isActive && { color: C.primary, fontWeight: '700' },
+                    isActive && { color: C.primaryText, fontWeight: '700' },
                   ]}
                 >
                   {b.label}
                 </Text>
-                {isActive && <Text style={{ color: C.primary }}>✓</Text>}
+                {isActive && <Text style={{ color: C.primaryText }}>✓</Text>}
               </TouchableOpacity>
             );
           })}
@@ -482,7 +482,7 @@ const s = StyleSheet.create({
   hint:   { color: C.muted, fontSize: 11, marginTop: 8, fontStyle: 'italic' },
 
   sectionLabel: {
-    color: C.primary, fontSize: 11, fontWeight: '900',
+    color: C.primaryText, fontSize: 11, fontWeight: '900',
     letterSpacing: 1, marginTop: 16, marginBottom: 10,
   },
 
@@ -505,7 +505,7 @@ dropdownBtn: {
     padding: 16, borderBottomWidth: 1, borderBottomColor: C.border,
   },
   modalTitle: { color: C.text, fontSize: 18, fontWeight: '800' },
-  modalDone:  { color: C.primary, fontSize: 16, fontWeight: '700' },
+  modalDone:  { color: C.primaryText, fontSize: 16, fontWeight: '700' },
 
   pickerRow: {
     flexDirection: 'row', alignItems: 'center',

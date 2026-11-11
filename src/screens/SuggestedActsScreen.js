@@ -84,7 +84,7 @@ export default function SuggestedActsScreen({ navigation, user }) {
       </View>
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator color={C.primary} /></View>
+        <View style={s.center}><ActivityIndicator color={C.primaryText} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           {shown.length === 0 ? (
@@ -137,9 +137,9 @@ const s = StyleSheet.create({
   },
   chipActive:     { backgroundColor: C.primary + '22', borderColor: C.primary },
   chipText:       { color: C.muted, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: C.primary },
+  chipTextActive: { color: C.primaryText },
   refresh:        { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 4 },
-  refreshText:    { color: C.primary, fontSize: 20, fontWeight: '800' },
+  refreshText:    { color: C.primaryText, fontSize: 20, fontWeight: '800' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   empty:  { color: C.muted, textAlign: 'center', marginTop: 40, fontSize: 14 },
