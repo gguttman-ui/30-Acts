@@ -12,8 +12,16 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": { "APP_VARIANT": "staging", "SENTRY_DISABLE_AUTO_UPLOAD": "true", "EXPO_PUBLIC_SUPABASE_URL": "https://rhalruwxylggkrebyesf.supabase.co", "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_whYqt4BClhIuHziqHbl-0A_NtA44idG" },
-      "channel": "preview"
+      "env": {
+        "APP_VARIANT": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rhalruwxylggkrebyesf.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_whYqt4BClhIuHziqHbl-0A_NtA44idG"
+      },
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "staging": {
       "extends": "preview",
@@ -32,6 +40,9 @@
       },
       "ios": {
         "credentialsSource": "remote"
+      },
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },
@@ -48,6 +59,11 @@
         "appleId": "gguttman@compuserve.com",
         "ascAppId": "6762151038",
         "appleTeamId": "JMY3RHV7MA"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }

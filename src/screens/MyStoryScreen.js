@@ -103,7 +103,7 @@ function localISOString(date = new Date()) {
 
 const saveToCameraRoll = async (uri) => {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(true); // save-only: no photo-library read access (Play policy, 71i)
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'We need photo library access to share to Instagram or TikTok.');
       return null;

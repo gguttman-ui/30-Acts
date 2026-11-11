@@ -59,7 +59,7 @@ const openOrFallback = async (appUrl, webUrl, appName) => {
 // Saves an image to the photo library so it can be picked in Facebook/TikTok.
 const saveToCameraRoll = async (uri) => {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(true); // save-only: no photo-library read access (Play policy, 71i)
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'We need photo library access to share to Facebook or TikTok.');
       return null;
