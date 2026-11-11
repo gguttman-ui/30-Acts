@@ -24,7 +24,7 @@ export default function SearchActsScreen({ navigation, user }) {
         if (!phone) return;
         const { data, error } = await supabase
           .from('completions')
-          .select('id, act_title, completed_at, local_date')
+          .select('id, act_title, notes, completed_at, local_date')
           .eq('user_phone', phone)
           .order('completed_at', { ascending: false });
         if (error) console.warn('Search my acts load failed:', error.message);
@@ -89,7 +89,12 @@ export default function SearchActsScreen({ navigation, user }) {
                 accessibilityRole="button"
               >
                 <Text style={s.date}>{actDateLabel(item)}</Text>
-                <Text style={s.title} numberOfLines={open ? undefined : 2}>{item.act_title}</Text>
+                {item.act_title ? (
+                  <Text style={s.title} numberOfLines={open ? undefined : 2}>{item.act_title}</Text>
+                ) : null}
+                {item.notes ? (
+                  <Text style={s.story} numberOfLines={open ? undefined : 2}>{item.notes}</Text>
+                ) : null}
               </TouchableOpacity>
             );
           }}
@@ -115,4 +120,5 @@ const s = StyleSheet.create({
   },
   date: { color: C.muted, fontSize: 11, marginBottom: 4 },
   title: { color: C.text, fontSize: 15, lineHeight: 21 },
+  story: { color: C.muted, fontSize: 14, lineHeight: 20, marginTop: 4 },
 });

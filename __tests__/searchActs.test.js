@@ -24,6 +24,27 @@ describe('Search my acts', () => {
   test('no match gives an empty list', () => {
     expect(filterActs(rows, 'zebra')).toEqual([]);
   });
+  test('finds names written in the story (notes), not only the title', () => {
+    const withStories = [
+      { id: 5, act_title: 'Brought soup to a sick friend', notes: 'Patti had the flu so I made her chicken soup' },
+      { id: 6, act_title: 'Helped a coworker', notes: 'Stayed late to help Michał finish his report' },
+      { id: 7, act_title: '', notes: 'Drove Patti to the doctor' },
+      { id: 8, act_title: 'Held the door', notes: null },
+    ];
+    expect(filterActs(withStories, 'patti').map((r) => r.id)).toEqual([5, 7]);
+    expect(filterActs(withStories, 'Michal').map((r) => r.id)).toEqual([6]);
+    expect(filterActs(withStories, 'michał report').map((r) => r.id)).toEqual([6]);
+    expect(filterActs(withStories, '').map((r) => r.id)).toEqual([5, 6, 7, 8]);
+  });
+  test('curly and straight apostrophes match', () => {
+    const r = [{ id: 9, act_title: 'Fixed my neighbor’s fence' }];
+    expect(filterActs(r, "neighbor's").map((x) => x.id)).toEqual([9]);
+  });
+  test('screen loads and shows the story', () => {
+    const src = read('src/screens/SearchActsScreen.js');
+    expect(src).toMatch(/select\('id, act_title, notes,/);
+    expect(src).toMatch(/item\.notes/);
+  });
   test('date label from local_date, else completed_at', () => {
     expect(actDateLabel(rows[0])).toBe('Nov 3, 2026');
     expect(actDateLabel(rows[3])).toMatch(/Oct 1, 2026|Sep 30, 2026/);
