@@ -12,7 +12,7 @@ import { lookupZip } from '../lib/zip';
 import { nameErrors, cleanName } from '../lib/nameRules';
 import { supabase } from '../lib/supabase';
 import { applyPendingReferral } from '../lib/branch';
-import { applyOtpInput } from '../lib/otpInput';
+import { normalizeOtpText, otpBoxes, OTP_LENGTH } from '../lib/otpInput';
 
 // Apple demo account bypass — documented in App Store Connect's
 // "App Review Information" field. Reviewers enter this phone + OTP
@@ -153,7 +153,7 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   // After ~1 minute on the code screen without success, actively surface the
   // "call me" option for people whose text is delayed or filtered.
   const [voiceNudge, setVoiceNudge] = useState(false);
-  const inputs = useRef([]);
+  const otpField = useRef(null);
 
   // Start/reset the 60s "offer a call" timer whenever the code screen appears.
   useEffect(() => {
@@ -304,15 +304,15 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
     }
   };
 
-  // Paste or autofill into ANY box fills all six (src/lib/otpInput.js).
-  const handleDigitChange = (text, index) => {
-    const { code: newCode, next } = applyOtpInput(otpCode, index, text);
-    setOtpCode(newCode);
-    if (next === null) {
-      inputs.current[5]?.blur();
+  // ONE hidden field holds the whole code; the six boxes only show it.
+  // Typing, paste (one change or one per digit), autofill or the whole text
+  // message all land in that field (src/lib/otpInput.js, item 105).
+  const handleOtpText = (text) => {
+    const code = normalizeOtpText(text);
+    setOtpCode(otpBoxes(code));
+    if (code.length === OTP_LENGTH) {
+      otpField.current?.blur();
       Keyboard.dismiss();
-    } else if (next !== index) {
-      inputs.current[next]?.focus();
     }
   };
 
@@ -734,21 +734,36 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
             <Text style={{ color: C.primaryText, fontWeight: '700' }}>{phone}</Text>
             {'\n\n'}Enter it below to verify your account.
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
-            {otpCode.map((digit, i) => (
-              <TextInput
-                key={i}
-                ref={ref => inputs.current[i] = ref}
-                value={digit}
-                onChangeText={text => handleDigitChange(text, i)}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                autoComplete="sms-otp"
-                autoFocus={i === 0}
-                inputAccessoryViewID={KB_DONE_ID}
-                style={[s.otpInput, { borderColor: digit ? C.primary : C.border }]}
-              />
-            ))}
+          <View style={{ marginBottom: 28 }}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {otpCode.map((digit, i) => {
+                const filled = otpCode.join('').length;
+                const current = i === Math.min(filled, OTP_LENGTH - 1);
+                return (
+                  <View
+                    key={i}
+                    style={[s.otpInput, s.otpBox, { borderColor: digit || current ? C.primary : C.border }]}
+                  >
+                    <Text style={s.otpDigit}>{digit}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            {/* The real field lies invisibly over the boxes: tapping or
+                long-pressing a box (Paste) reaches it. No length limit (see otpInput.js). */}
+            <TextInput
+              ref={otpField}
+              value={otpCode.join('')}
+              onChangeText={handleOtpText}
+              keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              autoFocus
+              caretHidden
+              inputAccessoryViewID={KB_DONE_ID}
+              accessibilityLabel="Six-digit code"
+              style={s.otpHiddenField}
+            />
           </View>
           <Btn label="Verify" onPress={handleVerifyOtp} loading={loading} style={{ width: '100%', marginBottom: 14 }} />
           <TouchableOpacity onPress={handleResend} disabled={loading}>
@@ -924,6 +939,10 @@ const s = StyleSheet.create({
   otpTitle: { color: C.text, fontSize: 22, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
   otpSub:   { color: C.sub, fontSize: 15, textAlign: 'center', lineHeight: 24, marginBottom: 28 },
   otpInput: { width: 48, height: 58, borderRadius: 12, backgroundColor: C.card2, borderWidth: 2, color: C.text, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  otpBox: { alignItems: 'center', justifyContent: 'center' },
+  otpDigit: { color: C.text, fontSize: 24, fontWeight: '900' },
+  // Covers the six boxes; text and background invisible so only the boxes show.
+  otpHiddenField: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, color: 'transparent', backgroundColor: 'transparent', fontSize: 1, opacity: 0.02 },
   voiceNudgeText: { color: C.sub, fontSize: 13, textAlign: 'center', marginTop: 18, lineHeight: 18, paddingHorizontal: 8 },
   callMeBtn: { borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: 'stretch' },
   // Reminder opt-in step (end of sign-up)

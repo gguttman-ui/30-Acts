@@ -1,50 +1,39 @@
-// otpInput.js -- the six code boxes on the sign-in screen.
+// otpInput.js -- the sign-in code on the code screen.
 //
-// Android (Moto G75, 26 Oct 2026): pasting the texted code filled only one
-// box. Every box but the first had maxLength 1, so Android cut the paste to a
-// single digit before the app saw it, and only the FIRST box, when EMPTY,
-// accepted a whole code. Now every box takes the full text and this function
-// decides what it was: a whole code (paste or autofill) fills all six boxes
-// from wherever it landed; anything else is one typed digit.
+// History:
+// - 26 Oct 2026 (Moto G75, item 91): pasting filled one box because every box
+//   but the first had maxLength 1, so Android cut the paste to one digit.
+// - 13 Nov 2026 (Moto G75, Play build, item 105): tapping the code in Messages
+//   to copy it and pasting still left only the LAST digit. Some Android paths
+//   deliver a paste as one change per digit; with six separate boxes every
+//   digit landed in the same box before focus could move on.
+//
+// Fix (105): the screen has ONE hidden text field holding the whole code; the
+// six boxes only display it. Whatever Android sends - one change or six,
+// typed, pasted, autofilled or the whole text message - ends up in one field,
+// and this function turns that field's text into the code.
+// No maxLength on the field: Android trims a paste to maxLength BEFORE the app
+// sees it, which would cut "Your 30 Acts verification code is: 917615".
+
+export const OTP_LENGTH = 6;
 
 /**
- * @param {string[]} code   current six digits ('' for empty)
- * @param {number}   index  the box that changed
- * @param {string}   text   that box's new text
- * @returns {{ code: string[], next: number | null }}
- *   next = box to focus, or null when all six are filled.
+ * @param {string} text  the hidden field's whole text
+ * @returns {string}     0-6 digits, in order
  */
-export function applyOtpInput(code, index, text) {
+export function normalizeOtpText(text) {
   const raw = String(text || '');
-
-  // The whole text message pasted ("Your 30 Acts verification code is:
-  // 482913"): take the 6-digit code itself, not every digit in the text
-  // (the "30" in the message is not part of the code). Moto G75, 26 Oct 2026.
-  // A longer run (a code pasted over a digit already in the box, "7482913")
-  // keeps its last six.
+  // A whole code inside other text (the whole message pasted): take the
+  // 6-digit run, not every digit (the "30" in the message is not the code).
+  // A longer run (a code pasted after digits already typed) keeps its last six.
   const runs = raw.match(/\d{6,}/g);
-  if (runs) {
-    return { code: runs[runs.length - 1].slice(-6).split(''), next: null };
-  }
+  if (runs) return runs[runs.length - 1].slice(-OTP_LENGTH);
+  // Otherwise digits as typed (spaces or dashes ignored), at most six.
+  return raw.replace(/[^0-9]/g, '').slice(0, OTP_LENGTH);
+}
 
-  const digits = raw.replace(/[^0-9]/g, '');
-
-  // A whole code - pasted, autofilled, or pasted over a digit already there.
-  if (digits.length >= 6) {
-    return { code: digits.slice(-6).split(''), next: null };
-  }
-
-  // Part of a code (3-5 digits pasted): fill forward from this box.
-  if (digits.length >= 3) {
-    const out = [...code];
-    let i = index;
-    for (const d of digits) { if (i > 5) break; out[i] = d; i += 1; }
-    return { code: out, next: i > 5 ? null : i };
-  }
-
-  // One typed digit (or a digit typed over an existing one), or a deletion.
-  const out = [...code];
-  out[index] = digits.slice(-1);
-  if (!out[index]) return { code: out, next: index };
-  return { code: out, next: index < 5 ? index + 1 : null };
+/** The six boxes to display for a code string. */
+export function otpBoxes(code) {
+  const c = String(code || '');
+  return Array.from({ length: OTP_LENGTH }, (_, i) => c[i] || '');
 }
