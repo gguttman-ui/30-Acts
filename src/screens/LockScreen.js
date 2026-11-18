@@ -73,6 +73,17 @@ export default function LockScreen({ onUnlock, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fix 1 (18 Nov 2026): while Face ID is starting (or after it succeeded)
+  // show only the logo - the "Welcome back" screen with buttons appears ONLY if
+  // Face ID fails.
+  if (status !== 'failed') {
+    return (
+      <View style={s.wrap}>
+        <Image source={require('../../assets/logo.png')} style={s.logo} resizeMode="contain" />
+      </View>
+    );
+  }
+
   return (
     <View style={s.wrap}>
       {/* Heart logo replaces the dove emoji */}

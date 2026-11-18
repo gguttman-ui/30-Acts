@@ -21,6 +21,7 @@ import { deletionBreaksStreak, loadGridReadOnly } from './src/lib/streak';
 import { actingPhone, setActingMember, subscribeActing } from './src/lib/actingAs';
 import { setRestartMarker } from './src/lib/restartMarker';
 import { initBranch } from './src/lib/branch';
+import { faceIdLockOn } from './src/lib/faceIdDefault';
 import { checkForUpdateInBackground } from './src/lib/appUpdates';
 import { syncReminderTimezone } from './src/lib/reminderTimezone';
 import * as Sentry from '@sentry/react-native';
@@ -309,8 +310,8 @@ const reloadDays = async (email) => {
     await upsertProfile({ email, firstName: finalFirstName, lastName: finalLastName, phone, state: finalState, timezone: finalTimezone, role });
     await reloadDays(email);
 
-    const biometricEnabled = await AsyncStorage.getItem('biometric_enabled');
-    if (biometricEnabled === 'true') {
+    // Fix 1: Face ID lock is off unless the person turned it on (faceIdDefault.js).
+    if (await faceIdLockOn()) {
       setBiometricLocked(true);
     }
   };
@@ -340,8 +341,7 @@ const handleLogout = async (reason) => {
   //     remembered phone and sends a code immediately.
   const handleWelcomeBack = async () => {
     setGoodbye(false);
-    const biometricEnabled = await AsyncStorage.getItem('biometric_enabled');
-    if (biometricEnabled === 'true') {
+    if (await faceIdLockOn()) {
       setBiometricLocked(true);
       return;
     }
@@ -469,12 +469,11 @@ const handleComplete = async (completedDay) => {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <LockScreen
-onUnlock={async () => {
-  // Refresh data from Supabase BEFORE unlocking so the calendar
-  // never mounts with stale/empty state. daysReloading shows a
-  // loading state inside LockScreen if it takes a beat.
-  if (user?.email) await reloadDays(user.email);
+onUnlock={() => {
+  // Fix 1 (18 Nov 2026): open Home straight away - no "Loading your acts"
+  // screen. The days were already loaded at sign-in; refresh in the background.
   setBiometricLocked(false);
+  if (user?.email) reloadDays(user.email).catch(() => {});
 }}
           onLogout={handleHardLogout}
         />

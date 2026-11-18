@@ -21,6 +21,7 @@ import { useActingMember } from '../components/ProfileSwitcher';
 import QRCode from 'react-native-qrcode-svg';
 import * as Updates from 'expo-updates';
 import { nameProblem, cleanName } from '../lib/nameRules';
+import { faceIdLockOn } from '../lib/faceIdDefault';
 
 // iOS-only: nativeID for the keyboard Done bar.
 const KB_DONE_ID = 'settingsKbDone';
@@ -269,8 +270,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
           }
         }
 
-        const stored = await AsyncStorage.getItem('biometric_enabled');
-        setBiometricEnabled(stored === 'true');
+        // Fix 1: same rule as App.js - off unless the person turned it on.
+        setBiometricEnabled(await faceIdLockOn());
       } catch (e) {
         console.warn('Biometric check failed:', e.message);
       }

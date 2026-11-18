@@ -55,14 +55,13 @@ describe('Home wiring', () => {
     expect(body).not.toMatch(/requestAnimationFrame/);
   });
 
-  test('Start over and Document "Yes" also wait', () => {
+  test('Start over also waits; the launch "Document your act?" pop-up is gone (fix 1)', () => {
     expect(HOME).toMatch(/handleMissedRestart = \(\) => \{ setMissedPrompt\(false\); afterMissedClose\.schedule\(/);
-    expect(HOME).toMatch(/afterDocumentClose\.schedule\(\(\) => navigation\.navigate\('MyStory'\)\)/);
+    expect(HOME).not.toMatch(/Document your Act of Kindness\?/);
   });
 
   test('the two pop-ups show only while Home is in front, and report closing', () => {
     expect(HOME).toMatch(/visible=\{missedPrompt && isFocused\}[^>]*onDismiss=\{afterMissedClose\.onDismiss\}/);
-    expect(HOME).toMatch(/visible=\{documentPrompt && isFocused\}[^>]*onDismiss=\{afterDocumentClose\.onDismiss\}/);
   });
 });
 

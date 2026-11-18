@@ -26,7 +26,6 @@ import { getRestartMarker, setRestartMarker } from '../lib/restartMarker';
 
 const PROOF_CAMERA_ICON = require('../assets/proof/Camera.png');
 const PROOF_VIDEO_ICON  = require('../assets/proof/Video.png');
-const APP_LOGO          = require('../../assets/logo.png');
 
 const PROOF_TYPES = ['photo', 'video', 'story'];
 
@@ -58,12 +57,10 @@ const extractPhone = (email) => actingPhone(email);
 
 // Shows the "Document your act?" prompt once per app session (the first time
 // the calendar grid loads). Resets on a full app restart, not on tab switches.
-let documentPromptShownThisSession = false;
 
 export default function HomeScreen({ days, daysReloading, navigation, onRestart, onLogout, user, onReloadDays }) {
 const [confirmRestart, setConfirmRestart] = useState(false);
 const [missedPrompt,   setMissedPrompt]   = useState(false);
-const [documentPrompt, setDocumentPrompt] = useState(false);
 const [seedingTest,    setSeedingTest]    = useState(false);
 const [resettingTest,  setResettingTest]  = useState(false);
 const [exporting,      setExporting]      = useState(false);
@@ -82,7 +79,6 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // Item 93: act only once a pop-up has finished closing (src/lib/afterModalClose.js),
   // and show these pop-ups only while Home is the screen in front.
   const afterMissedClose   = useRef(createAfterClose()).current;
-  const afterDocumentClose = useRef(createAfterClose()).current;
   const isFocused = useIsFocused();
 
   // Past tiers built from completions. Each entry is { tierNumber, days[] }.
@@ -252,29 +248,8 @@ const [confirmSeed,    setConfirmSeed]    = useState(false);
   // The module-level guard below prevents it re-firing on every tab switch
   // back to the calendar within the same session. Defers to the
   // missed-yesterday prompt so two modals never stack.
-  useEffect(() => {
-    if (!days || missedPrompt) return;
-    // If the missed-yesterday prompt was shown, the user is already mid-flow
-    // (adding yesterday, restarting, or dismissing). Do not stack a second modal
-    // on top -- presenting one during the navigation transition freezes the
-    // dashboard until a tab switch remounts it.
-    if (missedEverRef.current) return;
-    // If today's act is already done (or there's no open day for today), don't
-    // prompt to document — just leave the user on the dashboard.
-    const todayDay = days.find(d => d.scheduledDate === today);
-    if (!todayDay || todayDay.status === 'COMPLETED') return;
-    if (documentPromptShownThisSession) return;
-    documentPromptShownThisSession = true;
-    setDocumentPrompt(true);
-  }, [days, missedPrompt]);
-
-  // "Yes" → go straight to the new low-friction story screen.
-  const handleDocumentYes = () => {
-    setDocumentPrompt(false);
-    afterDocumentClose.schedule(() => navigation.navigate('MyStory'));
-  };
-  // "No" → stay on the calendar.
-  const handleDocumentNo = () => setDocumentPrompt(false);
+  // Fix 1 (18 Nov 2026): no launch pop-up asking to document today's act -
+  // Home's Today tile is the way in.
 
 
   const openEditableDay = (day) => {
@@ -854,19 +829,6 @@ const handleConfirmWipe = async () => {
         </View>
       </Modal>
 
-      <Modal visible={documentPrompt && isFocused} transparent animationType="fade" onDismiss={afterDocumentClose.onDismiss}>
-        <View style={s.modalBg}>
-          <View style={s.modalCard}>
-            <Image source={APP_LOGO} style={s.docPromptLogo} resizeMode="contain" />
-            <Text style={s.modalTitle}>Document your Act of Kindness?</Text>
-            <Text style={s.modalBody}>
-              Want to write down an act of kindness you did today?
-            </Text>
-            <Btn label="Yes" onPress={handleDocumentYes} style={{ marginBottom: 10 }} />
-            <Btn label="No" onPress={handleDocumentNo} variant="secondary" />
-          </View>
-        </View>
-      </Modal>
 
       <Modal visible={confirmRestart} transparent animationType="fade">
         <View style={s.modalBg}>
@@ -1095,7 +1057,6 @@ grid: {
     backgroundColor: C.card, borderRadius: 22, padding: 28,
     borderWidth: 1.5, borderColor: C.primary + '55', width: '100%',
   },
-  docPromptLogo: { width: sf(72), height: sf(72), alignSelf: 'center', marginBottom: 12 },
   modalTitle: { color: C.text, fontSize: sf(19), fontWeight: '900', textAlign: 'center', marginBottom: 8 },  modalBody: { color: C.sub, fontSize: sf(14), lineHeight: 22, textAlign: 'center', marginBottom: 24 },
   dismissLink: { color: C.muted, fontSize: sf(13), textAlign: 'center', marginTop: 6, textDecorationLine: 'underline' },
 
