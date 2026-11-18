@@ -16,6 +16,7 @@ import { AppInput, Btn, Card, ScreenHeader } from '../components';
 import { Text } from '../components/scaledText';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
+import { loadMyChildren } from '../lib/myChildren';
 import { extractPhone } from '../lib/streak';
 import { cleanName } from '../lib/nameRules';
 import {
@@ -41,10 +42,8 @@ export default function FamilyScreen({ navigation, user }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('family_members')
-      .select('id, first_name, age_range, member_key, created_at')
-      .order('created_at', { ascending: true });
+    // Only MY children - admins can read every family (item 109).
+    const { data, error } = await loadMyChildren('id, first_name, age_range, member_key, created_at');
     if (error) {
       Alert.alert('Could not load your family', error.message);
     } else {

@@ -9,7 +9,7 @@ import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { Text } from './scaledText';
 import { C } from '../constants';
-import { supabase } from '../lib/supabase';
+import { loadMyChildren } from '../lib/myChildren';
 import { getActingMember, setActingMember, subscribeActing } from '../lib/actingAs';
 
 /** Re-renders the caller whenever the selected person changes. */
@@ -30,10 +30,8 @@ export default function ProfileSwitcher({ parentName }) {
     if (!isFocused) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('family_members')
-        .select('member_key, first_name')
-        .order('created_at', { ascending: true });
+      // Only MY children - admins can read every family (item 109).
+      const { data, error } = await loadMyChildren('member_key, first_name');
       if (cancelled || error) return;
       const list = data || [];
       setChildren(list);
