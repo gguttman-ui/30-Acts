@@ -11,10 +11,7 @@ import { DB_ENVIRONMENT, PROJECT_REF } from '../lib/supabase';
 import { versionLabel, buildDetails, NATIVE_BUILD } from '../lib/buildInfo';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
-import { extractPhone } from '../lib/streak';
-
-// Where "Report a Problem" sends support email.
-const SUPPORT_EMAIL = 'info@30actsofkindness.org';
+import { reportProblem } from '../lib/reportProblem';
 
 // Build number shown in Help and in problem reports: src/lib/buildInfo.js.
 const APP_BUILD = NATIVE_BUILD[Platform.OS] || '?';
@@ -39,30 +36,11 @@ export default function HelpScreen({ user, navigation }) {
     Alert.alert('Sentry test sent', `Event ${eventId ? eventId.slice(0, 8) : '(no id)'}. It should appear in Sentry Issues within a minute or two.`);
   };
 
-  const handleReportProblem = () => {
-    const acct = extractPhone(user?.email) || user?.phone || 'unknown';
-    const body = [
-      '',
-      '',
-      '——————————',
-      "Please describe the problem above this line. The details below help us fix it:",
-      '',
-      `App version: ${appVersion} (build ${APP_BUILD})`,
-      `Device: ${Platform.OS === 'ios' ? 'iOS' : Platform.OS} ${Platform.Version}`,
-      `Account: ${acct}`,
-    ].join('\n');
-    const url =
-      `mailto:${SUPPORT_EMAIL}` +
-      `?subject=${encodeURIComponent('30 Acts — Problem Report')}` +
-      `&body=${encodeURIComponent(body)}`;
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Email not available', `Please email us at ${SUPPORT_EMAIL} and we'll help.`)
-    );
-  };
+  const handleReportProblem = () => reportProblem(user);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="Help" />
+      <ScreenHeader title="About this app" onBack={navigation?.goBack ? () => navigation.goBack() : undefined} />
       <ScrollView contentContainerStyle={s.scroll}>
 
         <Card style={[s.card, { alignItems: 'center' }]}>
@@ -108,14 +86,14 @@ export default function HelpScreen({ user, navigation }) {
               variant="secondary"
               onPress={() => Alert.alert(
                 'Replay first-time start?',
-                'After this: Me > Log Out, then close the app fully and reopen it.',
+                'After this: Me > Log out, then close the app fully and reopen it.',
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {
                     text: 'Replay',
                     onPress: async () => {
                       try { await AsyncStorage.multiRemove(['hasSeenOnboarding', 'remembered_phone']); } catch {}
-                      Alert.alert('Done', 'Now go to Me > Log Out, then close the app fully and reopen it.');
+                      Alert.alert('Done', 'Now go to Me > Log out, then close the app fully and reopen it.');
                     },
                   },
                 ],

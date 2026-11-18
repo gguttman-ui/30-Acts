@@ -54,9 +54,10 @@ describe('Search my acts', () => {
     expect(src).toMatch(/actingPhone\(user\?\.email\)/);
     expect(src).not.toMatch(/gte\('completed_at'/);
   });
-  test('reachable from Home and from Me', () => {
+  // Fix 6 (18 Nov 2026): David's review took "Search my acts" off Me.
+  test('reachable from Home (no longer on Me)', () => {
     expect(read('src/screens/HomeScreen.js')).toMatch(/navigate\('SearchActs'\)/);
-    expect(read('src/screens/SettingsScreen.js')).toMatch(/Search my acts/);
+    expect(read('src/screens/SettingsScreen.js')).not.toMatch(/Search my acts/);
     expect(read('src/navigation/index.js')).toMatch(/name="SearchActs"/);
   });
 });

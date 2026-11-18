@@ -50,7 +50,8 @@ describe('item 28 — one reminder a day', () => {
   });
 
   test('Settings still renders the one reminder', () => {
-    expect(SETTINGS).toMatch(/toggleReminder\('first'/);
+    // Fix 6: one switch (master, which carries the reminder with it).
+    expect(SETTINGS).toMatch(/toggleReminder\('master'/);
     expect(SETTINGS).toContain('REMINDER TIME');
   });
 
@@ -69,7 +70,7 @@ describe('item 28 — one reminder a day', () => {
     // NOTE the legal and consent copy deliberately still says "up to two per
     // day" — that is a ceiling, it stays true, and changing it would force an
     // SMS_CONSENT_VERSION bump for no compliance gain.
-    const card = SETTINGS.match(/Text me a daily reminder[\s\S]{0,400}/);
+    const card = SETTINGS.match(/Daily text at [\s\S]{0,400}/);
     expect(card).not.toBeNull();
     expect(card[0]).not.toMatch(/up to 2|2 per day/);
   });

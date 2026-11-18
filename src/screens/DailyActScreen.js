@@ -1058,15 +1058,11 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
     } catch (e) { console.warn('Contact email copy error:', e.message); }
   };
 
+  // Fix 6 (18 Nov 2026): the mailing address left the Me profile; the
+  // bracelet's address is taken on the Recognition > bracelet form.
   const goToAddressForm = () => {
-    try {
-      navigation.navigate('Main', {
-        screen: 'Me',
-        params: { scrollTo: 'address' },
-      });
-    } catch (e) {
-      navigation.navigate('Settings', { scrollTo: 'address' });
-    }
+    try { navigation.navigate('Recognition'); }
+    catch (e) { navigation.navigate('Main', { screen: 'Me' }); }
   };
 
   const recordFulfillmentChoice = async (choice) => {
@@ -1758,8 +1754,8 @@ const today = todayStr();
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={s.skipShare}>
-              <Text style={s.skipShareText}>Skip → Go to Settings</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Me' })} style={s.skipShare}>
+              <Text style={s.skipShareText}>Skip → Go to Me</Text>
             </TouchableOpacity>
           </View>
         )}

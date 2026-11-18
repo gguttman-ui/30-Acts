@@ -15,7 +15,8 @@ import { lookupZip } from '../lib/zip';
 import { reminderZoneForSave } from '../lib/reminderTimezone';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
-import { loadRuns, lapCount, actsInLap } from '../lib/runs';
+import { loadRuns, lapCount, actsInLap, lifetimeCompletionCount } from '../lib/runs';
+import { reportProblem } from '../lib/reportProblem';
 import { actingPhone } from '../lib/actingAs';
 import { useActingMember } from '../components/ProfileSwitcher';
 import QRCode from 'react-native-qrcode-svg';
@@ -183,12 +184,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   // once set (only cleared server-side on a STOP opt-out).
   const [reminderConsentAt, setReminderConsentAt] = useState(null);
 
-  const scrollRef     = useRef(null);
-  const addressY      = useRef(0);
-  const highlightAnim = useRef(new Animated.Value(0)).current;
-
-  const shouldScrollToAddress = route?.params?.scrollTo === 'address';
-
   useEffect(() => {
     setFirstName(user?.firstName || '');
     setLastName(user?.lastName  || '');
@@ -277,24 +272,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       }
     })();
   }, []);
-
-  useEffect(() => {
-    if (!shouldScrollToAddress) return;
-    const timer = setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          y: Math.max(0, addressY.current - 40),
-          animated: true,
-        });
-      }
-      Animated.sequence([
-        Animated.timing(highlightAnim, { toValue: 1, duration: 400,  useNativeDriver: false }),
-        Animated.delay(1200),
-        Animated.timing(highlightAnim, { toValue: 0, duration: 600,  useNativeDriver: false }),
-      ]).start();
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [shouldScrollToAddress]);
 
   const toggleBiometric = async (next) => {
     if (next) {
@@ -561,10 +538,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     [reminderHour, reminderMinute, reminderPeriod]
   );
 
-  const handleGoToChallenge = () => {
-    if (navigation) navigation.navigate('Home');
-  };
-
   // Invite-a-friend share. Uses the native iOS share sheet so the user can
   // pick SMS, email, etc. and edit the message before sending.
   // Personal invite: the link carries this user's invite CODE (never the
@@ -596,156 +569,126 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     }
   };
 
-  const highlightBg = highlightAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['transparent', C.primary + '33'],
-  });
+  // ── Fix 6 (18 Nov 2026): Me is one short page of grouped rows ──────────
+  // Profile opens as its own page; Help and Feedback live here instead of
+  // in the tab bar.
+  const [page, setPage] = useState('main');          // 'main' | 'profile'
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [openGroups, setOpenGroups] = useState(false);
+  const [openLegal, setOpenLegal] = useState(false);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="Settings"
-        right={user?.role === 'OWNER' && (
-          <TouchableOpacity onPress={() => navigate('admin')}>
-            <Text style={{ color: C.primaryText, fontSize: 13, fontWeight: '700' }}>Admin</Text>
+  // "N acts all-time" in the header - same count as the Home dashboard.
+  const [lifetime, setLifetime] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    const phone = actingPhone(user?.email);
+    if (!phone) return undefined;
+    lifetimeCompletionCount(phone)
+      .then((n) => { if (!cancelled && typeof n === 'number') setLifetime(n); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.email, challenge, acting]);
+
+  // The text-message consent wording shows once, at the moment someone turns
+  // texts on; they must tap "Yes, text me" before anything is saved.
+  const onReminderSwitch = (next) => {
+    if (next) setShowConsent(true);
+    else toggleReminder('master', false);
+  };
+  const acceptConsent = () => {
+    setShowConsent(false);
+    toggleReminder('master', true);
+  };
+
+  const confirmLogout = () => {
+    Alert.alert('Log out?', 'You can sign back in any time with your phone number.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: () => navigate('logout') },
+    ]);
+  };
+
+  const displayName = acting
+    ? acting.first_name
+    : [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Me';
+  const headerLine = challenge
+    ? `Day ${completedCount} of 30 · ${lifetime == null ? '…' : lifetime} acts all-time`
+    : 'Not started yet';
+  const isAdminUser = user?.role === 'OWNER' || user?.role === 'ADMIN';
+
+  // Age picker, shared by the profile page.
+  const ageModal = (
+    <Modal visible={showAgeBrackets} animationType="slide" presentationStyle="pageSheet">
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <View style={s.modalHeader}>
+          <Text style={s.modalTitle}>Select Age</Text>
+          <TouchableOpacity onPress={() => setShowAgeBrackets(false)}>
+            <Text style={{ color: C.primaryText, fontSize: 16, fontWeight: '700' }}>Done</Text>
           </TouchableOpacity>
-        )}
-      />
-      {/* Pinned directly under the header, OUTSIDE the ScrollView. Inside the
-          reminder card it only showed if that card happened to be on screen --
-          tap a chip near the bottom of a long card and the banner appeared
-          hundreds of pixels above the fold, which is indistinguishable from no
-          banner at all. Here it is visible at any scroll position. */}
-      {!!reminderFlash && (
-        <View style={s.reminderFlash}>
-          <Text style={s.reminderFlashText}>{reminderFlash}</Text>
         </View>
-      )}
-
-      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
-
-       <Card style={s.mb}>
-          <Text style={s.cardTitle}>{acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'}</Text>
-          <Text style={s.cardSub}>
-            {challenge ? `Day ${completedCount}/30 complete` : 'Not started yet'}
-          </Text>
-          {!challenge ? (
-            <Btn label="Start 🚀" onPress={onStartChallenge} />
-          ) : (
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Btn label="Go to Today's Act →" onPress={handleGoToChallenge} style={{ flex: 1 }} />
-                <Btn label="Log Out" variant="secondary" onPress={() => navigate('logout')} style={{ flex: 1, borderColor: C.error + '66' }} />
-              </View>
-              <Btn label="🔍 Search my acts" variant="secondary" onPress={() => navigation.navigate('SearchActs')} />
-              <Btn label="Start over at Day 1" variant="danger" onPress={handleRestart} />
-            </View>
-          )}
-        </Card>
-
-        <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5 }]}>
-          <Text style={s.cardTitle}>🎯 Sponsor a Group</Text>
-          <Text style={s.cardSub}>
-            Start a group others can join, then share your QR code to invite them.
-          </Text>
-          <View style={{ gap: 8 }}>
-            <Btn
-              label="Sponsor a New Group →"
-              onPress={() => navigation.navigate('CreateSponsor')}
-            />
-            <Btn
-              label="My Groups →"
-              variant="secondary"
-              onPress={() => navigation.navigate('MySponsors')}
-            />
-          </View>
-        </Card>
-
-        <Card style={s.mb}>
-          <Text style={s.cardTitle}>👨‍👩‍👧 Family</Text>
-          <Text style={s.cardSub}>
-            Add your children so they can do their own 30 acts on your phone.
-          </Text>
-          <Btn
-            label="My Family →"
-            variant="secondary"
-            onPress={() => navigation.navigate('Family')}
-          />
-        </Card>
-
-        <Card style={s.mb}>
-          <Text style={s.cardTitle}>Profile</Text>
-          <View style={s.emailRow}>
-            <Text style={s.emailLabel} numberOfLines={1}>{user?.email?.includes('@phone.30acts.app') ? 'Phone' : 'Email'}</Text>
-            <Text style={s.emailVal} numberOfLines={1}>
-              {user?.email?.includes('@phone.30acts.app')
-                ? (user?.phone || user?.email?.replace('@phone.30acts.app', ''))
-                : user?.email}
-            </Text>
-            <Text>🔒</Text>
-          </View>
-<TouchableOpacity
-  onPress={() => setShowAgeBrackets(true)}
-  style={s.ageBracketBtn}
->
-  <Text style={s.ageBracketLabel}>Age</Text>
-  <Text style={[s.ageBracketVal, !ageBracket && { color: C.muted }]} numberOfLines={1}>
-    {ageBracket
-      ? AGE_BRACKETS.find(b => b.value === ageBracket)?.label
-      : 'Select…'}
-  </Text>
-  <Text style={{ color: C.sub }}>▾</Text>
-</TouchableOpacity>
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-            <View style={{ flex: 1 }}>
-              <AppInput label="First Name" value={firstName} onChangeText={setFirstName} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppInput label="Last Name" value={lastName} onChangeText={setLastName} />
-            </View>
-          </View>
-
-          <AppInput
-            label="Email (optional)"
-            value={contactEmail}
-            onChangeText={setContactEmail}
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <Text style={s.helperText}>For account recovery and occasional updates.</Text>
-
-          <Animated.View
-            onLayout={e => { addressY.current = e.nativeEvent.layout.y; }}
-            style={{
-              borderRadius: 12,
-              marginHorizontal: -4,
-              paddingHorizontal: 4,
-              backgroundColor: highlightBg,
-            }}
+        {AGE_BRACKETS.map(b => (
+          <TouchableOpacity
+            key={b.value}
+            onPress={() => { setAgeBracket(b.value); setShowAgeBrackets(false); }}
+            style={[s.ageRow, ageBracket === b.value && { backgroundColor: C.primary + '22' }]}
           >
-            <View style={s.divider} />
-            <Text style={s.sectionHeader}>MAILING ADDRESS (OPTIONAL)</Text>
-            <Text style={s.helperTextTop}>
-              We'll use this to send your Certified Kind Person wristband when you complete 30 days.
+            <Text style={[s.ageRowText, ageBracket === b.value && { color: C.primaryText, fontWeight: '700' }]}>
+              {b.label}
             </Text>
+            {ageBracket === b.value && <Text style={{ color: C.primaryText }}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </View>
+      </Modal>
+  );
 
+  // ── Profile page ──────────────────────────────────────────────────────
+  if (page === 'profile') {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <ScreenHeader title="Profile" onBack={() => setPage('main')} />
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <Card style={s.mb}>
+            <View style={s.emailRow}>
+              <Text style={s.emailLabel} numberOfLines={1}>{user?.email?.includes('@phone.30acts.app') ? 'Phone' : 'Email'}</Text>
+              <Text style={s.emailVal} numberOfLines={1}>
+                {user?.email?.includes('@phone.30acts.app')
+                  ? (user?.phone || user?.email?.replace('@phone.30acts.app', ''))
+                  : user?.email}
+              </Text>
+              <Text>🔒</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowAgeBrackets(true)} style={s.ageBracketBtn}>
+              <Text style={s.ageBracketLabel}>Age</Text>
+              <Text style={[s.ageBracketVal, !ageBracket && { color: C.muted }]} numberOfLines={1}>
+                {ageBracket ? AGE_BRACKETS.find(b => b.value === ageBracket)?.label : 'Select…'}
+              </Text>
+              <Text style={{ color: C.sub }}>▾</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <AppInput label="First Name" value={firstName} onChangeText={setFirstName} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppInput label="Last Name" value={lastName} onChangeText={setLastName} />
+              </View>
+            </View>
             <AppInput
-              label="Street Address"
-              value={street1}
-              onChangeText={setStreet1}
-              placeholder="123 Main Street"
-              autoCapitalize="words"
+              label="Email (optional)"
+              value={contactEmail}
+              onChangeText={setContactEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
-            <AppInput
-              label="Apt / Suite / Unit"
-              value={street2}
-              onChangeText={setStreet2}
-              placeholder="Apt 4B (optional)"
-              autoCapitalize="words"
-            />
+            <Text style={s.helperText}>For account recovery and occasional updates.</Text>
 
+            {/* Fix 6: the mailing address is no longer on the profile. It is
+                asked for when someone finishes day 30 and claims the bracelet
+                (BraceletFormScreen). The ZIP stays: it sets the home time zone. */}
             <AppInput
-              label="ZIP Code"
+              label="ZIP Code (sets your time zone)"
               value={zip}
               onChangeText={t => setZip(t.replace(/\D/g, '').slice(0, 5))}
               placeholder="43215"
@@ -754,7 +697,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
               error={zipError}
               inputAccessoryViewID={KB_DONE_ID}
             />
-
             {zipLoading && <Text style={s.zipStatus}>🔎 Looking up ZIP…</Text>}
             {zipState && !zipLoading && (
               <View style={s.tzPill}>
@@ -767,80 +709,57 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                 </View>
               </View>
             )}
-          </Animated.View>
 
-          {saved && (
-            <View style={s.savedBanner}>
-              <Text style={{ color: C.success, fontWeight: '700', fontSize: 13 }}>✓ Profile saved</Text>
-            </View>
-          )}
-          <Btn label="Save Profile" onPress={() => handleSave()} />
-        </Card>
-
-        <Card style={s.mb}>
-          <Text style={s.cardTitle}>Security</Text>
-          {biometricAvailable ? (
-            <View style={s.toggleRow}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={s.toggleTitle}>Unlock with {biometricLabel}</Text>
-                <Text style={s.toggleSub}>
-                  Require {biometricLabel} each time you open the app
-                </Text>
+            {saved && (
+              <View style={s.savedBanner}>
+                <Text style={{ color: C.success, fontWeight: '700', fontSize: 13 }}>✓ Profile saved</Text>
               </View>
-              <Switch
-                value={biometricEnabled}
-                onValueChange={toggleBiometric}
-                trackColor={{ false: C.border, true: C.primary + '88' }}
-                thumbColor={biometricEnabled ? C.primary : '#f4f3f4'}
-              />
-            </View>
-          ) : (
-            <Text style={s.cardSub}>
-              Biometrics are not available on this device. Enroll Face ID, Touch ID, or Fingerprint in your device settings to enable app lock.
-            </Text>
-          )}
-        </Card>
+            )}
+            <Btn label="Save Profile" onPress={() => handleSave()} />
+          </Card>
+        </ScrollView>
+        {ageModal}
+        <KeyboardDoneBar />
+      </View>
+    );
+  }
 
-        <Card style={s.mb}>
-          <Text style={s.cardTitle}>Daily Reminder</Text>
+  // ── Main Me page ──────────────────────────────────────────────────────
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScreenHeader title="Me" />
+      {/* Pinned under the header, outside the ScrollView, so it shows at
+          any scroll position. */}
+      {!!reminderFlash && (
+        <View style={s.reminderFlash}>
+          <Text style={s.reminderFlashText}>{reminderFlash}</Text>
+        </View>
+      )}
 
-          <View style={s.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.toggleTitle}>Text me a daily reminder</Text>
-              <Text style={s.toggleSub}>
-                We'll text you once a day, at the time you set, to log your act of kindness.
-              </Text>
-            </View>
+      <ScrollView contentContainerStyle={s.scroll}>
+
+        <View style={s.meHeader}>
+          <Text style={s.meName}>{displayName}</Text>
+          <Text style={s.meLine}>{headerLine}</Text>
+          {!challenge && <Btn label="Start 🚀" onPress={onStartChallenge} style={{ marginTop: 12 }} />}
+        </View>
+
+        <Text style={s.groupLabel}>REMINDERS</Text>
+        <View style={s.group}>
+          <View style={[s.row, s.rowLast]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowTimePicker(v => !v)}>
+              <Text style={s.rowText}>Daily text at {fmtTime(reminderHour, reminderMinute, reminderPeriod)}</Text>
+              <Text style={s.rowSub}>{showTimePicker ? 'Tap here to close' : 'Tap to change the time'}</Text>
+            </TouchableOpacity>
             <Switch
               value={reminderEnabled}
-              onValueChange={(v) => toggleReminder('master', v)}
+              onValueChange={onReminderSwitch}
               trackColor={{ false: C.border, true: C.primary + '88' }}
               thumbColor={reminderEnabled ? C.primary : '#f4f3f4'}
             />
           </View>
-
-          {/* Express-consent disclosure for recurring SMS (CTIA/TCPA). Shown at
-              the point of opt-in; the timestamp is captured on Save Profile. */}
-          <Text style={s.smsConsent}>{SMS_CONSENT_TEXT}</Text>
-          <View style={s.smsConsentLinks}>
-            <TouchableOpacity onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })}>
-              <Text style={s.smsConsentLink}>Privacy Policy</Text>
-            </TouchableOpacity>
-            <Text style={s.smsConsentDot}>·</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Legal', { docKey: 'terms' })}>
-              <Text style={s.smsConsentLink}>Terms of Service</Text>
-            </TouchableOpacity>
-          </View>
-          {reminderEnabled && reminderConsentAt && (
-            <Text style={s.smsConsentStamp}>
-              ✓ Opted in on {new Date(reminderConsentAt).toLocaleDateString()}
-            </Text>
-          )}
-
-{/* Rendered whether or not the reminder is on: a switched-off reminder
-              still needs its time to be readable and resettable. */}
-          <View style={s.reminderTimeWrap}>
-              <View style={!reminder1Enabled && s.reminderTimeWrapOff}>
+          {showTimePicker && (
+            <View style={s.reminderTimeWrap}>
               <Text style={s.reminderTimeLabel}>REMINDER TIME</Text>
               <View style={s.reminderTimeRow}>
                 <View style={s.reminderColumn}>
@@ -852,9 +771,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                     <Text style={s.reminderArrowText}>▼</Text>
                   </TouchableOpacity>
                 </View>
-
                 <Text style={s.reminderColon}>:</Text>
-
                 <View style={s.reminderColumn}>
                   <TouchableOpacity style={s.reminderArrow} onPress={() => setReminderMinute(m => (m + 5) % 60)}>
                     <Text style={s.reminderArrowText}>▲</Text>
@@ -864,7 +781,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                     <Text style={s.reminderArrowText}>▼</Text>
                   </TouchableOpacity>
                 </View>
-
                 <View style={s.reminderPeriodWrap}>
                   <TouchableOpacity
                     style={[s.reminderPeriodBtn, reminderPeriod === 'AM' && s.reminderPeriodBtnActive]}
@@ -880,167 +796,148 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {/* The ON/OFF button is the ONLY control: it switches the
-                  reminder and saves in the same tap. There is no separate Set
-                  button, so a time change while ON is auto-saved (see the
-                  effect above) — nothing here relies on the user finding a save
-                  action they can't see. */}
-              <View style={s.reminderSetRow}>
-                <TouchableOpacity
-                  onPress={() => toggleReminder('first', !reminder1Enabled)}
-                  style={[s.statusChip, reminder1Enabled ? s.statusChipOn : s.statusChipOff]}
-                >
-                  <Text style={[s.statusChipText, reminder1Enabled ? s.statusChipTextOn : s.statusChipTextOff]}>
-                    {reminder1Enabled ? '\u25CF  ON' : '\u25CB  OFF'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              </View>
-
-              {/* The SECOND REMINDER block that used to sit here was removed
-                  2026-09-21 (item 28) - one text a day. Reinstating it means
-                  revisiting the Twilio HELP copy and the toll-free registered
-                  volume as well as this card. */}
-
               <Text style={s.reminderHint}>
-                Tap ON or OFF to switch your reminder. Time changes save on their own.
+                {reminderEnabled ? 'Time changes save on their own.' : 'Turn the switch on to get the daily text.'}
               </Text>
-          </View>
-        </Card>
+            </View>
+          )}
+        </View>
 
-        <Card style={[s.mb, { borderColor: C.primary + '55', borderWidth: 1.5, alignItems: 'center' }]}>
-          <Text style={s.cardTitle}>🌳 Grow Your Tree</Text>
-          <Text style={[s.cardSub, { textAlign: 'center' }]}>
-            Invite people to 30 Acts of Kindness. Anyone who scans your QR code
-            or taps your link is added to your tree.
-          </Text>
-          <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, marginVertical: 14 }}>
-            <QRCode value={inviteLink} size={172} backgroundColor="#fff" color="#111" />
-          </View>
-          <Text selectable style={{ color: C.sub, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
-            {inviteLink}
-          </Text>
-          <Btn
-            label="📲 Share Your Invite"
-            onPress={handleInviteShare}
-            style={{ alignSelf: 'stretch' }}
-          />
-        </Card>
+        <Text style={s.groupLabel}>COMMUNITY</Text>
+        <View style={s.group}>
+          <Row label="Groups" chevron={openGroups ? '⌄' : '›'} onPress={() => setOpenGroups(v => !v)} />
+          {openGroups && (
+            <>
+              <Row sub label="Join a group" onPress={() => navigation.navigate('JoinSponsor')} />
+              <Row sub label="My groups" onPress={() => navigation.navigate('MySponsors')} />
+              <Row sub label="Sponsor a new group" onPress={() => navigation.navigate('CreateSponsor')} />
+            </>
+          )}
+          <Row label="Family" onPress={() => navigation.navigate('Family')} />
+          <Row label="Invite friends" onPress={() => setShowInvite(true)} last={!hasRecognition} />
+          {hasRecognition && (
+            <Row label="My recognition" onPress={() => navigation.navigate('Recognition')} last />
+          )}
+        </View>
 
-        <Btn
-          label="🎟️ Join a Group"
-          onPress={() => navigation.navigate('JoinSponsor')}
-          variant="secondary"
-          style={[s.mb, { borderColor: C.primary + '66' }]}
-        />
+        <Text style={s.groupLabel}>HELP AND FEEDBACK</Text>
+        <View style={s.group}>
+          <Row label="How it works" onPress={() => navigation.navigate('Tour')} />
+          <Row label="Send feedback" onPress={() => navigation.navigate('Feedback')} />
+          <Row label="Report a problem" onPress={() => reportProblem(user)} />
+          <Row label="Support the mission" onPress={() => navigation.navigate('Donation')} />
+          <Row label="Legal & policies" chevron={openLegal ? '⌄' : '›'} onPress={() => setOpenLegal(v => !v)} />
+          {openLegal && (
+            <>
+              <Row sub label="Terms of Service" onPress={() => navigation.navigate('Legal', { docKey: 'terms' })} />
+              <Row sub label="Privacy Policy" onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })} />
+              <Row sub label="Community Guidelines" onPress={() => navigation.navigate('Legal', { docKey: 'guidelines' })} />
+              <Row sub label="Content Moderation Policy" onPress={() => navigation.navigate('Legal', { docKey: 'moderation' })} />
+            </>
+          )}
+          <Row label="About this app" onPress={() => navigation.navigate('Help')} last />
+        </View>
 
-        <Btn
-          label="💚 Support Our Mission"
-          onPress={() => navigation.navigate('Donation')}
-          variant="secondary"
-          style={[s.mb, { borderColor: C.primary + '66' }]}
-        />
+        <Text style={s.groupLabel}>ACCOUNT</Text>
+        <View style={s.group}>
+          <Row label="Profile" onPress={() => setPage('profile')} />
+          {biometricAvailable ? (
+            <View style={s.row}>
+              <Text style={[s.rowText, { flex: 1 }]}>{biometricLabel} lock</Text>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={toggleBiometric}
+                trackColor={{ false: C.border, true: C.primary + '88' }}
+                thumbColor={biometricEnabled ? C.primary : '#f4f3f4'}
+              />
+            </View>
+          ) : null}
+          <Row label="Log out" onPress={confirmLogout} />
+          {challenge ? (
+            <Row label="Start over at Day 1" danger onPress={handleRestart} />
+          ) : null}
+          <Row label="Delete My Account" danger onPress={() => setShowDeleteConfirm(true)} last />
+        </View>
 
-        {hasRecognition && (
-          <Btn
-            label="🏆 My Recognition"
-            onPress={() => navigation.navigate('Recognition')}
-            variant="secondary"
-            style={[s.mb, { borderColor: C.primary + '66' }]}
-          />
+        {isAdminUser && (
+          <>
+            <Text style={s.groupLabel}>ADMIN</Text>
+            <View style={s.group}>
+              <Row label="Recognition Orders (Admin)" onPress={() => navigation.navigate('RecognitionAdmin')} last />
+            </View>
+          </>
         )}
-
-        {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
-          <Btn
-            label="🎁 Recognition Orders (Admin)"
-            onPress={() => navigation.navigate('RecognitionAdmin')}
-            variant="secondary"
-            style={[s.mb, { borderColor: C.primary + '66' }]}
-          />
-        )}
-
-<Card style={s.mb}>
-  <Text style={s.cardTitle}>Legal & Policies</Text>
-  <TouchableOpacity
-    onPress={() => navigation.navigate('Legal', { docKey: 'terms' })}
-    style={s.legalRow}
-  >
-    <Text style={s.legalRowText}>Terms of Service</Text>
-    <Text style={s.legalRowChevron}>›</Text>
-  </TouchableOpacity>
-  <TouchableOpacity
-    onPress={() => navigation.navigate('Legal', { docKey: 'privacy' })}
-    style={s.legalRow}
-  >
-    <Text style={s.legalRowText}>Privacy Policy</Text>
-    <Text style={s.legalRowChevron}>›</Text>
-  </TouchableOpacity>
-  <TouchableOpacity
-    onPress={() => navigation.navigate('Legal', { docKey: 'guidelines' })}
-    style={s.legalRow}
-  >
-    <Text style={s.legalRowText}>Community Guidelines</Text>
-    <Text style={s.legalRowChevron}>›</Text>
-  </TouchableOpacity>
-  <TouchableOpacity
-    onPress={() => navigation.navigate('Legal', { docKey: 'moderation' })}
-    style={[s.legalRow, s.legalRowLast]}
-  >
-    <Text style={s.legalRowText}>Content Moderation Policy</Text>
-    <Text style={s.legalRowChevron}>›</Text>
-  </TouchableOpacity>
-</Card>
-
-<Btn
-  label="Delete My Account"
-  variant="danger"
-  onPress={() => setShowDeleteConfirm(true)}
-  style={{ marginBottom: 24 }}
-/>
-        {/* Version and build details moved to Help (UX review Q3, 17 Nov 2026). */}
       </ScrollView>
-<Modal visible={showAgeBrackets} animationType="slide" presentationStyle="pageSheet">
-  <View style={{ flex: 1, backgroundColor: C.bg }}>
-    <View style={s.modalHeader}>
-      <Text style={s.modalTitle}>Select Age</Text>
-      <TouchableOpacity onPress={() => setShowAgeBrackets(false)}>
-        <Text style={{ color: C.primaryText, fontSize: 16, fontWeight: '700' }}>Done</Text>
-      </TouchableOpacity>
-    </View>
-    {AGE_BRACKETS.map(b => (
-      <TouchableOpacity
-        key={b.value}
-        onPress={() => { setAgeBracket(b.value); setShowAgeBrackets(false); }}
-        style={[s.ageRow, ageBracket === b.value && { backgroundColor: C.primary + '22' }]}
-      >
-        <Text style={[s.ageRowText, ageBracket === b.value && { color: C.primaryText, fontWeight: '700' }]}>
-          {b.label}
-        </Text>
-        {ageBracket === b.value && <Text style={{ color: C.primaryText }}>✓</Text>}
-      </TouchableOpacity>
-    ))}
-  </View>
-</Modal>
-<TypedConfirmModal
-  visible={showDeleteConfirm}
-  title="Delete your account?"
-  body={
-    "This permanently removes your profile and sign-in. " +
-    "Your acts will be kept anonymously for aggregate stats but cannot be linked back to you. " +
-    "This cannot be undone."
-  }
-  confirmWord="DELETE"
-  confirmLabel="Delete forever"
-  onConfirm={handleDeleteAccount}
-  onCancel={() => setShowDeleteConfirm(false)}
-  loading={deletingAccount}
-/>
 
-      <KeyboardDoneBar />
+      {/* Text-message consent (CTIA/TCPA), shown when texts are turned on. */}
+      <Modal visible={showConsent} transparent animationType="fade" onRequestClose={() => setShowConsent(false)}>
+        <View style={s.modalDim}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Daily text reminders</Text>
+            <Text style={s.smsConsent}>{SMS_CONSENT_TEXT}</Text>
+            <View style={s.smsConsentLinks}>
+              <TouchableOpacity onPress={() => { setShowConsent(false); navigation.navigate('Legal', { docKey: 'privacy' }); }}>
+                <Text style={s.smsConsentLink}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <Text style={s.smsConsentDot}>·</Text>
+              <TouchableOpacity onPress={() => { setShowConsent(false); navigation.navigate('Legal', { docKey: 'terms' }); }}>
+                <Text style={s.smsConsentLink}>Terms of Service</Text>
+              </TouchableOpacity>
+            </View>
+            <Btn label="Yes, text me" onPress={acceptConsent} style={{ marginTop: 16 }} />
+            <Btn label="Not now" variant="secondary" onPress={() => setShowConsent(false)} style={{ marginTop: 8 }} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Invite friends: QR code to scan in person, or share the link. */}
+      <Modal visible={showInvite} transparent animationType="fade" onRequestClose={() => setShowInvite(false)}>
+        <View style={s.modalDim}>
+          <View style={[s.modalBox, { alignItems: 'center' }]}>
+            <Text style={s.modalTitle}>🌳 Invite friends</Text>
+            <Text style={[s.cardSub, { textAlign: 'center', marginTop: 6 }]}>
+              Anyone who scans your code or taps your link is added to your tree.
+            </Text>
+            <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+              <QRCode value={inviteLink} size={172} backgroundColor="#fff" color="#111" />
+            </View>
+            <Text selectable style={{ color: C.sub, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
+              {inviteLink}
+            </Text>
+            <Btn label="📲 Share Your Invite" onPress={handleInviteShare} style={{ alignSelf: 'stretch' }} />
+            <Btn label="Close" variant="secondary" onPress={() => setShowInvite(false)} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+          </View>
+        </View>
+      </Modal>
+
+      <TypedConfirmModal
+        visible={showDeleteConfirm}
+        title="Delete your account?"
+        body={
+          "This permanently removes your profile and sign-in. " +
+          "Your acts will be kept anonymously for aggregate stats but cannot be linked back to you. " +
+          "This cannot be undone."
+        }
+        confirmWord="DELETE"
+        confirmLabel="Delete forever"
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteConfirm(false)}
+        loading={deletingAccount}
+      />
     </View>
   );
 }
+
+// One tappable row in a Me group.
+function Row({ label, onPress, danger, sub, last, chevron = '›' }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={[s.row, sub && s.rowSubItem, last && s.rowLast]}>
+      <Text style={[s.rowText, sub && s.rowTextSub, danger && s.rowDanger]}>{label}</Text>
+      {!danger && <Text style={s.rowChevron}>{chevron}</Text>}
+    </TouchableOpacity>
+  );
+}
+
 
 const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40 },
@@ -1197,4 +1094,21 @@ legalRow: {
 legalRowLast: { borderBottomWidth: 0 },
 legalRowText: { color: C.text, fontSize: 14 },
 legalRowChevron: { color: C.muted, fontSize: 18, fontWeight: '600' },
+
+  // Fix 6: grouped rows
+  meHeader:   { alignItems: 'center', paddingVertical: 12, marginBottom: 6 },
+  meName:     { color: C.text, fontSize: 22, fontWeight: '800' },
+  meLine:     { color: C.sub, fontSize: 14, marginTop: 4 },
+  groupLabel: { color: C.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1, marginTop: 14, marginBottom: 6, marginLeft: 4 },
+  group:      { backgroundColor: C.card || C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14 },
+  row:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 50, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border + '66' },
+  rowLast:    { borderBottomWidth: 0 },
+  rowSubItem: { paddingLeft: 16 },
+  rowText:    { color: C.text, fontSize: 16, fontWeight: '600' },
+  rowTextSub: { fontSize: 15, fontWeight: '500', color: C.sub },
+  rowSub:     { color: C.muted, fontSize: 12, marginTop: 2 },
+  rowDanger:  { color: C.error, fontWeight: '700' },
+  rowChevron: { color: C.muted, fontSize: 20, fontWeight: '600' },
+  modalDim:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 },
+  modalBox:   { backgroundColor: C.bg, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.border },
 });

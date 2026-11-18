@@ -64,7 +64,7 @@ describe('fixing Restart did not break Start', () => {
   test('the Start button still calls onStartChallenge', () => {
     // onStartChallenge is the right handler for a first start — it just loads
     // the grid. Only Restart was wired to it wrongly.
-    expect(SETTINGS).toMatch(/<Btn label="Start[^"]*" onPress=\{onStartChallenge\} \/>/);
+    expect(SETTINGS).toMatch(/<Btn label="Start[^"]*" onPress=\{onStartChallenge\}/);
   });
 
   test('onStartChallenge is still threaded to Settings', () => {

@@ -76,7 +76,7 @@ export default function FeedbackScreen({ navigation }) {
           <Text style={s.successBtnText}>Send more feedback</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.successBtnAlt}>
-          <Text style={s.successBtnAltText}>Back to Settings</Text>
+          <Text style={s.successBtnAltText}>Back to Me</Text>
         </TouchableOpacity>
       </View>
     );

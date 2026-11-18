@@ -102,16 +102,8 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         {renderSettings}
       </Tab.Screen>
 
-      <Tab.Screen name="Feedback"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="💬" /> }}
-        component={FeedbackScreen}
-      />
-
-      <Tab.Screen name="Help"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="❓" /> }}
-      >
-        {(props) => <HelpScreen {...props} user={user} />}
-      </Tab.Screen>
+      {/* Fix 6 (18 Nov 2026): Help and Feedback left the tab bar; they open
+          from Me > Help and feedback (stack screens below). */}
 
       <Tab.Screen name="Tree"
         options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🌳" /> }}
@@ -253,6 +245,10 @@ export default function AppNavigator({ days, daysReloading, user, actCategories,
             <Stack.Screen name="RecognitionAdmin" component={RecognitionAdminScreen} />
             <Stack.Screen name="Family">
               {(props) => <FamilyScreen {...props} user={user} />}
+            </Stack.Screen>
+            <Stack.Screen name="Feedback"  component={FeedbackScreen} />
+            <Stack.Screen name="Help">
+              {(props) => <HelpScreen {...props} user={user} />}
             </Stack.Screen>
             <Stack.Screen name="Donation"  component={DonationScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen} />

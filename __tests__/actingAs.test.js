@@ -129,10 +129,10 @@ describe('wiring', () => {
     expect(pay).toContain(".eq('user_phone', phone)");
   });
 
-  test("Me > My 30 Acts card follows the selected person (count and Start over)", () => {
+  test("Me header follows the selected person (count and Start over)", () => {
     const set = read('src', 'screens', 'SettingsScreen.js');
     expect(set).toContain('const phone = actingPhone(user?.email);');
-    expect(set).toContain("acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'");
+    expect(set).toMatch(/const displayName = acting\s*\? acting\.first_name/);
   });
 
   test('restart markers: child on family_members, adult on profiles', () => {
