@@ -11,7 +11,9 @@ import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../cons
 import { lookupZip } from '../lib/zip';
 import { nameErrors, cleanName } from '../lib/nameRules';
 import { supabase } from '../lib/supabase';
-import { applyPendingReferral } from '../lib/branch';
+import { applyPendingReferral, setPendingInviteCode } from '../lib/branch';
+import * as Clipboard from 'expo-clipboard';
+import { cleanInviteCode, inviteCodeFromClipboard } from '../lib/inviteClipboard';
 import { normalizeOtpText, otpBoxes, OTP_LENGTH } from '../lib/otpInput';
 
 // Apple demo account bypass — documented in App Store Connect's
@@ -131,6 +133,24 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
   const [zipState,   setZipState]   = useState('');
   const [zipLoading, setZipLoading] = useState(false);
   const [zipError,   setZipError]   = useState('');
+  // Item 112: who invited them (optional). Filled from the clipboard when the
+  // website copied it; the person can also type it.
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteFromClipboard, setInviteFromClipboard] = useState(false);
+  const clipboardChecked = useRef(false);
+  // When a NEW person reaches the sign-up fields, look once for an invite code
+  // the website copied (iPhone asks "Allow paste?"). Never on sign-in.
+  useEffect(() => {
+    if (!signupFields || clipboardChecked.current) return;
+    clipboardChecked.current = true;
+    (async () => {
+      try {
+        if (!(await Clipboard.hasStringAsync())) return;
+        const code = inviteCodeFromClipboard(await Clipboard.getStringAsync());
+        if (code) { setInviteCode(code); setInviteFromClipboard(true); }
+      } catch (e) { /* no clipboard, or paste not allowed: they can type it */ }
+    })();
+  }, [signupFields]);
   const [showMission, setShowMission] = useState(false);
   const [errors,      setErrors]      = useState({});
   const [loading,     setLoading]     = useState(false);
@@ -472,6 +492,9 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
       } catch (pe) {
         console.warn('Early profile upsert failed:', pe.message);
       }
+      // Item 112: a code typed or pasted at sign-up credits that inviter.
+      const typedCode = cleanInviteCode(inviteCode);
+      if (typedCode) await setPendingInviteCode(typedCode).catch(() => {});
       // Same reason: an invite link must be applied before they can leave.
       // finishLogin calls it again, which is a no-op once the referral is used.
       applyPendingReferral(formatted).catch(() => {});
@@ -863,6 +886,18 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
                   </Text>
                 </View>
               </View>
+            ) : null}
+
+            <AppInput
+              label="Invited by a friend? Their code (optional)"
+              value={inviteCode}
+              onChangeText={(t) => { setInviteCode(t.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8)); setInviteFromClipboard(false); }}
+              placeholder="e.g. 7QL52GJ7"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            {inviteFromClipboard && cleanInviteCode(inviteCode) ? (
+              <Text style={s.phoneHelper}>Invited by a friend: {inviteCode} ✓</Text>
             ) : null}
           </>
         )}

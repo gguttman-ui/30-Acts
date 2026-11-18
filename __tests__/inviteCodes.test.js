@@ -45,14 +45,19 @@ test('website fallback has the code, never the phone', () => {
   expect(branch.websiteInviteUrl(null, 'GRP1')).toBe('https://30ActsofKindness.org?group=GRP1');
 });
 
-test('Branch link data carries inv, not the phone', async () => {
+test('invite link is the website link with the code, never the phone (item 112)', async () => {
   mockRpc.mockResolvedValue({ data: '7KQ2MXRP', error: null });
   const url = await branch.generateInviteLink({ phone: PHONE, group: 'GRP1' });
-  expect(url).toBe('https://airpa.app.link/abc');
-  const body = JSON.parse(global.fetch.mock.calls[0][1].body);
-  expect(body.data.inv).toBe('7KQ2MXRP');
-  expect(body.data.ref).toBeUndefined();
-  expect(JSON.stringify(body)).not.toContain('9175550123');
+  expect(url).toBe('https://30ActsofKindness.org?inv=7KQ2MXRP&group=GRP1');
+  expect(url).not.toContain('9175550123');
+  expect(global.fetch).not.toHaveBeenCalled();   // Branch's paid link API is never called
+});
+
+test('a typed or pasted code becomes the pending inviter, keeping a pending group', async () => {
+  await AsyncStorageSet({ inv: null, ref: PHONE, group: 'GRP1' });
+  await branch.setPendingInviteCode('ABCDEFGH');
+  const p = await branch.getPendingReferral();
+  expect(p).toEqual({ ref: null, group: 'GRP1', inv: 'ABCDEFGH' });
 });
 
 test('if the code lookup fails, still no phone anywhere', async () => {

@@ -28,11 +28,6 @@ export const BRANCH_AVAILABLE = !!branch;
 
 const PENDING_KEY = 'pending_referral';
 const WEBSITE_URL = 'https://30ActsofKindness.org';
-// Public live Branch key (also embedded in the app via Info.plist). Safe to
-// include here — it's the client-side key, used to create links via Branch's
-// web API so link generation never depends on the native SDK being initialized.
-const BRANCH_KEY = 'key_live_hxAVySfBnexcBbICp4gznckeFqjrD981';
-const BRANCH_API_URL = 'https://api2.branch.io/v1/url';
 
 // In-memory copy of the most recent referral captured from a Branch link, so
 // sign-up can read it right after install/open without waiting on storage.
@@ -71,6 +66,14 @@ export function initBranch() {
     try { if (unsubscribe) unsubscribe(); } catch (e) {}
     unsubscribe = null;
   };
+}
+
+// Item 112: an invite code typed at sign-up or found on the clipboard. It
+// replaces any older pending referral's inviter but keeps a pending group.
+export async function setPendingInviteCode(code) {
+  if (!code) return;
+  const prev = await getPendingReferral();
+  stashReferral(null, prev?.group || null, code);
 }
 
 // Read the pending referral (memory first, then persisted). Used at sign-up.
@@ -119,41 +122,16 @@ export function websiteInviteUrl(code, group) {
 
 // Build an invite link that carries the inviter's invite CODE (never the
 // phone - UX review fix 4, 18 Nov 2026) and, for group invites, the group
-// join code. Returns a Branch airpa.app.link short URL that bounces new users
-// to the App Store and attributes them after install. Falls back to the
-// website link if Branch isn't available (e.g. Expo Go).
-// `phone` only tells us someone is signed in; it is never put in the link.
+// join code. `phone` only tells us someone is signed in; it is never in a link.
 export async function generateInviteLink({ phone, group } = {}) {
   if (!phone) return WEBSITE_URL;
+  // Item 112 (18 Nov 2026): Branch will not create links on our plan - its
+  // HTTP API returns 403 and the in-app SDK refused too (tested on staging).
+  // So invites are the website link with the invite CODE. The website copies
+  // the code when the person taps Download, and sign-up picks it up from the
+  // clipboard (or they type it) - see src/lib/inviteClipboard.js.
   const code = await getMyInviteCode();
-  const fallback = websiteInviteUrl(code, group);
-  if (!code && !group) return fallback;
-  try {
-    // Create the link through Branch's web API (no native SDK dependency).
-    // Returns a short airpa.app.link URL carrying the referral data.
-    const res = await fetch(BRANCH_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        branch_key: BRANCH_KEY,
-        channel: 'app',
-        feature: group ? 'group_invite' : 'invite',
-        data: {
-          ...(code ? { inv: code } : {}),
-          ...(group ? { group: String(group) } : {}),
-          $desktop_url: fallback,
-          $fallback_url: fallback,
-          $og_title: '30 Acts of Kindness',
-          $og_description: 'Join me — one kind act a day.',
-        },
-      }),
-    });
-    if (!res.ok) return fallback;
-    const json = await res.json();
-    return json?.url || fallback;
-  } catch (e) {
-    return fallback;
-  }
+  return websiteInviteUrl(code, group);
 }
 
 // Apply a pending Branch referral to the just-signed-up user: set their
