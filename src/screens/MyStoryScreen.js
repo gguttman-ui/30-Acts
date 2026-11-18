@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet,
   Alert, Platform, KeyboardAvoidingView, ActivityIndicator,
@@ -171,6 +171,12 @@ const isExpoGo =
 export default function MyStoryScreen({ navigation, route, user, days, onComplete, onDelete }) {
   const insets = useSafeAreaInsets();
   const storyRef = useRef(null);
+  // UX review Q6 (17 Nov 2026): after Save Changes stay on the act and show a
+  // short "Saved" that fades on its own (Gary chose this over returning Home).
+  const SAVED_FLASH_MS = 2000;
+  const [savedFlash, setSavedFlash] = useState(false);
+  const savedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
   const storyCardRef = useRef(null);
 
   const preselectedAct = route?.params?.preselectedAct || null;
@@ -1005,11 +1011,15 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
         Alert.alert('Could not save your changes', (error && error.message) || 'Please try again.');
         return;
       }
-      // Gary 28 Oct: after Save Changes go straight back to the dashboard.
+      // Q6 (17 Nov 2026): stay on this act and flash "Saved" (replaces the
+      // 28 Oct jump back to the dashboard).
       Keyboard.dismiss();
       setCompletedStory(story.trim());
       setEditingId(null);
-      requestAnimationFrame(() => navigation.navigate('Main', { screen: 'Home' }));
+      setShareMode(true);
+      setSavedFlash(true);
+      clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSavedFlash(false), SAVED_FLASH_MS);
     } catch (e) {
       Alert.alert('Could not save your changes', e?.message || 'Please try again.');
     } finally {
@@ -1299,6 +1309,12 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     <View style={[s.root, { paddingTop: insets.top }]}>
       <ScreenHeader title={editingId ? 'Edit Your Act' : 'Document Your Act'} onBack={editingId ? cancelEdit : goToCalendar} />
 
+      {savedFlash ? (
+        <View style={s.savedToast} pointerEvents="none" accessibilityLiveRegion="polite">
+          <Text style={s.savedToastText}>✓ Saved</Text>
+        </View>
+      ) : null}
+
       {/* Off-screen branded card for image capture (1px host, kept in-window). */}
       {shareMode && completedStory.trim() ? (
         <StoryCard
@@ -1458,6 +1474,11 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 }
 
 const s = StyleSheet.create({
+  savedToast: {
+    position: 'absolute', top: 70, alignSelf: 'center', zIndex: 20,
+    backgroundColor: C.primary, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 8,
+  },
+  savedToastText: { color: C.onPrimary, fontSize: 15, fontWeight: '800' },
   root: { flex: 1, backgroundColor: C.bg },
 
   actBanner: {

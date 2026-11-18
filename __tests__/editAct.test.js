@@ -51,10 +51,14 @@ describe('My Story screen wiring', () => {
     expect(body).not.toMatch(/\.insert\(/);
   });
 
-  test('after Save Changes the app returns to the dashboard', () => {
+  test('Q6: after Save Changes the app stays on the act and flashes Saved', () => {
     const body = SRC.slice(SRC.indexOf('const handleSaveEdit'), SRC.indexOf('const handleSave = async'));
-    expect(body).toMatch(/navigation\.navigate\('Main', \{ screen: 'Home' \}\)/);
-    expect(body).not.toMatch(/setShareMode\(true\)/);
+    expect(body).not.toMatch(/navigation\.navigate\('Main', \{ screen: 'Home' \}\)/);
+    expect(body).toMatch(/setShareMode\(true\)/);
+    expect(body).toMatch(/setSavedFlash\(true\)/);
+    expect(body).toMatch(/setTimeout\(\(\) => setSavedFlash\(false\), SAVED_FLASH_MS\)/);
+    expect(SRC).toMatch(/const SAVED_FLASH_MS = 2000;/);
+    expect(SRC).toMatch(/✓ Saved/);
   });
 
   test('the keyboard Done bar is mounted together with the story box', () => {
