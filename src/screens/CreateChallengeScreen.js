@@ -11,6 +11,7 @@ import {
   TIME_BUCKETS, COST_BUCKETS,
 } from '../constants';
 import { supabase } from '../lib/supabase';
+import { emptyActsMessage } from '../lib/emptySearch';
 
 const COMPANY_ICON = require('../assets/categories/Company.png');
 
@@ -233,7 +234,7 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
           <View style={s.emptyWrap}>
             <Text style={{ fontSize: 36 }}>🔍</Text>
             <Text style={s.emptyText}>
-              No acts match those filters. Try widening the time or cost.
+              {emptyActsMessage(search, timeActive || costActive)}
             </Text>
             <Btn
               label="+ Create a New Act"
