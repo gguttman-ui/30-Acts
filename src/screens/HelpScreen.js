@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, Image, ScrollView, StyleSheet, Alert, Linking, Platform,
 } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
+import { createTapCounter } from '../lib/tapCounter';
+import { DB_ENVIRONMENT, PROJECT_REF } from '../lib/supabase';
+import { versionLabel, buildDetails, NATIVE_BUILD } from '../lib/buildInfo';
 import { Btn, Card, ScreenHeader } from '../components';
 import { C } from '../constants';
 import { extractPhone } from '../lib/streak';
@@ -12,14 +16,28 @@ import { extractPhone } from '../lib/streak';
 // Where "Report a Problem" sends support email.
 const SUPPORT_EMAIL = 'info@30actsofkindness.org';
 
-// Manual build number for now. NEXT NATIVE BUILD: run `npx expo install
-// expo-application`, then set this to `Application.nativeBuildVersion` so it
-// fills in automatically. (expo-application is native, so it can't ship
-// over-the-air — it only works once compiled into a build.)
-const APP_BUILD = '96';
+// Build number shown in Help and in problem reports: src/lib/buildInfo.js.
+const APP_BUILD = NATIVE_BUILD[Platform.OS] || '?';
 
 export default function HelpScreen({ user, navigation }) {
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const isStaging = Updates.channel === 'preview';
+  const [showDetails, setShowDetails] = useState(false);
+  const tapRef = useRef(createTapCounter({ count: 5, windowMs: 3000 }));
+  const details = buildDetails({
+    runtimeVersion: Updates.runtimeVersion,
+    channel: Updates.channel,
+    updateId: Updates.updateId,
+    db: DB_ENVIRONMENT === 'other' ? PROJECT_REF : DB_ENVIRONMENT,
+  });
+  // Five quick taps on the version line: show the developer details and send
+  // the Sentry test message (item 43; was on the Me page until 17 Nov 2026).
+  const handleVersionTap = () => {
+    if (!tapRef.current(Date.now())) return;
+    setShowDetails(true);
+    const eventId = Sentry.captureMessage(`Sentry test from Help (item 43) - ${details}`);
+    Alert.alert('Sentry test sent', `Event ${eventId ? eventId.slice(0, 8) : '(no id)'}. It should appear in Sentry Issues within a minute or two.`);
+  };
 
   const handleReportProblem = () => {
     const acct = extractPhone(user?.email) || user?.phone || 'unknown';
@@ -107,7 +125,10 @@ export default function HelpScreen({ user, navigation }) {
           </Card>
         ) : null}
 
-        <Text selectable style={s.version}>Version {appVersion} (build {APP_BUILD})</Text>
+        <Text style={s.version} onPress={handleVersionTap}>{versionLabel(appVersion, Platform.OS)}</Text>
+        {isStaging || showDetails ? (
+          <Text selectable style={s.version}>{details}</Text>
+        ) : null}
       </ScrollView>
     </View>
   );
