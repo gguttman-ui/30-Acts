@@ -8,7 +8,7 @@ import { captureRef } from 'react-native-view-shot';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase';
 import { extractPhone } from '../lib/streak';
-import { generateInviteLink } from '../lib/branch';
+import { generateInviteLink, websiteInviteUrl } from '../lib/branch';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 
 const GROUP_TYPES = ['Local', 'Place of Worship', 'Business'];
@@ -74,9 +74,9 @@ export default function CreateSponsorScreen({ navigation }) {
   const [lengthDays, setLengthDays] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
-  // The creator's phone (from the synthetic @phone.30acts.app email). Used to
-  // stamp the invite link with ?ref=<phone> so everyone who joins through it is
-  // attributed to this person's kindness tree — same as the personal invite.
+  // The creator's phone (from the synthetic @phone.30acts.app email). Only used
+  // to know they are signed in: the invite link carries their invite CODE, not
+  // the phone (fix 4), so joiners land on their tree - same as the personal invite.
   const [myPhone, setMyPhone] = useState(null);
 
   // After a successful create, hold onto the new row so we can show
@@ -161,9 +161,9 @@ export default function CreateSponsorScreen({ navigation }) {
   const [groupInviteUrl, setGroupInviteUrl] = useState('https://30ActsofKindness.org');
   useEffect(() => {
     const code = created?.join_code;
-    const fallback = myPhone
-      ? `https://30ActsofKindness.org?ref=${encodeURIComponent(myPhone)}${code ? `&group=${encodeURIComponent(code)}` : ''}`
-      : 'https://30ActsofKindness.org';
+    // Fix 4: never a phone number in a link - the group code only until the
+    // Branch link (with the invite code) is ready.
+    const fallback = websiteInviteUrl(null, code);
     setGroupInviteUrl(fallback);
     if (!myPhone) return;
     let alive = true;

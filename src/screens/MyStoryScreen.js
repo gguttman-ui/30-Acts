@@ -418,9 +418,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   // Branch invite link (airpa.app.link) — bounces to the App Store and
   // attributes the joiner to this user's tree after install, no website hop.
   // Website fallback until the Branch short link resolves.
-  const [inviteUrl, setInviteUrl] = useState(
-    invitePhone ? `${APP_URL}?ref=${encodeURIComponent(invitePhone)}` : APP_URL
-  );
+  // Fix 4: never a phone number in a link.
+  const [inviteUrl, setInviteUrl] = useState(APP_URL);
   React.useEffect(() => {
     if (!invitePhone) return;
     let alive = true;

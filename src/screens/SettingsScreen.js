@@ -566,18 +566,15 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
 
   // Invite-a-friend share. Uses the native iOS share sheet so the user can
   // pick SMS, email, etc. and edit the message before sending.
-  // Personal invite: the referral link carries ?ref=<phone> so anyone who
-  // joins through it is attributed to this user (added to their tree).
+  // Personal invite: the link carries this user's invite CODE (never the
+  // phone - fix 4) so anyone who joins through it lands on their tree.
   const invitePhone = extractPhone(user?.email) || user?.phone || null;
   // Invite link now points at a Branch link (airpa.app.link) that bounces new
   // users to the App Store and attributes them to this user's tree after they
   // install — no website hop. Starts as the website fallback, then upgrades to
   // the Branch short link once generated.
-  const [inviteLink, setInviteLink] = useState(
-    invitePhone
-      ? `https://30ActsofKindness.org?ref=${encodeURIComponent(invitePhone)}`
-      : 'https://30ActsofKindness.org'
-  );
+  // Fix 4: never a phone number in a link - plain site link until ready.
+  const [inviteLink, setInviteLink] = useState('https://30ActsofKindness.org');
   useEffect(() => {
     if (!invitePhone) return;
     let alive = true;

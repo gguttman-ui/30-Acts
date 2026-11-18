@@ -403,7 +403,8 @@ export default function DailyActScreen({ route, navigation, onComplete, onDelete
         const { data: { user } } = await supabase.auth.getUser();
         const phone = extractPhone(user?.email) || user?.phone || null;
         if (!phone) return;
-        if (alive) setInviteUrl(`${APP_URL}?ref=${encodeURIComponent(phone)}`);
+        // Fix 4: no phone number in links - plain site link until the invite link is ready.
+        if (alive) setInviteUrl(APP_URL);
         const url = await generateInviteLink({ phone });
         if (alive && url) setInviteUrl(url);
       } catch (e) { console.warn('Invite link failed:', e && e.message); }

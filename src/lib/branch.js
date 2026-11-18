@@ -39,9 +39,12 @@ const BRANCH_API_URL = 'https://api2.branch.io/v1/url';
 let pendingReferral = null;
 let unsubscribe = null;
 
-function stashReferral(ref, group) {
-  if (!ref && !group) return;
-  pendingReferral = { ref: ref || null, group: group || null };
+// inv   = the inviter's invite code (links made since 18 Nov 2026, fix 4)
+// ref   = the inviter's phone (OLD links only - still honored, never created)
+// group = group join code
+function stashReferral(ref, group, inv) {
+  if (!ref && !group && !inv) return;
+  pendingReferral = { ref: ref || null, group: group || null, inv: inv || null };
   AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingReferral)).catch(() => {});
 }
 
@@ -58,7 +61,8 @@ export function initBranch() {
       if (!params['+clicked_branch_link'] && !params['+is_first_session']) return;
       const ref = params.ref || null;
       const group = params.group || null;
-      stashReferral(ref, group);
+      const inv = params.inv || null;
+      stashReferral(ref, group, inv);
     });
   } catch (e) {
     // no-op — Branch not available / not initialized
@@ -85,15 +89,45 @@ export async function clearPendingReferral() {
   try { await AsyncStorage.removeItem(PENDING_KEY); } catch (e) {}
 }
 
-// Build an invite link that carries the inviter's phone (ref) and, for group
-// invites, the group join code. Returns a Branch airpa.app.link short URL that
-// bounces new users to the App Store and attributes them after install. Falls
-// back to the website link if Branch isn't available (e.g. Expo Go).
+// The signed-in person's invite code (created by the database on first use).
+// Cached per signed-in account (so a different account on the same phone never
+// shares someone else's code). Null if signed out or the lookup fails.
+let cached = { uid: null, code: null };
+export async function getMyInviteCode() {
+  try {
+    const { data: { session } = {} } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return null;
+    if (cached.uid === uid && cached.code) return cached.code;
+    const { data, error } = await supabase.rpc('my_invite_code');
+    if (error || !data) return null;
+    cached = { uid, code: String(data) };
+    return cached.code;
+  } catch (e) {
+    return null;
+  }
+}
+export function resetInviteCodeCache() { cached = { uid: null, code: null }; }
+
+/** Website link for an invite: only the code and group - NEVER a phone (fix 4). */
+export function websiteInviteUrl(code, group) {
+  const q = [];
+  if (code) q.push(`inv=${encodeURIComponent(code)}`);
+  if (group) q.push(`group=${encodeURIComponent(group)}`);
+  return q.length ? `${WEBSITE_URL}?${q.join('&')}` : WEBSITE_URL;
+}
+
+// Build an invite link that carries the inviter's invite CODE (never the
+// phone - UX review fix 4, 18 Nov 2026) and, for group invites, the group
+// join code. Returns a Branch airpa.app.link short URL that bounces new users
+// to the App Store and attributes them after install. Falls back to the
+// website link if Branch isn't available (e.g. Expo Go).
+// `phone` only tells us someone is signed in; it is never put in the link.
 export async function generateInviteLink({ phone, group } = {}) {
-  const fallback = phone
-    ? `${WEBSITE_URL}?ref=${encodeURIComponent(phone)}${group ? `&group=${encodeURIComponent(group)}` : ''}`
-    : WEBSITE_URL;
-  if (!phone) return fallback;
+  if (!phone) return WEBSITE_URL;
+  const code = await getMyInviteCode();
+  const fallback = websiteInviteUrl(code, group);
+  if (!code && !group) return fallback;
   try {
     // Create the link through Branch's web API (no native SDK dependency).
     // Returns a short airpa.app.link URL carrying the referral data.
@@ -105,7 +139,7 @@ export async function generateInviteLink({ phone, group } = {}) {
         channel: 'app',
         feature: group ? 'group_invite' : 'invite',
         data: {
-          ref: String(phone),
+          ...(code ? { inv: code } : {}),
           ...(group ? { group: String(group) } : {}),
           $desktop_url: fallback,
           $fallback_url: fallback,
@@ -130,15 +164,23 @@ export async function applyPendingReferral(ownPhone) {
   let pending = null;
   try { pending = await getPendingReferral(); } catch (e) { return; }
   if (!pending) return;
-  const ref = pending.ref;
+  const ref = pending.ref;      // old links only
+  const inv = pending.inv;      // fix 4 links
   const group = pending.group;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Tree attribution: set referred_by when we have a referrer who isn't the
-    // user themselves and the profile doesn't already have one.
-    if (ref && ref !== ownPhone) {
+    // Tree attribution from an invite code: the database credits the inviter
+    // without ever telling the app their phone (fix 4).
+    if (inv) {
+      await supabase.rpc('apply_invite_code', { p_code: String(inv) });
+    }
+
+    // OLD links (made before 18 Nov 2026) carry the inviter's phone: still
+    // honored so nobody loses credit. Set referred_by when we have a referrer
+    // who isn't the user themselves and the profile doesn't already have one.
+    if (!inv && ref && ref !== ownPhone) {
       const { data: prof } = await supabase
         .from('profiles').select('referred_by').eq('id', user.id).maybeSingle();
       if (!prof) {
