@@ -15,7 +15,7 @@ describe('first-run tour (items 101 + 102)', () => {
   });
   test('tree stages match TreeScreen thresholds', () => {
     expect(TOUR_PAGES[3].stages.map((s) => s.range)).toEqual(['1-10 acts', '11-20 acts', '21+ acts']);
-    const tree = read('src/screens/TreeScreen.js');
+    const tree = read('src/lib/treeImage.js'); // fix 8: moved out of TreeScreen
     expect(tree).toMatch(/count <= 10\) return 'Sapling'/);
     expect(tree).toMatch(/count <= 20\) return 'Young Tree'/);
   });

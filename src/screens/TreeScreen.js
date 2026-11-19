@@ -1,31 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { show, LABELS, NUMBER_PLACEHOLDER } from '../lib/myNumbers';
+import { treeForCount, stageLabel } from '../lib/treeImage';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 
-const TREE_SAPLING = require('../assets/tree/tree-sapling.png');
-const TREE_YOUNG   = require('../assets/tree/tree-young.png');
-const TREE_FULL    = require('../assets/tree/tree-full.png');
-
 const extractPhone = (email) => {
   if (!email || typeof email !== 'string') return null;
   if (!email.endsWith('@phone.30acts.app')) return null;
   return email.replace('@phone.30acts.app', '');
-};
-
-const treeForCount = (count) => {
-  if (count <= 10) return TREE_SAPLING;
-  if (count <= 20) return TREE_YOUNG;
-  return TREE_FULL;
-};
-
-const stageLabel = (count) => {
-  if (count <= 10) return 'Sapling';
-  if (count <= 20) return 'Young Tree';
-  return 'Mature Tree';
 };
 
 export default function TreeScreen({ user }) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image,
   Alert, Platform, KeyboardAvoidingView, ActivityIndicator,
   Linking, Share, Dimensions, InputAccessoryView, Keyboard,
 } from 'react-native';
@@ -38,6 +38,8 @@ const SPEECH_AVAILABLE = !!ExpoSpeechRecognitionModule && !!useSpeechRecognition
 const useSpeechEvent = useSpeechRecognitionEvent || (() => {});
 import { ScreenHeader } from '../components';
 import StoryCard from '../components/StoryCard';
+import { loadMyNumbers, LABELS, show } from '../lib/myNumbers';
+import { treeForCount } from '../lib/treeImage';
 import { C, todayStr, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
@@ -226,6 +228,19 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
   const [editingId,   setEditingId]   = useState(null);
   const actDate = route?.params?.day?.scheduledDate || targetDay?.scheduledDate || null;
   const canEdit = !!completedId && canEditAct(actDate, todayStr());
+
+  // Fix 8 (19 Nov 2026): streak and all-time count for the "Day N done"
+  // screen, from the same counter as Today / Me / Tree. "…" until loaded.
+  const [doneNums, setDoneNums] = useState(null);
+  React.useEffect(() => {
+    if (!shareMode) return undefined;
+    let cancelled = false;
+    supabase.auth.getUser()
+      .then(({ data }) => loadMyNumbers(extractPhone(data?.user?.email), todayStr()))
+      .then((n) => { if (!cancelled && n) setDoneNums(n); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [shareMode, completedId]);
 
   const charCount  = story.trim().length;
   const storyValid = charCount >= STORY_MIN;
@@ -1410,16 +1425,35 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               </TouchableOpacity>
 
               {editingId ? (
-                <TouchableOpacity onPress={cancelEdit} style={s.skipShare}>
-                  <Text style={s.skipShareText}>Cancel</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity onPress={cancelEdit} style={s.skipShare}>
+                    <Text style={s.skipShareText}>Cancel</Text>
+                  </TouchableOpacity>
+                  {/* Fix 8: Delete lives on the edit screen now. */}
+                  <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+                    <Text style={s.deleteBtnText}>🗑️  Delete this act</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
             </>
           ) : (
+            // Fix 8 (19 Nov 2026): finishing a day feels like a win - real day
+            // number, streak and all-time count, the tree with its new leaf,
+            // the story with Edit, ONE share button, and Done.
             <View style={s.successCard}>
-              <Text style={{ fontSize: sf(36), textAlign: 'center' }}>🎉</Text>
-              <Text style={s.successTitle}>Act Completed!</Text>
-              <Text style={s.successSub}>You're making the world a kinder place.</Text>
+              <Text style={s.successTitle}>
+                {dayNumber ? `Day ${dayNumber} of 30 done` : 'Act done'} 🎉
+              </Text>
+              <Text style={s.successSub}>
+                🔥 {LABELS.streak} {show(doneNums?.streak)} {'\u00b7'} {show(doneNums?.lifetime)} {LABELS.lifetime.toLowerCase()}
+              </Text>
+
+              <View style={s.doneTreeWrap}>
+                <Image source={treeForCount(doneNums?.lifetime || 0)} style={s.doneTree} resizeMode="contain" />
+                <View style={s.newLeaf}>
+                  <Text style={s.newLeafText}>🍃 +1 leaf</Text>
+                </View>
+              </View>
 
               {/* Backlog 84: when the story is the act's own words, show it once
                   (the story box), not again as a title above it. */}
@@ -1431,33 +1465,27 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                   <Text style={s.completedStoryText}>{completedStory.trim()}</Text>
                 </View>
               ) : null}
-
-              <ShareButtons
-                style={{ marginTop: 20 }}
-                social={buildSocialButtons({
-                  onTikTok:    shareToTikTok,
-                  onInstagram: shareToInstagram,
-                  onX:         shareToX,
-                  onFacebook:  shareToFacebook,
-                })}
-                onText={handleShareText}
-                onEmail={handleShareEmail}
-                onMore={handleShareAll}
-                disabled={sharing}
-              />
-
               {canEdit ? (
-                <TouchableOpacity onPress={startEdit} style={s.editBtn} activeOpacity={0.8}>
-                  <Text style={s.editBtnText}>✏️  Edit this act</Text>
+                <TouchableOpacity onPress={startEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={s.editLink}>Edit</Text>
                 </TouchableOpacity>
               ) : null}
 
-              <TouchableOpacity onPress={goToCalendar} style={s.skipShare}>
-                <Text style={s.skipShareText}>Done</Text>
+              {/* One share button: an image of the act (day, story, app name,
+                  invite link - never a phone number) and the share sheet. */}
+              <TouchableOpacity
+                onPress={handleShareAll}
+                disabled={sharing}
+                style={[s.shareCardBtn, sharing && { opacity: 0.6 }]}
+                activeOpacity={0.85}
+              >
+                {sharing
+                  ? <ActivityIndicator color={C.primaryText} />
+                  : <Text style={s.shareCardText}>📤  Share as a card</Text>}
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-                <Text style={s.deleteBtnText}>🗑️  Delete this act</Text>
+              <TouchableOpacity onPress={goToCalendar} style={s.doneBtn} activeOpacity={0.85}>
+                <Text style={s.doneBtnText}>Done</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1528,6 +1556,16 @@ const s = StyleSheet.create({
   successTitle: { color: C.text, fontSize: sf(22), fontWeight: '800', marginTop: 8 },
   successSub:   { color: C.sub, fontSize: sf(14), textAlign: 'center', marginTop: 4 },
   skipShare: { marginTop: 12, paddingVertical: 10, alignItems: 'center' },
+  // Fix 8
+  doneTreeWrap: { alignItems: 'center', marginTop: 14 },
+  doneTree:     { width: 110, height: 110 },
+  newLeaf:      { position: 'absolute', right: -34, top: 6, backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  newLeafText:  { color: C.onPrimary, fontSize: sf(12), fontWeight: '900' },
+  editLink:     { color: C.primaryText, fontSize: sf(15), fontWeight: '800', textDecorationLine: 'underline', marginTop: 10 },
+  shareCardBtn: { marginTop: 18, borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', alignSelf: 'stretch' },
+  shareCardText:{ color: C.primaryText, fontSize: sf(16), fontWeight: '800' },
+  doneBtn:      { marginTop: 12, backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', alignSelf: 'stretch' },
+  doneBtnText:  { color: C.onPrimary, fontSize: sf(18), fontWeight: '900' },
   editBtn: { marginTop: 16, borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', alignSelf: 'stretch' },
   editBtnText: { color: C.primaryText, fontSize: sf(15), fontWeight: '700' },
   skipShareText: { color: C.primaryText, fontSize: sf(18), fontWeight: '800' },
