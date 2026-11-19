@@ -57,14 +57,14 @@ describe('screens use the one counter', () => {
     expect(ME).not.toMatch(/windowCompleted|streakActs/);
     expect(ME).toContain('LABELS.best');
   });
-  test('Tree: own acts apart from invited acts; placeholders, not 0', () => {
-    expect(TREE).toMatch(/setInvitedActs\(mine != null && total != null \? Math\.max\(0, total - mine\) : null\)/);
+  // Fix 9 (19 Nov 2026) replaced Tree's numbers with David's wording.
+  test('Tree: shared labels; placeholders, not 0', () => {
     expect(TREE).toMatch(/\[myActs, setMyActs\]\s+= useState\(null\)/);
-    expect(TREE).toMatch(/\[invitedActs, setInvitedActs\]\s+= useState\(null\)/);
+    expect(TREE).toMatch(/\[treeActs, setTreeActs\]\s+= useState\(null\)/);
     expect(TREE).toMatch(/\[peopleUnderMe, setPeopleUnderMe\] = useState\(null\)/);
-    expect(TREE).toContain('{LABELS.invitedActs}');
-    expect(TREE).toContain('{LABELS.invitedPeople}');
     expect(TREE).toContain('{LABELS.lifetime}');
+    expect(TREE).toContain('{LABELS.invitedPeople}');
+    expect(TREE).toContain('{LABELS.treeActs}');
     expect(TREE).not.toMatch(/Total\{'\\n'\}Acts/);
   });
 });

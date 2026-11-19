@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { show, LABELS, NUMBER_PLACEHOLDER } from '../lib/myNumbers';
-import { treeForCount, stageLabel } from '../lib/treeImage';
+import React, { useState, useCallback, useEffect } from 'react';
+import { show, LABELS } from '../lib/myNumbers';
+import KindnessTree from '../components/KindnessTree';
+import { generateInviteLink } from '../lib/branch';
+import { actDateLabel } from '../lib/searchActs';
 import { FONT } from '../lib/fonts';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Share } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { ScreenHeader } from '../components';
+import { ScreenHeader, Btn } from '../components';
 import { C } from '../constants';
 import { supabase } from '../lib/supabase';
 
@@ -15,101 +17,129 @@ const extractPhone = (email) => {
 };
 
 export default function TreeScreen({ user }) {
-  const [loading, setLoading]     = useState(true);
-  // Fix 5 (19 Nov 2026): null until loaded -> "…", never 0. Same labels as
-  // Today and Me (src/lib/myNumbers.js). "Acts by people you invited" is the
-  // tree's acts WITHOUT your own (Total Acts used to mix yours in).
+  // Fix 5: null until loaded -> "…", never 0.
+  // Fix 9 (19 Nov 2026): the tree is drawn from real data (KindnessTree);
+  // numbers are All-time acts / People you inspired / Acts on your tree.
   const [myActs, setMyActs]               = useState(null);
-  const [invitedActs, setInvitedActs]     = useState(null);
+  const [treeActs, setTreeActs]           = useState(null);
   const [peopleUnderMe, setPeopleUnderMe] = useState(null);
-  const [totalMin, setTotalMin]   = useState(0);
-  const [totalCents, setTotalCts] = useState(0);
+  const [ownActs, setOwnActs]             = useState([]);   // oldest first
+  const [branches, setBranches]           = useState([]);   // acts per person, most first
+  const [picked, setPicked]               = useState(null); // { own: act } | { friend: true }
+  const [inviteUrl, setInviteUrl]         = useState(null);
 
-  // Refetch stats every time the user navigates to this tab.
-  // This keeps the tree image and stats live with new completions.
+  // Refetch every time the tab is opened, so a new act shows straight away.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
+        // Counts across your whole tree come from the server (completions RLS
+        // only lets the app read your own rows). get_tree_stats() = totals;
+        // get_tree_branches() = acts per person you inspired - counts only.
         try {
-          // My Acts / Total Acts / People Under Me are computed server-side by
-          // the get_tree_stats() SECURITY DEFINER function. This is required:
-          // completions RLS is own-rows-only for non-admins, so the app itself
-          // cannot read a downline member's acts. The function tallies them with
-          // elevated permissions and returns only the three totals.
           const { data, error } = await supabase.rpc('get_tree_stats');
           if (error) throw error;
-          if (cancelled) return;
-
-          const mine  = data?.my_acts ?? null;
-          const total = data?.total_acts ?? null;
-          setMyActs(mine);
-          setInvitedActs(mine != null && total != null ? Math.max(0, total - mine) : null);
-          setPeopleUnderMe(data?.people_under_me ?? null);
-        } catch (e) {
-          console.warn('Tree screen load failed:', e.message);
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
+          if (!cancelled) {
+            setMyActs(data?.my_acts ?? null);
+            setTreeActs(data?.total_acts ?? null);
+            setPeopleUnderMe(data?.people_under_me ?? null);
+          }
+        } catch (e) { console.warn('Tree stats load failed:', e.message); }
+        try {
+          const { data, error } = await supabase.rpc('get_tree_branches');
+          if (error) throw error;
+          if (!cancelled) setBranches(Array.isArray(data?.branches) ? data.branches : []);
+        } catch (e) { console.warn('Tree branches load failed:', e.message); }
+        try {
+          const phone = extractPhone(user?.email);
+          if (!phone) return;
+          const { data, error } = await supabase
+            .from('completions')
+            .select('id, act_title, notes, local_date, completed_at')
+            .eq('user_phone', phone)
+            .order('completed_at', { ascending: true });
+          if (error) throw error;
+          if (!cancelled) setOwnActs(data || []);
+        } catch (e) { console.warn('Tree acts load failed:', e.message); }
       })();
       return () => { cancelled = true; };
     }, [user?.email])
   );
 
-  const formatTime = (mins) => {
-    if (mins < 60)  return `${mins} min`;
-    const hours = Math.floor(mins / 60);
-    const rem   = mins % 60;
-    return rem === 0 ? `${hours} hr` : `${hours} hr ${rem} min`;
+  useEffect(() => {
+    const phone = extractPhone(user?.email);
+    if (!phone) return;
+    generateInviteLink({ phone }).then((u) => u && setInviteUrl(u)).catch(() => {});
+  }, [user?.email]);
+
+  // Invite link only - never a phone number.
+  const invite = async () => {
+    const url = inviteUrl || (await generateInviteLink({ phone: extractPhone(user?.email) }));
+    try {
+      await Share.share({ message: `Join me doing 30 Acts of Kindness - one small act a day: ${url}` });
+    } catch (_) { /* closed */ }
   };
-  const formatCost = (cents) => `$${(cents / 100).toFixed(2)}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="My Tree" />
       <ScrollView contentContainerStyle={s.scroll}>
-        {/* No spinner: the layout shows at once with "…" in each number. */}
-        {(
-          <>
-            <View style={s.treeWrap}>
-              <Image source={treeForCount(myActs || 0)} style={s.tree} resizeMode="contain" />
-            </View>
+        <View style={s.treeWrap}>
+          <KindnessTree
+            ownActs={ownActs}
+            branches={branches}
+            onOwnLeaf={(act) => act && setPicked({ own: act })}
+            onFriendLeaf={() => setPicked({ friend: true })}
+          />
+        </View>
+        <Text style={s.hint}>Tap a leaf to see the act.</Text>
 
-            <Text style={s.stageLabel}>{myActs == null ? NUMBER_PLACEHOLDER : stageLabel(myActs).toUpperCase()}</Text>
+        <View style={s.statsRow}>
+          <View style={s.stat}>
+            <Text style={s.statValue}>{show(myActs)}</Text>
+            <Text style={s.statLabel}>{LABELS.lifetime}</Text>
+          </View>
+          <View style={s.stat}>
+            <Text style={s.statValue}>{show(peopleUnderMe)}</Text>
+            <Text style={s.statLabel}>{LABELS.invitedPeople}</Text>
+          </View>
+          <View style={s.stat}>
+            <Text style={s.statValue}>{show(treeActs)}</Text>
+            <Text style={s.statLabel}>{LABELS.treeActs}</Text>
+          </View>
+        </View>
 
-            <View style={s.statsRow}>
-              <View style={s.stat}>
-                <Text style={s.statValue}>{show(myActs)}</Text>
-                <Text style={s.statLabel}>{LABELS.lifetime}</Text>
-              </View>
-              <View style={s.stat}>
-                <Text style={s.statValue}>{show(invitedActs)}</Text>
-                <Text style={s.statLabel}>{LABELS.invitedActs}</Text>
-              </View>
-              <View style={s.stat}>
-                <Text style={s.statValue}>{show(peopleUnderMe)}</Text>
-                <Text style={s.statLabel}>{LABELS.invitedPeople}</Text>
-              </View>
-            </View>
-          </>
-        )}
+        <View style={s.legend}>
+          <Text style={s.legendText}><Text style={{ color: '#114E33' }}>●</Text> your acts   <Text style={{ color: '#EABA4B' }}>●</Text> newest   <Text style={{ color: '#5FAE7C' }}>●</Text> people you inspired</Text>
+        </View>
+
+        <Btn label="Invite someone" onPress={invite} style={{ marginTop: 18 }} />
       </ScrollView>
+
+      {/* Tapped leaf: your own act's story and date; a friend's stays private. */}
+      <Modal visible={!!picked} transparent animationType="fade" onRequestClose={() => setPicked(null)}>
+        <TouchableOpacity style={s.dim} activeOpacity={1} onPress={() => setPicked(null)}>
+          <View style={s.leafCard}>
+            {picked?.own ? (
+              <>
+                <Text style={s.leafDate}>{actDateLabel(picked.own)}</Text>
+                <Text style={s.leafStory}>{picked.own.notes || picked.own.act_title}</Text>
+              </>
+            ) : (
+              <Text style={s.leafStory}>An act of kindness by someone you inspired.</Text>
+            )}
+            <Btn label="Close" variant="secondary" onPress={() => setPicked(null)} style={{ marginTop: 16 }} />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  scroll: { padding: 16, alignItems: 'center' },
-  treeWrap: {
-    width: '100%', aspectRatio: 1,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 8,
-  },
-  tree: { width: '100%', height: '100%' },
-  stageLabel: {
-    color: C.primaryText, fontSize: 13,
-    letterSpacing: 1.5, marginTop: -8, marginBottom: 24, ...FONT.heavy,
-  },
+  scroll: { padding: 16, paddingBottom: 32, alignItems: 'center' },
+  treeWrap: { width: '100%', maxWidth: 420, marginTop: 4 },
+  hint: { color: C.sub, fontSize: 14, marginTop: 2, marginBottom: 18, ...FONT.body },
   statsRow: {
     flexDirection: 'row', justifyContent: 'space-around',
     width: '100%', paddingHorizontal: 8,
@@ -120,4 +150,10 @@ const s = StyleSheet.create({
     color: C.sub, fontSize: 13,
     textAlign: 'center', letterSpacing: 0.2, lineHeight: 17, ...FONT.semi,
   },
+  legend: { marginTop: 16 },
+  legendText: { color: C.sub, fontSize: 13, textAlign: 'center', ...FONT.body },
+  dim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
+  leafCard: { backgroundColor: C.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.border },
+  leafDate: { color: C.sub, fontSize: 14, marginBottom: 8, ...FONT.semi },
+  leafStory: { color: C.text, fontSize: 17, lineHeight: 24, ...FONT.body },
 });

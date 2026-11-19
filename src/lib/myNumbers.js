@@ -25,7 +25,9 @@ export const LABELS = {
   best:      'Best streak',
   lifetime:  'All-time acts',
   invitedActs:   'Acts by people you invited',
-  invitedPeople: 'People you invited',
+  // Fix 9 (19 Nov 2026): David's Tree wording.
+  invitedPeople: 'People you inspired',
+  treeActs:      'Acts on your tree',
 };
 
 /**
