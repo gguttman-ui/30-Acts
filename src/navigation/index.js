@@ -6,6 +6,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import SponsorDetailScreen   from '../screens/SponsorDetailScreen';
 import { C, ACT_CATEGORIES } from '../constants';
+import { FONT } from '../lib/fonts';
+import { Ionicons } from '@expo/vector-icons';
 import TreeScreen        from '../screens/TreeScreen';
 import SettingsScreen    from '../screens/SettingsScreen';
 import HomeScreen   from '../screens/HomeScreen';
@@ -39,17 +41,9 @@ import CertificateScreen     from '../screens/CertificateScreen';
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function TabIcon({ focused, emoji, image }) {
-  if (image) {
-    return (
-      <Image
-        source={image}
-        style={{ width: 28, height: 28, opacity: focused ? 1 : 0.45 }}
-        resizeMode="contain"
-      />
-    );
-  }
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
+// Fix 10 (19 Nov 2026): simple line icons instead of emoji / pictures.
+function TabIcon({ focused, name, color }) {
+  return <Ionicons name={focused ? name : `${name}-outline`} size={24} color={color} />;
 }
 
 function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, onComplete, onLogout, onRestart, onReloadDays }) {
@@ -77,11 +71,11 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         tabBarStyle: { backgroundColor: C.header, borderTopColor: C.border, borderTopWidth: 1 },
         tabBarActiveTintColor:   C.primary,
         tabBarInactiveTintColor: C.muted,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 11, ...FONT.bold },
       }}
     >
 <Tab.Screen name="Home"
-  options={{ tabBarLabel: 'Today', tabBarIcon: ({ focused }) => <TabIcon focused={focused} image={require('../../assets/logo.png')} /> }}
+  options={{ tabBarLabel: 'Today', tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="today" /> }}
 >
         {(props) => (
           <HomeScreen {...props}
@@ -96,20 +90,29 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
       </Tab.Screen>
 
 
-      <Tab.Screen name="Me"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="👤" /> }}
+      {/* Fix 10: Journey = every act you have logged, newest first, with
+          search (it was the "Search my acts" page). */}
+      <Tab.Screen name="Journey"
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="calendar" /> }}
       >
-        {renderSettings}
+        {(props) => <SearchActsScreen {...props} user={user} asTab />}
       </Tab.Screen>
 
       {/* Fix 6 (18 Nov 2026): Help and Feedback left the tab bar; they open
           from Me > Help and feedback (stack screens below). */}
 
       <Tab.Screen name="Tree"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🌳" /> }}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="leaf" /> }}
       >
         {(props) => <TreeScreen {...props} user={user} />}
       </Tab.Screen>
+
+      <Tab.Screen name="Me"
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="person" /> }}
+      >
+        {renderSettings}
+      </Tab.Screen>
+
 
       {/* Reviewers/admins additionally get a Review tab: moderate act
           completions, and from the "Review Suggested Acts" button atop it,
@@ -118,7 +121,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
         <Tab.Screen name="Review"
           options={{
             tabBarLabel: 'Review',
-            tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🔎" />,
+            tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="search" />,
           }}
         >
           {(props) => (
@@ -132,7 +135,7 @@ function MainTabs({ days, daysReloading, user, actCategories, onStartChallenge, 
 
       {isAdmin && (
         <Tab.Screen name="Admin"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🔐" /> }}
+          options={{ tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name="lock-closed" /> }}
           component={AdminScreen}
         />
       )}

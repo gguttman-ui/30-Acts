@@ -1,28 +1,33 @@
 // ── Colors ────────────────────────────────────────────────────────────────────
 export const C = {
-  // Sage theme (4 Nov 2026). Gold is for filled buttons/highlights only;
-  // text on gold uses onPrimary, gold-ish text uses primaryText.
-  bg:          '#3d6b4b',
-  card:        '#457355',
-  card2:       '#335a40',
-  surface:     '#2f5a3d',
-  header:      '#2f5a3d',
-  border:      '#7aa486',
-  primary:     '#f2c14e',
-  primaryDark: '#d9a93a',
-  primaryText: '#ffe7a3',
-  onPrimary:   '#1f3a28',
-  accent:      '#ffe7a3',
-  gold:        '#f2c14e',
-  text:        '#ffffff',
-  sub:         '#eef5ec',
-  muted:       '#e3ede0',
-  success:     '#d7ecd2',
-  warning:     '#ffe7a3',
-  error:       '#ffd1c7',
-  missed:      '#ffd1c7',
-  doneBg:      '#d7ecd2',
-  doneText:    '#1f4d2e',
+  // David's fix 10 (19 Nov 2026): one light visual system matching
+  // 30acts.org. Replaces the dark "Sage" theme of 4 Nov. Every text colour
+  // here is at least 4.5:1 on bg and card.
+  //   main buttons primary (#17734A) with onPrimary (white) text;
+  //   gold is for streaks and celebrations only; error for destructive.
+  bg:          '#FBFAF5',
+  card:        '#FFFFFF',
+  card2:       '#E3F1E8',   // light green
+  surface:     '#FFFFFF',
+  header:      '#FBFAF5',
+  border:      '#C9D8CE',
+  primary:     '#17734A',
+  primaryDark: '#114E33',   // deep green
+  primaryText: '#17734A',   // green text / links on light backgrounds
+  onPrimary:   '#FFFFFF',
+  accent:      '#114E33',
+  gold:        '#EABA4B',   // streaks and celebrations only
+  onGold:      '#15231B',
+  text:        '#15231B',
+  sub:         '#4E6458',
+  muted:       '#4E6458',
+  success:     '#17734A',
+  warning:     '#8A5A00',
+  error:       '#B3261E',
+  missed:      '#B3261E',
+  doneBg:      '#114E33',
+  doneText:    '#FFFFFF',
+  switchOff:   '#7D9186',   // a switch that is off must still be visible
 };
 
 // IANA mapping for date math. Stored on profiles.iana_timezone so the streak

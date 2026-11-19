@@ -7,11 +7,12 @@ import {
 import { Text, TextInput } from './scaledText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants';
+import { FONT } from '../lib/fonts';
 
 // ── Button ─────────────────────────────────────────────────────────
 export function Btn({ label, onPress, variant = 'primary', disabled, loading, style }) {
   const vs = {
-    primary:   { bg: disabled ? C.surface : C.primary, color: C.onPrimary, borderWidth: 0 },
+    primary:   { bg: disabled ? C.border : C.primary, color: C.onPrimary, borderWidth: 0 },
     secondary: { bg: 'transparent', color: C.primaryText, borderWidth: 1.5, borderColor: C.primary },
     ghost:     { bg: 'transparent', color: C.sub, borderWidth: 0 },
     danger:    { bg: 'transparent', color: C.error, borderWidth: 1.5, borderColor: C.error },
@@ -194,15 +195,16 @@ const styles = StyleSheet.create({
     width: '100%', paddingVertical: 15, paddingHorizontal: 20,
     borderRadius: 14, alignItems: 'center', justifyContent: 'center',
   },
-  btnText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+  // Fix 10: body text at least 16 points; buttons at least 44 points tall.
+  btnText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3, ...FONT.bold },
 
   inputLabel: {
     color: C.sub, fontSize: 12, fontWeight: '700',
     marginBottom: 7, letterSpacing: 0.5, textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: C.card2, borderRadius: 12, paddingHorizontal: 14,
-    paddingVertical: 13, fontSize: 15, color: C.text,
+    backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 14,
+    paddingVertical: 13, fontSize: 16, color: C.text, ...FONT.body,
     borderWidth: 1.5, borderColor: C.border,
   },
   errorText: { color: C.error, fontSize: 11, marginTop: 5 },
@@ -246,12 +248,12 @@ badge: {
     borderRadius: 7,
   },
   headerTitle: {
-    flex: 1, textAlign: 'center', fontWeight: '800', fontSize: 17, color: C.text,
+    flex: 1, textAlign: 'center', fontWeight: '800', fontSize: 19, color: C.text, ...FONT.heading,
   },
 
   sectionLabel: {
     color: C.sub, fontSize: 12, fontWeight: '700',
-    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8,
+    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8, ...FONT.bold,
   },
 });
 
@@ -351,4 +353,4 @@ const tcStyles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#444',
   },
   kbDone: { color: '#0a84ff', fontSize: 16, fontWeight: '700' },
-});
+});

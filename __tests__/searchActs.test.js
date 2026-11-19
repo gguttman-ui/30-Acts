@@ -55,8 +55,9 @@ describe('Search my acts', () => {
     expect(src).not.toMatch(/gte\('completed_at'/);
   });
   // Fix 6 (18 Nov 2026): David's review took "Search my acts" off Me.
-  test('reachable from Home (no longer on Me)', () => {
-    expect(read('src/screens/HomeScreen.js')).toMatch(/navigate\('SearchActs'\)/);
+  // Fix 10 (19 Nov 2026): it is the Journey tab now.
+  test('reachable as the Journey tab (no longer on Me)', () => {
+    expect(read('src/navigation/index.js')).toMatch(/<Tab\.Screen name="Journey"[\s\S]{0,250}<SearchActsScreen \{\.\.\.props\} user=\{user\} asTab \/>/);
     expect(read('src/screens/SettingsScreen.js')).not.toMatch(/Search my acts/);
     expect(read('src/navigation/index.js')).toMatch(/name="SearchActs"/);
   });

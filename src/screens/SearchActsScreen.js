@@ -1,4 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { FONT } from '../lib/fonts';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
@@ -10,13 +13,15 @@ import { filterActs, actDateLabel } from '../lib/searchActs';
 
 // Search every act this person has logged - all streaks and laps, not just
 // the current 30 days. Read-only: tap a result to see its full text.
-export default function SearchActsScreen({ navigation, user }) {
+// Fix 10 (19 Nov 2026): this is also the Journey tab (`asTab`): no back
+// arrow, no keyboard popping up, and it reloads each time it is opened.
+export default function SearchActsScreen({ navigation, user, asTab = false }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let alive = true;
     (async () => {
       try {
@@ -36,23 +41,26 @@ export default function SearchActsScreen({ navigation, user }) {
       }
     })();
     return () => { alive = false; };
-  }, [user?.email]);
+  }, [user?.email]));
 
   const results = useMemo(() => filterActs(rows, query), [rows, query]);
   const total = filterActs(rows, '').length;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader title="Search my acts" onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        title={asTab ? 'Journey' : 'Search my acts'}
+        onBack={asTab ? undefined : () => navigation.goBack()}
+      />
       <View style={s.searchWrap}>
-        <Text style={s.searchIcon}>🔍</Text>
+        <Ionicons name="search-outline" size={20} color={C.sub} />
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Type a word, e.g. neighbor, thank you"
           placeholderTextColor={C.muted}
           style={s.input}
-          autoFocus
+          autoFocus={!asTab}
           autoCorrect={false}
           returnKeyType="search"
           clearButtonMode="while-editing"
@@ -108,17 +116,16 @@ const s = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     margin: 16, marginBottom: 0, paddingHorizontal: 14,
-    backgroundColor: C.card2, borderColor: C.border, borderWidth: 1, borderRadius: 12,
+    backgroundColor: C.card, borderColor: C.border, borderWidth: 1, borderRadius: 12,
   },
-  searchIcon: { fontSize: 16 },
-  input: { flex: 1, color: C.text, fontSize: 15, paddingVertical: 12 },
-  count: { color: C.muted, fontSize: 12, marginBottom: 10 },
-  empty: { color: C.muted, fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 30 },
+  input: { flex: 1, color: C.text, fontSize: 16, paddingVertical: 12, ...FONT.body },
+  count: { color: C.muted, fontSize: 14, marginBottom: 10, ...FONT.semi },
+  empty: { color: C.muted, fontSize: 16, textAlign: 'center', marginTop: 30, ...FONT.body },
   row: {
     backgroundColor: C.card, borderColor: C.border, borderWidth: 1, borderRadius: 12,
     padding: 14, marginBottom: 10,
   },
-  date: { color: C.muted, fontSize: 11, marginBottom: 4 },
-  title: { color: C.text, fontSize: 15, lineHeight: 21 },
-  story: { color: C.muted, fontSize: 14, lineHeight: 20, marginTop: 4 },
+  date: { color: C.muted, fontSize: 13, marginBottom: 4, ...FONT.semi },
+  title: { color: C.text, fontSize: 16, lineHeight: 22, ...FONT.bold },
+  story: { color: C.sub, fontSize: 16, lineHeight: 22, marginTop: 4, ...FONT.body },
 });

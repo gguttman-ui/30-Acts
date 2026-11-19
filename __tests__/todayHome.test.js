@@ -57,7 +57,7 @@ describe('Today screen', () => {
     expect(RUNS).toMatch(/completed_at, local_date, notes'\)/);
   });
   test('tiles: done dark green, ahead light green and not faded, today outlined', () => {
-    expect(DASH).toMatch(/TILE_DONE_BG\s+= '#1f4d2e'/);
+    expect(DASH).toMatch(/TILE_DONE_BG\s+= '#114E33'/); // fix 10 deep green
     expect(DASH).toMatch(/dayCellEmpty: \{ backgroundColor: TILE_AHEAD_BG/);
     expect(DASH).not.toMatch(/dayCellEmpty: \{ opacity/);
     expect(DASH).toMatch(/dayCellToday: \{ borderColor: C\.primary, borderWidth: 3 \}/);
@@ -72,6 +72,6 @@ describe('Today screen', () => {
     expect(HOME).not.toMatch(/label="Settings"/);
     expect(HOME).not.toContain('⚙️');
     expect(HOME).not.toContain('Join a Group');
-    expect(HOME).toContain('🔍 See all my acts');
+    expect(HOME).not.toContain('See all my acts</Text>'); // fix 10: Journey tab
   });
 });

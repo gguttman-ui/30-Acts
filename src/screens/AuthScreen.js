@@ -693,8 +693,8 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
             <Switch
               value={remEnabled}
               onValueChange={setRemEnabled}
-              trackColor={{ false: C.border, true: C.primary + '88' }}
-              thumbColor={remEnabled ? C.primary : '#f4f3f4'}
+              trackColor={{ false: C.switchOff, true: C.primary }} ios_backgroundColor={C.switchOff}
+              thumbColor="#FFFFFF"
             />
           </View>
 
@@ -713,8 +713,8 @@ export default function AuthScreen({ onLogin, onShowMission, navigation }) {
                 <Switch
                   value={rem2Enabled}
                   onValueChange={setRem2Enabled}
-                  trackColor={{ false: C.border, true: C.primary + '88' }}
-                  thumbColor={rem2Enabled ? C.primary : '#f4f3f4'}
+                  trackColor={{ false: C.switchOff, true: C.primary }} ios_backgroundColor={C.switchOff}
+                  thumbColor="#FFFFFF"
                 />
               </View>
 

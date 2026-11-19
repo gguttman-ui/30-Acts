@@ -40,6 +40,8 @@ import { ScreenHeader } from '../components';
 import StoryCard from '../components/StoryCard';
 import { loadMyNumbers, LABELS, show } from '../lib/myNumbers';
 import { treeForCount } from '../lib/treeImage';
+import { FONT } from '../lib/fonts';
+import { Ionicons } from '@expo/vector-icons';
 import { C, todayStr, localDateInTZ } from '../constants';
 import { supabase } from '../lib/supabase';
 import { getActiveSponsorIds } from '../lib/streak';
@@ -1362,7 +1364,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                   activeOpacity={0.7}
                   accessibilityLabel={listening ? 'Stop dictation' : 'Start voice dictation'}
                 >
-                  <Text style={s.micGlyph}>{listening ? '⏹️' : '🎤'}</Text>
+                  <Ionicons name={listening ? 'stop' : 'mic-outline'} size={32} color={listening ? C.error : C.primary} />
                 </TouchableOpacity>
                 <Text style={s.micHint}>
                   {!SPEECH_AVAILABLE
@@ -1381,7 +1383,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                   draftStory: story,
                 })}
               >
-                <Text style={s.suggestBtnText}>💡 Need an idea? Browse acts from our list</Text>
+                <View style={s.iconRow}><Ionicons name="bulb-outline" size={20} color={C.primaryText} /><Text style={s.suggestBtnText}>Need an idea? Browse acts from our list</Text></View>
               </TouchableOpacity>
 
               <View style={s.labelRow}>
@@ -1431,7 +1433,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                   </TouchableOpacity>
                   {/* Fix 8: Delete lives on the edit screen now. */}
                   <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-                    <Text style={s.deleteBtnText}>🗑️  Delete this act</Text>
+                    <View style={s.iconRow}><Ionicons name="trash-outline" size={18} color={C.error} /><Text style={s.deleteBtnText}>Delete this act</Text></View>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -1481,7 +1483,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
               >
                 {sharing
                   ? <ActivityIndicator color={C.primaryText} />
-                  : <Text style={s.shareCardText}>📤  Share as a card</Text>}
+                  : <View style={s.iconRow}><Ionicons name="share-outline" size={20} color={C.primaryText} /><Text style={s.shareCardText}>Share as a card</Text></View>}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={goToCalendar} style={s.doneBtn} activeOpacity={0.85}>
@@ -1523,6 +1525,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   micGlyph: { fontSize: 32 },
+  iconRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   micBtnActive: { borderColor: C.error, backgroundColor: C.error + '22' },
   micHint: { color: C.muted, fontSize: 12, marginTop: 8 },
 
@@ -1536,7 +1539,7 @@ const s = StyleSheet.create({
     color: C.text, fontSize: 16, padding: 14,
   },
   counter: { color: C.muted, fontSize: 12, marginBottom: 6 },
-  counterWarn: { color: C.gold },
+  counterWarn: { color: C.warning },
   counterMax: { color: C.error, fontWeight: '700' },
 
   saveBtn: {
@@ -1545,7 +1548,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   saveBtnDisabled: { backgroundColor: C.muted, opacity: 0.6 },
-  saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  saveBtnText: { color: '#fff', fontSize: 17, ...FONT.heavy },
 
   // Share mode
   successCard: {
@@ -1553,8 +1556,8 @@ const s = StyleSheet.create({
     borderRadius: 16, borderWidth: 1, borderColor: C.border,
     padding: 20, alignItems: 'center',
   },
-  successTitle: { color: C.text, fontSize: sf(22), fontWeight: '800', marginTop: 8 },
-  successSub:   { color: C.sub, fontSize: sf(14), textAlign: 'center', marginTop: 4 },
+  successTitle: { color: C.text, fontSize: sf(24), marginTop: 8, textAlign: 'center', ...FONT.heading },
+  successSub:   { color: C.sub, fontSize: sf(16), textAlign: 'center', marginTop: 4, ...FONT.body },
   skipShare: { marginTop: 12, paddingVertical: 10, alignItems: 'center' },
   // Fix 8
   doneTreeWrap: { alignItems: 'center', marginTop: 14 },
@@ -1563,9 +1566,9 @@ const s = StyleSheet.create({
   newLeafText:  { color: C.onPrimary, fontSize: sf(12), fontWeight: '900' },
   editLink:     { color: C.primaryText, fontSize: sf(15), fontWeight: '800', textDecorationLine: 'underline', marginTop: 10 },
   shareCardBtn: { marginTop: 18, borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', alignSelf: 'stretch' },
-  shareCardText:{ color: C.primaryText, fontSize: sf(16), fontWeight: '800' },
+  shareCardText:{ color: C.primaryText, fontSize: sf(16), ...FONT.bold },
   doneBtn:      { marginTop: 12, backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', alignSelf: 'stretch' },
-  doneBtnText:  { color: C.onPrimary, fontSize: sf(18), fontWeight: '900' },
+  doneBtnText:  { color: C.onPrimary, fontSize: sf(18), ...FONT.heavy },
   editBtn: { marginTop: 16, borderWidth: 1.5, borderColor: C.primary + '66', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', alignSelf: 'stretch' },
   editBtnText: { color: C.primaryText, fontSize: sf(15), fontWeight: '700' },
   skipShareText: { color: C.primaryText, fontSize: sf(18), fontWeight: '800' },
@@ -1579,7 +1582,7 @@ const s = StyleSheet.create({
     borderRadius: 12, borderLeftWidth: 4, borderLeftColor: C.gold,
     padding: 14, marginTop: 12, width: '100%',
   },
-  completedStoryText: { color: C.sub, fontSize: sf(15), lineHeight: sf(22), fontStyle: 'italic' },
+  completedStoryText: { color: C.text, fontSize: sf(16), lineHeight: sf(23), ...FONT.body },
 
   deleteBtn: {
     marginTop: 14, marginBottom: 4,

@@ -528,7 +528,7 @@ const handleConfirmWipe = async () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Fix 3 (18 Nov 2026): Home is "Today". No gear icon, no search bar
-          (it moved to "See all my acts" at the bottom). */}
+          (all acts + search are on the Journey tab). */}
       <ScreenHeader title={acting ? `${acting.first_name}'s 30 Acts` : 'Today'} />
       <ProfileSwitcher parentName={user?.firstName} />
 
@@ -715,15 +715,8 @@ const handleConfirmWipe = async () => {
         )}
 
         {/* Fix 3: Start over is in Me > Account, Settings is the Me tab, and
-            groups are in Me > Groups. Search my acts lives here now. */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('SearchActs')}
-          style={s.allActsLink}
-          accessibilityRole="button"
-          accessibilityLabel="See all my acts"
-        >
-          <Text style={s.allActsText}>🔍 See all my acts</Text>
-        </TouchableOpacity>
+            groups are in Me > Groups. Fix 10: all your acts + search are on
+            the Journey tab. */}
 
         {isOwner && (
           <View style={s.testPanel}>

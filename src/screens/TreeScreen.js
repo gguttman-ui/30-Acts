@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { show, LABELS, NUMBER_PLACEHOLDER } from '../lib/myNumbers';
 import { treeForCount, stageLabel } from '../lib/treeImage';
+import { FONT } from '../lib/fonts';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '../components';
@@ -106,17 +107,17 @@ const s = StyleSheet.create({
   },
   tree: { width: '100%', height: '100%' },
   stageLabel: {
-    color: C.primaryText, fontSize: 12, fontWeight: '900',
-    letterSpacing: 1.5, marginTop: -8, marginBottom: 24,
+    color: C.primaryText, fontSize: 13,
+    letterSpacing: 1.5, marginTop: -8, marginBottom: 24, ...FONT.heavy,
   },
   statsRow: {
     flexDirection: 'row', justifyContent: 'space-around',
     width: '100%', paddingHorizontal: 8,
   },
   stat: { flex: 1, alignItems: 'center' },
-  statValue: { color: C.text, fontSize: 22, fontWeight: '900', marginBottom: 6 },
+  statValue: { color: C.text, fontSize: 26, marginBottom: 6, ...FONT.heading },
   statLabel: {
-    color: C.sub, fontSize: 11, fontWeight: '700',
-    textAlign: 'center', letterSpacing: 0.4, lineHeight: 14,
+    color: C.sub, fontSize: 13,
+    textAlign: 'center', letterSpacing: 0.2, lineHeight: 17, ...FONT.semi,
   },
 });

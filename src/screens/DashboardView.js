@@ -14,6 +14,7 @@ import { getRestartMarker } from '../lib/restartMarker';
 import { Btn } from '../components';
 import { dailyIdea, ideaText } from '../lib/actIdeas';
 import { numbersFromRuns } from '../lib/myNumbers';
+import { FONT } from '../lib/fonts';
 
 // Fix 3 (18 Nov 2026): taps on "Show me another idea", remembered for the day.
 const IDEA_SKIP_KEY = 'today_idea_skip';
@@ -26,9 +27,10 @@ const sf = (n) => Math.round(n * fontScale);
 const TILES_PER_PAGE = 30;
 
 // Fix 3 tile colours (David's review): done = dark green, ahead = light green.
-const TILE_DONE_BG    = '#1f4d2e';
-const TILE_AHEAD_BG   = '#d7ecd2';
-const TILE_AHEAD_TEXT = '#1f4d2e';
+// Fix 10: website colours - deep green done, light green ahead.
+const TILE_DONE_BG    = '#114E33';
+const TILE_AHEAD_BG   = '#E3F1E8';
+const TILE_AHEAD_TEXT = '#15231B';
 
 // Tile grid sizing. Compute the tile width in pixels from the screen width so
 // six columns + gaps + padding are GUARANTEED to fit inside the page on every
@@ -668,18 +670,19 @@ const s = StyleSheet.create({
   // Fix 3: Today card
   todayWrap:   { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 },
   todayTop:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  todayLine:   { color: C.text, fontSize: sf(18), fontWeight: '800' },
-  streakBadge: { backgroundColor: C.card2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: C.border },
-  streakBadgeText: { color: C.primaryText, fontSize: sf(13), fontWeight: '800' },
+  todayLine:   { color: C.text, fontSize: sf(19), ...FONT.heading },
+  // Gold is for streaks and celebrations only (fix 10).
+  streakBadge: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  streakBadgeText: { color: C.onGold, fontSize: sf(14), ...FONT.heavy },
   ideaCard:    { backgroundColor: C.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border },
-  ideaLabel:   { color: C.muted, fontSize: sf(11), fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
-  ideaText:    { color: C.text, fontSize: sf(19), fontWeight: '800', lineHeight: sf(25) },
-  anotherLink: { color: C.primaryText, fontSize: sf(14), fontWeight: '700', marginTop: 12 },
+  ideaLabel:   { color: C.muted, fontSize: sf(12), letterSpacing: 1, marginBottom: 6, ...FONT.heavy },
+  ideaText:    { color: C.text, fontSize: sf(20), lineHeight: sf(26), ...FONT.headingMd },
+  anotherLink: { color: C.primaryText, fontSize: sf(16), marginTop: 12, ...FONT.bold },
   elseBtn:     { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 },
-  elseText:    { color: C.primaryText, fontSize: sf(15), fontWeight: '700', textDecorationLine: 'underline' },
-  doneTitle:   { color: C.primaryText, fontSize: sf(20), fontWeight: '900', marginBottom: 6 },
-  doneStory:   { color: C.text, fontSize: sf(15), lineHeight: sf(21) },
-  editLink:    { color: C.primaryText, fontSize: sf(14), fontWeight: '800', marginTop: 10, textDecorationLine: 'underline' },
+  elseText:    { color: C.primaryText, fontSize: sf(16), textDecorationLine: 'underline', ...FONT.bold },
+  doneTitle:   { color: C.primaryText, fontSize: sf(22), marginBottom: 6, ...FONT.heading },
+  doneStory:   { color: C.text, fontSize: sf(16), lineHeight: sf(22), ...FONT.body },
+  editLink:    { color: C.primaryText, fontSize: sf(16), marginTop: 10, textDecorationLine: 'underline', ...FONT.bold },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

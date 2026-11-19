@@ -194,8 +194,8 @@ export default function JoinSponsorScreen({ navigation }) {
                   <Switch
                     value={showName}
                     onValueChange={setShowName}
-                    trackColor={{ false: C.border, true: C.primary + '88' }}
-                    thumbColor={showName ? C.primary : '#f4f3f4'}
+                    trackColor={{ false: C.switchOff, true: C.primary }} ios_backgroundColor={C.switchOff}
+                    thumbColor="#FFFFFF"
                   />
                 </View>
               </View>

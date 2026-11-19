@@ -23,6 +23,8 @@ import { setRestartMarker } from './src/lib/restartMarker';
 import { initBranch } from './src/lib/branch';
 import { faceIdLockOn } from './src/lib/faceIdDefault';
 import { checkForUpdateInBackground } from './src/lib/appUpdates';
+import { useFonts } from 'expo-font';
+import { FONT_ASSETS } from './src/lib/fonts';
 import { syncReminderTimezone } from './src/lib/reminderTimezone';
 import * as Sentry from '@sentry/react-native';
 
@@ -84,6 +86,9 @@ const extractPhone = (email) => {
 };
 
 export default Sentry.wrap(function App() {
+  // Fix 10: website fonts. If they fail to load the app carries on with the
+  // system font rather than waiting.
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   const [showOnboard,     setShowOnboard]     = useState(null);
   const [user,            setUser]            = useState(null);
   const [days,            setDays]            = useState(null);
@@ -441,10 +446,10 @@ const handleComplete = async (completedDay) => {
 
   // No splash screen. Hold on a plain dark screen only until onboarding status
   // and the session check have resolved, then render the real screen.
-  if (showOnboard === null || !sessionChecked) {
+  if (showOnboard === null || !sessionChecked || (!fontsLoaded && !fontError)) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={{ flex: 1, backgroundColor: C.bg }} />
       </SafeAreaProvider>
     );
@@ -458,7 +463,7 @@ const handleComplete = async (completedDay) => {
   if (showOnboard) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <OnboardingScreen onDone={handleOnboardingDone} />
       </SafeAreaProvider>
     );
@@ -467,7 +472,7 @@ const handleComplete = async (completedDay) => {
   if (biometricLocked) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <LockScreen
 onUnlock={() => {
   // Fix 1 (18 Nov 2026): open Home straight away - no "Loading your acts"
@@ -484,7 +489,7 @@ onUnlock={() => {
   if (goodbye) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <GoodbyeScreen
           firstName={user?.firstName}
           deleted={goodbye === 'deleted'}
@@ -496,7 +501,7 @@ onUnlock={() => {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <AppNavigator
         ref={navRef}
         days={days}
@@ -512,4 +517,4 @@ onUnlock={() => {
       />
     </SafeAreaProvider>
   );
-});
+});

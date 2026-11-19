@@ -16,6 +16,7 @@ import { reminderZoneForSave } from '../lib/reminderTimezone';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
 import { loadMyNumbers, LABELS, show } from '../lib/myNumbers';
+import { FONT } from '../lib/fonts';
 import { reportProblem } from '../lib/reportProblem';
 import { actingPhone } from '../lib/actingAs';
 import { useActingMember } from '../components/ProfileSwitcher';
@@ -734,8 +735,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
             <Switch
               value={reminderEnabled}
               onValueChange={onReminderSwitch}
-              trackColor={{ false: C.border, true: C.primary + '88' }}
-              thumbColor={reminderEnabled ? C.primary : '#f4f3f4'}
+              trackColor={{ false: C.switchOff, true: C.primary }} ios_backgroundColor={C.switchOff}
+              thumbColor="#FFFFFF"
             />
           </View>
           {showTimePicker && (
@@ -827,8 +828,8 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
               <Switch
                 value={biometricEnabled}
                 onValueChange={toggleBiometric}
-                trackColor={{ false: C.border, true: C.primary + '88' }}
-                thumbColor={biometricEnabled ? C.primary : '#f4f3f4'}
+                trackColor={{ false: C.switchOff, true: C.primary }} ios_backgroundColor={C.switchOff}
+                thumbColor="#FFFFFF"
               />
             </View>
           ) : null}
@@ -874,7 +875,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
       <Modal visible={showInvite} transparent animationType="fade" onRequestClose={() => setShowInvite(false)}>
         <View style={s.modalDim}>
           <View style={[s.modalBox, { alignItems: 'center' }]}>
-            <Text style={s.modalTitle}>🌳 Invite friends</Text>
+            <Text style={s.modalTitle}>Invite friends</Text>
             <Text style={[s.cardSub, { textAlign: 'center', marginTop: 6 }]}>
               Anyone who scans your code or taps your link is added to your tree.
             </Text>
@@ -884,7 +885,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
             <Text selectable style={{ color: C.sub, fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
               {inviteLink}
             </Text>
-            <Btn label="📲 Share Your Invite" onPress={handleInviteShare} style={{ alignSelf: 'stretch' }} />
+            <Btn label="Share your invite" onPress={handleInviteShare} style={{ alignSelf: 'stretch' }} />
             <Btn label="Close" variant="secondary" onPress={() => setShowInvite(false)} style={{ alignSelf: 'stretch', marginTop: 8 }} />
           </View>
         </View>
@@ -1077,17 +1078,17 @@ legalRowChevron: { color: C.muted, fontSize: 18, fontWeight: '600' },
 
   // Fix 6: grouped rows
   meHeader:   { alignItems: 'center', paddingVertical: 12, marginBottom: 6 },
-  meName:     { color: C.text, fontSize: 22, fontWeight: '800' },
-  meLine:     { color: C.sub, fontSize: 14, marginTop: 4 },
-  groupLabel: { color: C.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1, marginTop: 14, marginBottom: 6, marginLeft: 4 },
+  meName:     { color: C.text, fontSize: 24, ...FONT.heading },
+  meLine:     { color: C.sub, fontSize: 16, marginTop: 4, ...FONT.body },
+  groupLabel: { color: C.muted, fontSize: 12, letterSpacing: 1, marginTop: 14, marginBottom: 6, marginLeft: 4, ...FONT.heavy },
   group:      { backgroundColor: C.card || C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14 },
   row:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 50, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border + '66' },
   rowLast:    { borderBottomWidth: 0 },
   rowSubItem: { paddingLeft: 16 },
-  rowText:    { color: C.text, fontSize: 16, fontWeight: '600' },
-  rowTextSub: { fontSize: 15, fontWeight: '500', color: C.sub },
-  rowSub:     { color: C.muted, fontSize: 12, marginTop: 2 },
-  rowDanger:  { color: C.error, fontWeight: '700' },
+  rowText:    { color: C.text, fontSize: 16, ...FONT.semi },
+  rowTextSub: { fontSize: 16, color: C.sub, ...FONT.body },
+  rowSub:     { color: C.muted, fontSize: 13, marginTop: 2, ...FONT.body },
+  rowDanger:  { color: C.error, ...FONT.bold },
   rowChevron: { color: C.muted, fontSize: 20, fontWeight: '600' },
   modalDim:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 },
   modalBox:   { backgroundColor: C.bg, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.border },
