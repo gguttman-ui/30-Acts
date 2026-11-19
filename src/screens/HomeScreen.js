@@ -510,8 +510,8 @@ const handleConfirmWipe = async () => {
       <View style={s.empty}>
         <Text style={{ fontSize: sf(56) }}>🕊️</Text>
         <Text style={s.emptyTitle}>You haven't started yet</Text>
-        <Text style={s.emptySub}>Start your 30-day journey from Settings.</Text>
-        <Btn label="Go to Settings" onPress={() => navigation.navigate('Me')} style={{ width: 200 }} />
+        <Text style={s.emptySub}>Start your 30-day journey from Me.</Text>
+        <Btn label="Go to Me" onPress={() => navigation.navigate('Me')} style={{ width: 200 }} />
       </View>
     );
   }
@@ -533,27 +533,10 @@ const handleConfirmWipe = async () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScreenHeader
-        title={acting ? `${acting.first_name}'s 30 Acts` : 'My 30 Acts'}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Me')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={{ fontSize: 22 }}>⚙️</Text>
-          </TouchableOpacity>
-        }
-      />
+      {/* Fix 3 (18 Nov 2026): Home is "Today". No gear icon, no search bar
+          (it moved to "See all my acts" at the bottom). */}
+      <ScreenHeader title={acting ? `${acting.first_name}'s 30 Acts` : 'Today'} />
       <ProfileSwitcher parentName={user?.firstName} />
-      <TouchableOpacity
-        onPress={() => navigation.navigate('SearchActs')}
-        style={s.searchBar}
-        accessibilityRole="button"
-        accessibilityLabel="Search my acts"
-      >
-        <Text style={s.searchBarIcon}>🔍</Text>
-        <Text style={s.searchBarText}>Search my acts</Text>
-      </TouchableOpacity>
 
       {viewMode === 'calendar' && (
       <View style={s.stickyHeader}>
@@ -737,17 +720,16 @@ const handleConfirmWipe = async () => {
           <Btn label="↩ Undo start over" onPress={handleUndoRestart} variant="secondary" style={{ marginBottom: 10 }} />
         )}
 
-         <View style={s.btnRow}>
-          <Btn label="↺ Start over at Day 1" onPress={() => setConfirmRestart(true)} variant="danger" style={{ flex: 1 }} />
-          <Btn label="Settings"  onPress={() => navigation.navigate('Me')}  variant="secondary" style={{ flex: 1 }} />
-        </View>
-
-        <Btn
-          label="🎟️ Join a Group"
-          onPress={() => navigation.navigate('JoinSponsor')}
-          variant="secondary"
-          style={{ marginTop: 10 }}
-        />
+        {/* Fix 3: Start over is in Me > Account, Settings is the Me tab, and
+            groups are in Me > Groups. Search my acts lives here now. */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('SearchActs')}
+          style={s.allActsLink}
+          accessibilityRole="button"
+          accessibilityLabel="See all my acts"
+        >
+          <Text style={s.allActsText}>🔍 See all my acts</Text>
+        </TouchableOpacity>
 
         {isOwner && (
           <View style={s.testPanel}>
@@ -871,6 +853,8 @@ const handleConfirmWipe = async () => {
 }
 
 const s = StyleSheet.create({
+  allActsLink: { alignSelf: 'center', paddingVertical: 14, paddingHorizontal: 16, marginTop: 6 },
+  allActsText: { color: C.primaryText, fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 16, marginTop: 8, marginBottom: 4,
@@ -1069,4 +1053,4 @@ grid: {
     padding: 10,
   },
   exportText: { color: C.text, fontSize: sf(11), fontFamily: 'Courier' },
-});
+});

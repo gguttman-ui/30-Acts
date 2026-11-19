@@ -200,7 +200,7 @@ export async function loadRuns(phone, { since = null } = {}) {
     // logged (Gary, 21 Oct 2026). Nothing is deleted; Undo clears the marker.
     let query = supabase
       .from('completions')
-      .select('id, act_title, proof_type, completed_at, local_date')
+      .select('id, act_title, proof_type, completed_at, local_date, notes')
       .eq('user_phone', phone);
     if (since) query = query.gte('completed_at', since);
     const { data, error } = await query.order('completed_at', { ascending: true });

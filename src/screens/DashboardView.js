@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Dimensions, ActivityIndicator,
 } from 'react-native';
@@ -10,6 +11,11 @@ import {
 import { buildPages, CHALLENGE_LEN } from '../lib/dashboardPages';
 import { supabase } from '../lib/supabase';
 import { getRestartMarker } from '../lib/restartMarker';
+import { Btn } from '../components';
+import { dailyIdea, ideaText } from '../lib/actIdeas';
+
+// Fix 3 (18 Nov 2026): taps on "Show me another idea", remembered for the day.
+const IDEA_SKIP_KEY = 'today_idea_skip';
 
 const SCREEN_W = Dimensions.get('window').width;
 const FONT_BASE_W = 390;
@@ -17,6 +23,11 @@ const fontScale = Math.min(Math.max(SCREEN_W / FONT_BASE_W, 0.85), 1.1);
 const sf = (n) => Math.round(n * fontScale);
 
 const TILES_PER_PAGE = 30;
+
+// Fix 3 tile colours (David's review): done = dark green, ahead = light green.
+const TILE_DONE_BG    = '#1f4d2e';
+const TILE_AHEAD_BG   = '#d7ecd2';
+const TILE_AHEAD_TEXT = '#1f4d2e';
 
 // Tile grid sizing. Compute the tile width in pixels from the screen width so
 // six columns + gaps + padding are GUARANTEED to fit inside the page on every
@@ -120,6 +131,93 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   const listRef = useRef(null);
 
   const today     = todayStr();
+
+  // ── Fix 3: today's idea (same all day; "Show me another idea" moves on) ──
+  const [ideaSkip, setIdeaSkip] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(IDEA_SKIP_KEY)
+      .then((raw) => {
+        const saved = raw ? JSON.parse(raw) : null;
+        if (!cancelled) setIdeaSkip(saved && saved.date === today ? saved.skip || 0 : 0);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [today]);
+  const nextIdea = () => {
+    const skip = ideaSkip + 1;
+    setIdeaSkip(skip);
+    AsyncStorage.setItem(IDEA_SKIP_KEY, JSON.stringify({ date: today, skip })).catch(() => {});
+  };
+  const idea = dailyIdea(phone, today, ideaSkip);
+  const weekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
+  const newDay = (dayNumber, dateToLog) => ({
+    dayNumber, scheduledDate: dateToLog, status: 'NOT_SET',
+    title: '', proofType: null, completionId: null,
+  });
+  // "Log today's act": the story screen with today's idea already in it.
+  const logIdea = (dayNumber) => navigation.navigate('MyStory', {
+    day: newDay(dayNumber, today),
+    preselectedAct: idea ? {
+      id: idea.id, title: idea.title, timeMinutes: idea.timeMinutes,
+      costDollars: idea.costDollars, categoryId: idea.categoryId,
+      categoryLabel: idea.categoryLabel, categoryEmoji: idea.categoryEmoji,
+    } : undefined,
+    returnTo: 'MyStory',
+  });
+  // "I did something else": a blank story.
+  const logOwn = (dayNumber) => navigation.navigate('MyStory', {
+    day: newDay(dayNumber, today), returnTo: 'MyStory',
+  });
+
+  // The card at the top of Today. `todayRow` is today's saved act, if any.
+  const renderTodayCard = ({ dayOf, streak, todayRow }) => (
+    <View style={s.todayWrap}>
+      <View style={s.todayTop}>
+        <Text style={s.todayLine}>{weekday} {'\u00b7'} Day {dayOf} of 30</Text>
+        {streak > 0 && (
+          <View style={s.streakBadge}>
+            <Text style={s.streakBadgeText}>🔥 {streak}</Text>
+          </View>
+        )}
+      </View>
+      {todayRow ? (
+        <View style={s.ideaCard}>
+          <Text style={s.doneTitle}>Day {dayOf} done ✓</Text>
+          <Text style={s.doneStory} numberOfLines={5}>
+            {todayRow.notes || todayRow.act_title}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('MyStory', {
+              day: {
+                dayNumber: dayOf, scheduledDate: today, status: 'COMPLETED',
+                title: todayRow.act_title || '', proofType: todayRow.proof_type || null,
+                completionId: todayRow.id || null,
+              },
+            })}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={s.editLink}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={s.ideaCard}>
+            <Text style={s.ideaLabel}>TODAY'S IDEA</Text>
+            <Text style={s.ideaText}>{ideaText(idea)}</Text>
+            <TouchableOpacity onPress={nextIdea} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.anotherLink}>Show me another idea</Text>
+            </TouchableOpacity>
+          </View>
+          <Btn label="Log today's act" onPress={() => logIdea(dayOf)} style={{ marginTop: 12 }} />
+          <TouchableOpacity onPress={() => logOwn(dayOf)} style={s.elseBtn}>
+            <Text style={s.elseText}>I did something else</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </View>
+  );
   const yesterday = yesterdayStr();
 
   useEffect(() => {
@@ -165,10 +263,16 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
       },
       returnTo: 'MyStory',
     });
+    // "Your first act" only for someone who has never logged one (fix 3):
+    // after Start over the board is empty but they have logged before.
+    const neverLogged = lifetimeCount === 0;
     return (
-      <ScrollView contentContainerStyle={{ paddingVertical: 14 }}>
+      <ScrollView contentContainerStyle={{ paddingVertical: 6 }}>
+        {renderTodayCard({ dayOf: 1, streak: 0, todayRow: null })}
         <Text style={[s.emptySub, { marginBottom: 14 }]}>
-          Tap the + to log your first act — your 30-day journey starts today.
+          {neverLogged
+            ? 'Log your first act and your 30-day journey starts today.'
+            : 'Day 1 starts today.'}
         </Text>
         <View style={s.grid}>
           {Array.from({ length: CHALLENGE_LEN }, (_, i) => (
@@ -182,7 +286,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
               </TouchableOpacity>
             ) : (
               <View key={i} style={[s.dayCell, s.dayCellEmpty]}>
-                <Text style={s.dayNum}>{i + 1}</Text>
+                <Text style={[s.dayNum, s.dayNumAhead]}>{i + 1}</Text>
                 <View style={s.centerSlot} />
                 <View style={s.bottomSlot}>
                   <Text style={s.tileDate} numberOfLines={1} adjustsFontSizeToFit>{''}</Text>
@@ -216,6 +320,12 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // new one). It replaces the old header "Log today's act" button, so ended
   // streaks now log the same way live ones do: tap the "+" on today's tile.
   const hasLoggableDay   = canLogToday;
+
+  // Fix 3: today's place in the 30 and today's saved act (for the card).
+  const todayRow = currentRun.rows.find((r) => rowLocalDate(r) === today) || null;
+  const dayOf = todayRow
+    ? (currentDone || 1)
+    : (isLive ? (currentDone % 30) + 1 : 1);
 
   // An empty YESTERDAY can always be back-filled (backlog 83, 20 Oct 2026) --
   // even after today is logged. Only offered to someone with history from
@@ -257,10 +367,10 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     if (cell.type === 'future') {
       return (
         <View key={key} style={[s.dayCell, s.dayCellEmpty]}>
-          <Text style={s.dayNum}>{cell.dayNo != null ? cell.dayNo : ' '}</Text>
+          <Text style={[s.dayNum, s.dayNumAhead]}>{cell.dayNo != null ? cell.dayNo : ' '}</Text>
           <View style={s.centerSlot} />
           <View style={s.bottomSlot}>
-            <Text style={s.tileDate} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[s.tileDate, s.tileDateAhead]} numberOfLines={1} adjustsFontSizeToFit>
               {cell.date ? fmtMonthDay(cell.date) : ''}
             </Text>
           </View>
@@ -346,7 +456,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
           isDone && s.dayCellDone,
         ]}
       >
-        <Text style={[s.dayNum, isToday && s.dayNumToday, isDone && s.dayNumDone]}>{day.dayNumber}</Text>
+        <Text style={[s.dayNum, isToday && s.dayNumToday, isDone && s.dayNumDone, !isDone && !isNextSlot && s.dayNumAhead]}>{day.dayNumber}</Text>
 
         {isDone ? (
           <>
@@ -470,45 +580,17 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
 
   return (
     <View>
-      {/* -- Current streak header --------------------------------------- */}
+      {/* Fix 3: the Today card replaces the old streak header (lifetime now
+          shows on Me). */}
+      {renderTodayCard({ dayOf, streak: isLive ? currentRun.length : 0, todayRow })}
       <View style={s.header}>
-        <View style={s.headerRow}>
-          <View>
-            <Text style={s.headerLabel}>
-              {isLive ? 'CURRENT STREAK' : 'LAST STREAK'}
-              {currentLap > 0 ? ` ${'\u00b7'} LAP ${currentLap + 1}` : ''}
-            </Text>
-            <Text>
-              <Text style={s.runBig}>{currentDone}</Text>
-              <Text style={s.runOfThirty}> / 30 acts</Text>
-            </Text>
-          </View>
-          <View style={s.statsRight}>
-            <Text style={s.statLine}>{isLive ? 'This streak' : 'Last streak'} {'\u00b7'} <Text style={s.statVal}>{currentRun.length}</Text></Text>
-            <Text style={s.statLine}>Best streak {'\u00b7'} <Text style={s.statVal}>{best}</Text></Text>
-            <Text style={s.statLine}>Lifetime {'\u00b7'} <Text style={s.statVal}>{lifetime}</Text></Text>
-          </View>
-        </View>
-
-        <View style={s.progressBarTrack}>
-          <View
-            style={[
-              s.progressBarFill,
-              { width: `${Math.round((currentDone / 30) * 100)}%` },
-            ]}
-          />
-        </View>
-
-        <Text style={s.subtitle}>
-          {yesterdayOpen
-            ? 'Missed yesterday? Tap + on YESTERDAY to add it.'
-            : !isLive
-            ? 'This streak ended — tap + to log today and start a new one.'
-            : hasLoggableDay
-              ? 'Tap + to log. Miss two days in a row and a new streak begins.'
-              : 'All caught up. Come back tomorrow.'}
-        </Text>
-
+        {(yesterdayOpen || !isLive) && (
+          <Text style={s.subtitle}>
+            {yesterdayOpen
+              ? 'Missed yesterday? Tap + on YESTERDAY to add it.'
+              : 'Your last streak ended - log today to start a new one.'}
+          </Text>
+        )}
         {pages.length > 1 && (
           <Text style={s.swipeHint}>{'\u2190'} Swipe to see earlier streaks</Text>
         )}
@@ -549,7 +631,23 @@ const s = StyleSheet.create({
   emptyBig: { color: C.text, fontSize: sf(20), fontWeight: '800' },
   emptySub: { color: C.sub, fontSize: sf(13), marginTop: 8, textAlign: 'center' },
 
-  header: { paddingHorizontal: 16, paddingBottom: 14 },
+  header: { paddingHorizontal: 16, paddingBottom: 6 },
+
+  // Fix 3: Today card
+  todayWrap:   { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 },
+  todayTop:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  todayLine:   { color: C.text, fontSize: sf(18), fontWeight: '800' },
+  streakBadge: { backgroundColor: C.card2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: C.border },
+  streakBadgeText: { color: C.primaryText, fontSize: sf(13), fontWeight: '800' },
+  ideaCard:    { backgroundColor: C.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border },
+  ideaLabel:   { color: C.muted, fontSize: sf(11), fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
+  ideaText:    { color: C.text, fontSize: sf(19), fontWeight: '800', lineHeight: sf(25) },
+  anotherLink: { color: C.primaryText, fontSize: sf(14), fontWeight: '700', marginTop: 12 },
+  elseBtn:     { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 },
+  elseText:    { color: C.primaryText, fontSize: sf(15), fontWeight: '700', textDecorationLine: 'underline' },
+  doneTitle:   { color: C.primaryText, fontSize: sf(20), fontWeight: '900', marginBottom: 6 },
+  doneStory:   { color: C.text, fontSize: sf(15), lineHeight: sf(21) },
+  editLink:    { color: C.primaryText, fontSize: sf(14), fontWeight: '800', marginTop: 10, textDecorationLine: 'underline' },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -623,10 +721,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dayCellToday: { borderColor: C.primary, borderWidth: 2 },
+  dayCellToday: { borderColor: C.primary, borderWidth: 3 },
   dayCellYesterday: { borderColor: C.primary + '88', borderWidth: 1.5 },
   dayCellNext:  { borderColor: C.primary + '88', borderWidth: 1.5 },
-  dayCellEmpty: { opacity: 0.4 },
+  // Fix 3: days ahead are light green with readable numbers (no fading).
+  dayCellEmpty: { backgroundColor: TILE_AHEAD_BG, borderColor: TILE_AHEAD_BG },
   // Separator between consolidated streaks, and internal single-miss gaps.
   dayCellBlank: {
     backgroundColor: 'transparent',
@@ -646,7 +745,7 @@ const s = StyleSheet.create({
   // size the line box (and centering it in the flex slot) keeps it whole.
   doneCheck:  {
     fontSize: 20, fontWeight: '900',
-    color: C.doneText, textAlign: 'center',
+    color: '#ffffff', textAlign: 'center',
   },
   nextGlyph:  {
     fontSize: 24, fontWeight: '900',
@@ -659,9 +758,12 @@ const s = StyleSheet.create({
   bottomSlot:   { height: 22, alignItems: 'center', justifyContent: 'center' },
   tileDate:     { fontSize: sf(11), fontWeight: '800', color: C.sub, paddingHorizontal: 2 },
   tileDateDone: { color: C.primaryText },
-  tileDateOnDone: { color: C.doneText },
-  dayCellDone:  { backgroundColor: C.doneBg },
-  dayNumDone:   { color: C.doneText },
+  tileDateOnDone: { color: '#d7ecd2' },
+  tileDateAhead:  { color: TILE_AHEAD_TEXT },
+  // Fix 3: done days are dark green with a check.
+  dayCellDone:  { backgroundColor: TILE_DONE_BG, borderColor: TILE_DONE_BG },
+  dayNumDone:   { color: '#ffffff' },
+  dayNumAhead:  { color: TILE_AHEAD_TEXT },
 
   // A long-running user accumulates lap pages, so wrap the dots onto extra rows
   // instead of letting the row run off the edge of the screen.
