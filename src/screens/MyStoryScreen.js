@@ -47,7 +47,8 @@ import { loadRuns } from '../lib/runs';
 import { splitAtCursor, joinDictation } from '../lib/dictationInsert';
 import { getRestartMarker } from '../lib/restartMarker';
 
-const STORY_MIN = 10;
+// Fix 7 (18 Nov 2026): Save works as soon as the story has any text.
+const STORY_MIN = 1;
 // Hard cap matched to the StoryCard image. With the title line removed, the
 // quote box gets the full card height (capped at 11 lines at 44px), so ~300
 // chars fits cleanly without clipping.
@@ -1033,8 +1034,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
     if (editingId) {
       if (!storyValid) {
         Alert.alert(
-          'Add a little more',
-          `Please write at least ${STORY_MIN} characters about your act (${charCount} so far).`,
+          'Write a few words',
+          'Tell us what you did, then tap Save.',
           [{ text: 'OK' }]
         );
         return;
@@ -1045,8 +1046,8 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
 
     if (!storyValid) {
       Alert.alert(
-        'Add a little more',
-        `Please write at least ${STORY_MIN} characters about your act (${charCount} so far).`,
+        'Write a few words',
+        'Tell us what you did, then tap Save.',
         [{ text: 'OK' }]
       );
       return;
@@ -1375,9 +1376,7 @@ export default function MyStoryScreen({ navigation, route, user, days, onComplet
                   charCount >= STORY_MAX && s.counterMax,
                   charCount >= STORY_MAX - 30 && charCount < STORY_MAX && s.counterWarn,
                 ]}>
-                  {charCount < STORY_MIN
-                    ? `${STORY_MIN - charCount} more to start · ${charCount}/${STORY_MAX}`
-                    : charCount >= STORY_MAX
+                  {charCount >= STORY_MAX
                       ? `Limit reached · ${charCount}/${STORY_MAX}`
                       : `${charCount}/${STORY_MAX}`}
                 </Text>

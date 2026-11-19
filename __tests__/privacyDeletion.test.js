@@ -24,7 +24,7 @@ describe('privacy policy, app and website say the same thing', () => {
         expect(text).toContain('Picture cards of acts you shared by email may remain');
       });
       test('2.9 points to self-service deletion', () =>
-        expect(text).toMatch(/Settings (>|&gt;) Delete My Account/));
+        expect(text).toMatch(/Me (>|&gt;) Account (>|&gt;) Delete My Account/));
       test('2.5 names Zelle', () => expect(text).toContain('Zelle'));
     });
   }

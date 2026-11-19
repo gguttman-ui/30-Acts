@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, Platform, Modal, Image,
   InputAccessoryView, Keyboard, Alert,
 } from 'react-native';
@@ -12,6 +12,8 @@ import {
 } from '../constants';
 import { supabase } from '../lib/supabase';
 import { emptyActsMessage, draftFromSearch } from '../lib/emptySearch';
+import { searchActs } from '../lib/actSearch';
+import { ACT_TAGS, filterByTags } from '../lib/actTags';
 
 const COMPANY_ICON = require('../assets/categories/Company.png');
 
@@ -52,7 +54,10 @@ export default function ChooseActScreen({ navigation, route }) {
   const [timeFilterId, setTimeFilterId] = useState('any');
   const [costFilterId, setCostFilterId] = useState('any');
   const [search,       setSearch]       = useState('');
-  const [picked,       setPicked]       = useState(null);
+  // Fix 7: filter chips (several can be on; an act must match them all).
+  const [chips,        setChips]        = useState([]);
+  const toggleChip = (id) =>
+    setChips((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
   const [pickerOpen,   setPickerOpen]   = useState(null);
 
   // User's own custom acts. Fetched once on mount, merged into the
@@ -111,20 +116,21 @@ export default function ChooseActScreen({ navigation, route }) {
     );
   }, [userCustomActs]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return sourceActs.filter(a => {
-      if (!timeOption.test(a))                        return false;
-      if (!costOption.test(a))                        return false;
-      if (q && !a.title.toLowerCase().includes(q))    return false;
-      return true;
-    });
-  }, [sourceActs, timeOption, costOption, search]);
+  // Fix 7: forgiving search (capitals, a typo or two) plus the chips. When
+  // nothing matches exactly, the closest matches are shown with a note.
+  const { filtered, closest } = useMemo(() => {
+    const base = filterByTags(
+      sourceActs.filter(a => timeOption.test(a) && costOption.test(a)),
+      chips,
+    );
+    const { results, closest: near } = searchActs(base, search);
+    return { filtered: results, closest: near };
+  }, [sourceActs, timeOption, costOption, search, chips]);
 
-const canCreate = !!picked;
-
-  const handleCreate = () => {
-    if (!canCreate) return;
+  // Fix 7: tapping an act goes straight back to the log screen with the act
+  // in the story - no separate select button.
+  const handleCreate = (picked) => {
+    if (!picked) return;
 
     const preselectedAct = {
       id:            picked.id,
@@ -157,26 +163,25 @@ const canCreate = !!picked;
     });
   };
 
-  const renderItem = ({ item }) => {
-    const isPicked = picked?.id === item.id;
-    return (
-      <TouchableOpacity
-        onPress={() => setPicked(picked?.id === item.id ? null : item)}
-        activeOpacity={0.7}
-        style={[s.row, isPicked && s.rowPicked]}
-      >
-        <Text
-          style={s.rowTitle}
-          numberOfLines={4}
-          ellipsizeMode="tail"
-        >
-          {item.title}
-        </Text>
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => handleCreate(item)}
+      activeOpacity={0.7}
+      style={s.row}
+    >
+      <Text style={s.rowTitle} numberOfLines={4} ellipsizeMode="tail">
+        {item.title}
+      </Text>
+      <Text style={s.rowChevron}>›</Text>
+    </TouchableOpacity>
+  );
 
-        {isPicked ? <Text style={s.checkMark}>✓</Text> : null}
-      </TouchableOpacity>
-    );
-  };
+  // "Write my own instead": the log screen, keeping any words already typed
+  // (here in Search, or on the log screen before it opened this list).
+  const writeOwn = () => navigation.navigate('MyStory', {
+    day,
+    draftStory: draftFromSearch(search) || route.params?.draftStory || '',
+  });
 
 const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
                        : pickerOpen === 'cost' ? COST_OPTIONS
@@ -218,8 +223,31 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
           />
         </View>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chipRow}
+          keyboardShouldPersistTaps="handled"
+        >
+          {ACT_TAGS.map((t) => {
+            const on = chips.includes(t.id);
+            return (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => toggleChip(t.id)}
+                style={[s.chip, on && s.chipOn]}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipText, on && s.chipTextOn]}>{on ? '✓ ' : ''}{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         <Text style={s.matchCount}>
-          {filtered.length} {filtered.length === 1 ? 'match' : 'matches'}
+          {closest
+            ? `No exact match. Closest ${filtered.length === 1 ? 'match' : 'matches'}:`
+            : `${filtered.length} ${filtered.length === 1 ? 'match' : 'matches'}`}
         </Text>
       </View>
 
@@ -233,44 +261,19 @@ const pickerOptions  = pickerOpen === 'time' ? TIME_OPTIONS
           <View style={s.emptyWrap}>
             <Text style={{ fontSize: 36 }}>🔍</Text>
             <Text style={s.emptyText}>
-              {emptyActsMessage(search, timeActive || costActive)}
+              {emptyActsMessage(search, timeActive || costActive || chips.length > 0)}
             </Text>
             <Btn
               label="Write my own act"
-              onPress={() => navigation.navigate('MyStory', {
-                day,
-                draftStory: draftFromSearch(search),
-              })}
+              onPress={writeOwn}
               style={{ marginTop: 16 }}
             />
           </View>
         }
       />
 
-     <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <View style={s.footerRow}>
-          <View style={{ flex: 1 }}>
-            <Btn
-              label={!picked ? 'Pick an Act' : 'Select Act'}
-              variant="secondary"
-              onPress={() => {
-                if (!picked) {
-                  Alert.alert('Pick an act', 'Tap an act from the list above first, then tap this button to log it.');
-                  return;
-                }
-                handleCreate();
-              }}
-            />
-          </View>
-          <Text style={s.orLabel}>or</Text>
-          <View style={{ flex: 1 }}>
-            <Btn
-              label="+ New Act"
-              variant="secondary"
-              onPress={() => navigation.navigate('MyStory', { day })}
-            />
-          </View>
-        </View>
+      <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <Btn label="Write my own instead" variant="secondary" onPress={writeOwn} />
       </View>
 
       <Modal
@@ -373,6 +376,14 @@ const s = StyleSheet.create({
     color: C.primaryText,
     fontWeight: '800',
   },
+
+  // Fix 7: filter chips
+  chipRow:     { gap: 8, paddingTop: 10, paddingBottom: 2, paddingRight: 8 },
+  chip:        { borderWidth: 1.5, borderColor: C.border, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14, backgroundColor: C.card2 },
+  chipOn:      { borderColor: C.primary, backgroundColor: C.primary + '33' },
+  chipText:    { color: C.text, fontSize: 13, fontWeight: '600' },
+  chipTextOn:  { color: C.primaryText, fontWeight: '800' },
+  rowChevron:  { color: C.muted, fontSize: 20, fontWeight: '600', marginLeft: 8 },
 
   filterRow: {
     flexDirection: 'row',
