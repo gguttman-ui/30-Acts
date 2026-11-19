@@ -220,27 +220,31 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   );
   const yesterday = yesterdayStr();
 
+  // Fix 2 (19 Nov 2026): Home must not jump while it loads. The placeholder
+  // shows only until the FIRST load for this person; later reloads (Home
+  // refreshes `days` several times at launch and on return) keep the board
+  // on screen and swap the numbers in place. No phone yet = keep the
+  // placeholder (an empty board here used to flash "log your first act").
+  const loadedPhone = useRef(null);
   useEffect(() => {
     let cancelled = false;
+    if (!phone) return undefined;
     (async () => {
-      setLoading(true);
+      if (loadedPhone.current !== phone) setLoading(true);
       // "Start over at Day 1" marker: the board starts fresh from it (today is
       // Day 1, nothing logged). Lifetime still counts every act.
       // Backlog 94: a child's marker is on family_members (restartMarker.js).
       const since = await getRestartMarker(phone);
       const [r, cnt] = await Promise.all([loadRuns(phone, { since }), lifetimeCompletionCount(phone)]);
-      if (!cancelled) { setRuns(r); setLifetimeCount(cnt); setLoading(false); }
+      if (!cancelled) {
+        setRuns(r); setLifetimeCount(cnt); setLoading(false);
+        loadedPhone.current = phone;
+      }
     })();
     return () => { cancelled = true; };
   }, [phone, reloadKey]);
 
-  if (loading) {
-    return (
-      <View style={s.centerBox}>
-        <ActivityIndicator color={C.primaryText} />
-      </View>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   if (!runs.length) {
     // Brand-new user: show the full 30-slot board with a "+" on the first tile
@@ -623,7 +627,36 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   );
 }
 
+// Fix 2: the loading placeholder - the Today card and 30 tiles in their final
+// places, so nothing moves when the real numbers arrive.
+export function DashboardSkeleton() {
+  return (
+    <View testID="dashboard-skeleton">
+      <View style={s.todayWrap}>
+        <View style={s.todayTop}>
+          <View style={[s.skelBar, { width: 210, height: sf(22) }]} />
+        </View>
+        <View style={[s.ideaCard, { minHeight: 132 }]}>
+          <View style={[s.skelBar, { width: 90, height: 10, marginBottom: 12 }]} />
+          <View style={[s.skelBar, { width: '85%', height: 18, marginBottom: 8 }]} />
+          <View style={[s.skelBar, { width: '60%', height: 18 }]} />
+        </View>
+        <View style={[s.skelBar, { height: 50, borderRadius: 12, marginTop: 12 }]} />
+        <View style={{ height: 41 }} />
+      </View>
+      <View style={s.header} />
+      <View style={s.grid}>
+        {Array.from({ length: CHALLENGE_LEN }, (_, i) => (
+          <View key={i} style={[s.dayCell, s.dayCellSkel]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  skelBar:     { backgroundColor: C.card2, borderRadius: 6 },
+  dayCellSkel: { backgroundColor: C.card2, borderColor: C.card2 },
   centerBox: {
     alignItems: 'center', justifyContent: 'center',
     paddingVertical: 60, paddingHorizontal: 24,

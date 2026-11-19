@@ -496,16 +496,10 @@ const handleConfirmWipe = async () => {
   }
 };
 
-  if (!days) {
-    // First load in flight — show a spinner instead of the "no challenge"
-    // empty state, otherwise the empty state flashes for a beat every cold start.
-    if (daysReloading) {
-      return (
-        <View style={s.empty}>
-          <ActivityIndicator size="large" color={C.primaryText} />
-        </View>
-      );
-    }
+  // Fix 2 (19 Nov 2026): while the first load is in flight, draw the normal
+  // Today layout (DashboardView shows placeholder tiles in their final
+  // places) instead of a spinner screen, so nothing jumps when data lands.
+  if (!days && !daysReloading) {
     return (
       <View style={s.empty}>
         <Text style={{ fontSize: sf(56) }}>🕊️</Text>
