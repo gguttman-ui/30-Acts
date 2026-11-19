@@ -58,3 +58,22 @@ describe('Tree screen', () => {
     expect(TREE).toMatch(/supabase\.rpc\('get_tree_branches'\)/);
   });
 });
+
+// Gary 19 Nov 2026: tap "People you inspired" for a list with act counts.
+describe('People you inspired list', () => {
+  const TREE = read('src', 'screens', 'TreeScreen.js');
+  const SQL  = read('supabase', 'migrations', '20261119_tree_people.sql');
+  test('tapping the number opens the list', () => {
+    expect(TREE).toMatch(/<TouchableOpacity style=\{s\.stat\} onPress=\{openPeople\}/);
+    expect(TREE).toMatch(/supabase\.rpc\('get_tree_people'\)/);
+    expect(TREE).toMatch(/\{p\.name\}/);
+    expect(TREE).toMatch(/\{p\.acts\} \{p\.acts === 1 \? 'act' : 'acts'\}/);
+  });
+  test('server sends first name + last initial and a count - no phone, email or story', () => {
+    expect(SQL).toMatch(/left\(trim\(p\.last_name\), 1\) \|\| '\.'/);
+    expect(SQL).toMatch(/json_build_object\('name', name, 'acts', acts\)/);
+    const out = SQL.slice(SQL.indexOf('json_agg'));
+    expect(out).not.toMatch(/phone|email|notes/);
+    expect(SQL).toContain("'A former member'");
+  });
+});

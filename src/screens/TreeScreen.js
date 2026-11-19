@@ -27,6 +27,23 @@ export default function TreeScreen({ user }) {
   const [branches, setBranches]           = useState([]);   // acts per person, most first
   const [picked, setPicked]               = useState(null); // { own: act } | { friend: true }
   const [inviteUrl, setInviteUrl]         = useState(null);
+  // Gary 19 Nov: tap "People you inspired" -> everyone in your tree with their
+  // act count (first name + last initial only; from get_tree_people()).
+  const [peopleOpen, setPeopleOpen]       = useState(false);
+  const [people, setPeople]               = useState(null);  // null = loading
+
+  const openPeople = async () => {
+    setPeopleOpen(true);
+    setPeople(null);
+    try {
+      const { data, error } = await supabase.rpc('get_tree_people');
+      if (error) throw error;
+      setPeople(Array.isArray(data?.people) ? data.people : []);
+    } catch (e) {
+      console.warn('Tree people load failed:', e.message);
+      setPeople([]);
+    }
+  };
 
   // Refetch every time the tab is opened, so a new act shows straight away.
   useFocusEffect(
@@ -99,10 +116,10 @@ export default function TreeScreen({ user }) {
             <Text style={s.statValue}>{show(myActs)}</Text>
             <Text style={s.statLabel}>{LABELS.lifetime}</Text>
           </View>
-          <View style={s.stat}>
+          <TouchableOpacity style={s.stat} onPress={openPeople} accessibilityRole="button" accessibilityLabel="See the people you inspired">
             <Text style={s.statValue}>{show(peopleUnderMe)}</Text>
-            <Text style={s.statLabel}>{LABELS.invitedPeople}</Text>
-          </View>
+            <Text style={[s.statLabel, s.statLink]}>{LABELS.invitedPeople}</Text>
+          </TouchableOpacity>
           <View style={s.stat}>
             <Text style={s.statValue}>{show(treeActs)}</Text>
             <Text style={s.statLabel}>{LABELS.treeActs}</Text>
@@ -115,6 +132,30 @@ export default function TreeScreen({ user }) {
 
         <Btn label="Invite someone" onPress={invite} style={{ marginTop: 18 }} />
       </ScrollView>
+
+      {/* Everyone in your tree, most acts first. */}
+      <Modal visible={peopleOpen} transparent animationType="fade" onRequestClose={() => setPeopleOpen(false)}>
+        <View style={s.dim}>
+          <View style={[s.leafCard, { maxHeight: '80%' }]}>
+            <Text style={s.peopleTitle}>{LABELS.invitedPeople}</Text>
+            {people == null ? (
+              <Text style={s.leafDate}>Loading…</Text>
+            ) : people.length === 0 ? (
+              <Text style={s.leafStory}>No one yet - tap Invite someone to start your tree.</Text>
+            ) : (
+              <ScrollView style={{ marginTop: 6 }}>
+                {people.map((p, i) => (
+                  <View key={`${p.name}-${i}`} style={s.personRow}>
+                    <Text style={s.personName} numberOfLines={1}>{p.name}</Text>
+                    <Text style={s.personActs}>{p.acts} {p.acts === 1 ? 'act' : 'acts'}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <Btn label="Close" variant="secondary" onPress={() => setPeopleOpen(false)} style={{ marginTop: 16 }} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Tapped leaf: your own act's story and date; a friend's stays private. */}
       <Modal visible={!!picked} transparent animationType="fade" onRequestClose={() => setPicked(null)}>
@@ -156,4 +197,9 @@ const s = StyleSheet.create({
   leafCard: { backgroundColor: C.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.border },
   leafDate: { color: C.sub, fontSize: 14, marginBottom: 8, ...FONT.semi },
   leafStory: { color: C.text, fontSize: 17, lineHeight: 24, ...FONT.body },
+  statLink: { color: C.primaryText, textDecorationLine: 'underline' },
+  peopleTitle: { color: C.text, fontSize: 20, marginBottom: 6, ...FONT.heading },
+  personRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, borderBottomWidth: 1, borderBottomColor: C.border },
+  personName: { flex: 1, color: C.text, fontSize: 16, marginRight: 12, ...FONT.semi },
+  personActs: { color: C.sub, fontSize: 16, ...FONT.bold },
 });
