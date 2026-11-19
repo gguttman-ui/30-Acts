@@ -21,7 +21,9 @@ describe('Me grouped list', () => {
   });
 
   test('header shows the day and the all-time count', () => {
-    expect(ME).toMatch(/`Day \$\{completedCount\} of 30 · \$\{lifetime == null \? '…' : lifetime\} acts all-time`/);
+    // Fix 5: from the shared counter, same labels as Today and Tree.
+    expect(ME).toMatch(/\$\{LABELS\.day\(nums\?\.dayOf\)\} · 🔥 \$\{show\(nums\?\.streak\)\}/);
+    expect(ME).toMatch(/\$\{show\(nums\?\.lifetime\)\} \$\{LABELS\.lifetime\.toLowerCase\(\)\}/);
   });
 
   test('one reminder switch, and no separate ON/OFF chip', () => {

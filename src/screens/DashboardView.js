@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { getRestartMarker } from '../lib/restartMarker';
 import { Btn } from '../components';
 import { dailyIdea, ideaText } from '../lib/actIdeas';
+import { numbersFromRuns } from '../lib/myNumbers';
 
 // Fix 3 (18 Nov 2026): taps on "Show me another idea", remembered for the day.
 const IDEA_SKIP_KEY = 'today_idea_skip';
@@ -325,11 +326,9 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // streaks now log the same way live ones do: tap the "+" on today's tile.
   const hasLoggableDay   = canLogToday;
 
-  // Fix 3: today's place in the 30 and today's saved act (for the card).
-  const todayRow = currentRun.rows.find((r) => rowLocalDate(r) === today) || null;
-  const dayOf = todayRow
-    ? (currentDone || 1)
-    : (isLive ? (currentDone % 30) + 1 : 1);
+  // Fix 5 (19 Nov 2026): Day X and Streak come from the one shared counter
+  // (src/lib/myNumbers.js), the same one Me uses.
+  const { dayOf, streak, todayRow } = numbersFromRuns(runs, { lifetime, today });
 
   // An empty YESTERDAY can always be back-filled (backlog 83, 20 Oct 2026) --
   // even after today is logged. Only offered to someone with history from
@@ -586,7 +585,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
     <View>
       {/* Fix 3: the Today card replaces the old streak header (lifetime now
           shows on Me). */}
-      {renderTodayCard({ dayOf, streak: isLive ? currentRun.length : 0, todayRow })}
+      {renderTodayCard({ dayOf, streak, todayRow })}
       <View style={s.header}>
         {(yesterdayOpen || !isLive) && (
           <Text style={s.subtitle}>

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { show, LABELS, NUMBER_PLACEHOLDER } from '../lib/myNumbers';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '../components';
@@ -29,9 +30,12 @@ const stageLabel = (count) => {
 
 export default function TreeScreen({ user }) {
   const [loading, setLoading]     = useState(true);
-  const [myActs, setMyActs]               = useState(0);
-  const [totalActs, setTotalActs]         = useState(0);
-  const [peopleUnderMe, setPeopleUnderMe] = useState(0);
+  // Fix 5 (19 Nov 2026): null until loaded -> "…", never 0. Same labels as
+  // Today and Me (src/lib/myNumbers.js). "Acts by people you invited" is the
+  // tree's acts WITHOUT your own (Total Acts used to mix yours in).
+  const [myActs, setMyActs]               = useState(null);
+  const [invitedActs, setInvitedActs]     = useState(null);
+  const [peopleUnderMe, setPeopleUnderMe] = useState(null);
   const [totalMin, setTotalMin]   = useState(0);
   const [totalCents, setTotalCts] = useState(0);
 
@@ -51,9 +55,11 @@ export default function TreeScreen({ user }) {
           if (error) throw error;
           if (cancelled) return;
 
-          setMyActs(data?.my_acts || 0);
-          setTotalActs(data?.total_acts || 0);
-          setPeopleUnderMe(data?.people_under_me || 0);
+          const mine  = data?.my_acts ?? null;
+          const total = data?.total_acts ?? null;
+          setMyActs(mine);
+          setInvitedActs(mine != null && total != null ? Math.max(0, total - mine) : null);
+          setPeopleUnderMe(data?.people_under_me ?? null);
         } catch (e) {
           console.warn('Tree screen load failed:', e.message);
         } finally {
@@ -76,28 +82,27 @@ export default function TreeScreen({ user }) {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="My Tree" />
       <ScrollView contentContainerStyle={s.scroll}>
-        {loading ? (
-          <ActivityIndicator size="large" color={C.primaryText} style={{ marginTop: 100 }} />
-        ) : (
+        {/* No spinner: the layout shows at once with "…" in each number. */}
+        {(
           <>
             <View style={s.treeWrap}>
-              <Image source={treeForCount(myActs)} style={s.tree} resizeMode="contain" />
+              <Image source={treeForCount(myActs || 0)} style={s.tree} resizeMode="contain" />
             </View>
 
-            <Text style={s.stageLabel}>{stageLabel(myActs).toUpperCase()}</Text>
+            <Text style={s.stageLabel}>{myActs == null ? NUMBER_PLACEHOLDER : stageLabel(myActs).toUpperCase()}</Text>
 
             <View style={s.statsRow}>
               <View style={s.stat}>
-                <Text style={s.statValue}>{myActs}</Text>
-                <Text style={s.statLabel}>My{'\n'}Acts</Text>
+                <Text style={s.statValue}>{show(myActs)}</Text>
+                <Text style={s.statLabel}>{LABELS.lifetime}</Text>
               </View>
               <View style={s.stat}>
-                <Text style={s.statValue}>{totalActs}</Text>
-                <Text style={s.statLabel}>Total{'\n'}Acts</Text>
+                <Text style={s.statValue}>{show(invitedActs)}</Text>
+                <Text style={s.statLabel}>{LABELS.invitedActs}</Text>
               </View>
               <View style={s.stat}>
-                <Text style={s.statValue}>{peopleUnderMe}</Text>
-                <Text style={s.statLabel}>People{'\n'}Under Me</Text>
+                <Text style={s.statValue}>{show(peopleUnderMe)}</Text>
+                <Text style={s.statLabel}>{LABELS.invitedPeople}</Text>
               </View>
             </View>
           </>

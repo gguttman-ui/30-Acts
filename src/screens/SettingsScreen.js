@@ -10,12 +10,12 @@ import { AppInput, Btn, Card, ScreenHeader, TypedConfirmModal } from '../compone
 // Font-scaling-locked Text so large iOS Text Size can't overflow/clip layout
 // (notably the SMS consent disclosure, which must stay fully visible).
 import { Text } from '../components/scaledText';
-import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT } from '../constants';
+import { C, STATE_IANA_TZ, SMS_CONSENT_VERSION, SMS_CONSENT_TEXT, todayStr } from '../constants';
 import { lookupZip } from '../lib/zip';
 import { reminderZoneForSave } from '../lib/reminderTimezone';
 import { isContentBlocked, BLOCKED_MESSAGE } from '../lib/moderation';
 import { generateInviteLink } from '../lib/branch';
-import { loadRuns, lapCount, actsInLap, lifetimeCompletionCount } from '../lib/runs';
+import { loadMyNumbers, LABELS, show } from '../lib/myNumbers';
 import { reportProblem } from '../lib/reportProblem';
 import { actingPhone } from '../lib/actingAs';
 import { useActingMember } from '../components/ProfileSwitcher';
@@ -297,34 +297,23 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
     }
   };
 
-  // "My 30 Acts" progress must match the Dashboard headline exactly: the CURRENT
-  // STREAK's acts (any missed day restarts it) — NOT every act inside the 30-day
-  // back-fill window. We derive it from the SAME runs model the Dashboard uses
-  // (loadRuns), so the two screens can never disagree. Until the runs load (or if
-  // the query fails) we fall back to the window-completed count so a number always
-  // shows.
-  const windowCompleted = challenge?.filter(d => d.status === 'COMPLETED').length ?? 0;
-  const [streakActs, setStreakActs] = useState(null);
-  // Backlog 94: this card (count + Start over) follows the person selected on
-  // Home, so a child's Start over is never shown under the parent's count.
+  // Fix 5 (19 Nov 2026): Me's numbers come from the one shared counter
+  // (src/lib/myNumbers.js), the same one Today uses, so they always agree.
+  // null until loaded -> shown as "…", never 0. Follows the person selected
+  // on Today (backlog 94).
   const acting = useActingMember();
+  const [nums, setNums] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    setStreakActs(null);
     const phone = actingPhone(user?.email);
-    if (!phone) return;
-    (async () => {
-      try {
-        const runs = await loadRuns(phone);
-        if (cancelled || !runs.length) return;
-        const currentRun = runs[runs.length - 1];
-        const lap = lapCount(currentRun) - 1;
-        setStreakActs(actsInLap(currentRun, lap));
-      } catch (_) { /* keep the fallback count */ }
-    })();
+    if (!phone) return undefined;
+    loadMyNumbers(phone, todayStr())
+      .then((n) => { if (!cancelled && n) setNums(n); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [user?.email, challenge, acting]);
-  const completedCount = streakActs != null ? streakActs : windowCompleted;
+  // Switching person: show "…" again until their numbers load.
+  useEffect(() => { setNums(null); }, [acting]);
 
   // Restart must call onRestart (App.handleRestart), which writes the
   // last_restart_at marker on the profile that loadGridReadOnly filters by.
@@ -579,18 +568,6 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   const [openGroups, setOpenGroups] = useState(false);
   const [openLegal, setOpenLegal] = useState(false);
 
-  // "N acts all-time" in the header - same count as the Home dashboard.
-  const [lifetime, setLifetime] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    const phone = actingPhone(user?.email);
-    if (!phone) return undefined;
-    lifetimeCompletionCount(phone)
-      .then((n) => { if (!cancelled && typeof n === 'number') setLifetime(n); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [user?.email, challenge, acting]);
-
   // The text-message consent wording shows once, at the moment someone turns
   // texts on; they must tap "Yes, text me" before anything is saved.
   const onReminderSwitch = (next) => {
@@ -612,9 +589,11 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
   const displayName = acting
     ? acting.first_name
     : [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Me';
+  // Same labels as Today and Tree (LABELS in myNumbers.js).
   const headerLine = challenge
-    ? `Day ${completedCount} of 30 · ${lifetime == null ? '…' : lifetime} acts all-time`
+    ? `${LABELS.day(nums?.dayOf)} · 🔥 ${show(nums?.streak)}`
     : 'Not started yet';
+  const headerLine2 = `${show(nums?.lifetime)} ${LABELS.lifetime.toLowerCase()} · ${LABELS.best} ${show(nums?.bestStreak)}`;
   const isAdminUser = user?.role === 'OWNER' || user?.role === 'ADMIN';
 
   // Age picker, shared by the profile page.
@@ -741,6 +720,7 @@ export default function SettingsScreen({ user, challenge, onStartChallenge, onRe
         <View style={s.meHeader}>
           <Text style={s.meName}>{displayName}</Text>
           <Text style={s.meLine}>{headerLine}</Text>
+          <Text style={s.meLine}>{headerLine2}</Text>
           {!challenge && <Btn label="Start 🚀" onPress={onStartChallenge} style={{ marginTop: 12 }} />}
         </View>
 
