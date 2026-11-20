@@ -69,3 +69,17 @@ describe('EAS Android build and submit', () => {
     expect(gi).toMatch(/play-service-account\*\.json/);
   });
 });
+
+describe('Next Android build (items 115 + splash, 20 Nov 2026)', () => {
+  test('advertising ID permission is blocked (Play told: app does not use advertising ID)', () => {
+    expect(app.android.blockedPermissions).toContain('com.google.android.gms.permission.AD_ID');
+    expect(app.android.permissions).not.toContain('com.google.android.gms.permission.AD_ID');
+  });
+  test('Facebook SDK never collects the advertiser ID', () => {
+    const fb = app.plugins.find((p) => Array.isArray(p) && p[0] === 'react-native-fbsdk-next');
+    expect(fb[1].advertiserIDCollectionEnabled).toBe(false);
+  });
+  test('splash matches the light cream theme', () => {
+    expect(app.splash.backgroundColor).toBe('#FBFAF5');
+  });
+});
