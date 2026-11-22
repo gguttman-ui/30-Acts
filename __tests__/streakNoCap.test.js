@@ -21,11 +21,13 @@ describe('runs.js puts no length cap on a streak', () => {
   });
 
   test('only a gap splits a run', () => {
-    // The one place a run is cut. It must test the date gap and nothing else:
+    // The one place a run is cut. It must test the date gap (or a Start over) only:
     // a `current.length >= N` term here silently chops live streaks at 30.
     const m = runsSrc.match(/\n\s*if \((.*GAP_ENDS_RUN.*)\) \{\n/);
     expect(m).not.toBeNull();
-    expect(m[1]).toBe('dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN');
+    // 22 Nov 2026: a Start over is the one other allowed cut (restartBreak).
+    expect(m[1]).toBe('restartBreak || dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN');
+    expect(runsSrc).not.toMatch(/current\.length\s*>=/);
   });
 
   test('lapCount still rolls over at 31, 61, 91', () => {

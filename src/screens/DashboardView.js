@@ -319,7 +319,10 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // Is there actually a day the user may log right now? You may log TODAY, or
   // back-fill YESTERDAY -- nothing else. "Alive" only means a run COULD be
   // extended; it does not mean an unlogged day exists.
-  const loggedDates      = new Set(currentRun.rows.map((r) => rowLocalDate(r)));
+  // After a Start over the last streak is closed: nothing is logged on the new
+  // board yet, so today (and only today) is offered as Day 1.
+  const restarted        = !!currentRun.endedByRestart;
+  const loggedDates      = new Set(restarted ? [] : currentRun.rows.map((r) => rowLocalDate(r)));
   const canLogToday      = !loggedDates.has(today);
   const canLogYesterday  = !loggedDates.has(yesterday);
   // The in-grid "+" TODAY tile shows whenever today is unlogged -- whether the
@@ -337,7 +340,7 @@ export default function DashboardView({ phone, navigation, reloadKey }) {
   // before yesterday, so a brand-new member's first board is just today.
   const allDates      = new Set(runs.flatMap((r) => (r.rows || []).map((row) => rowLocalDate(row))));
   const earliestDate  = [...allDates].filter(Boolean).sort()[0];
-  const yesterdayOpen = !allDates.has(yesterday) && !!earliestDate && earliestDate < yesterday;
+  const yesterdayOpen = !restarted && !allDates.has(yesterday) && !!earliestDate && earliestDate < yesterday;
 
   // Build the swipe pages from consecutive-day blocks (see buildPages).
   const pages = buildPages(runs, { today, hasLoggableDay, yesterdayOpen });

@@ -33,12 +33,15 @@ export const LABELS = {
 /**
  * The numbers from already-loaded data (pure - used by Today, which loads the
  * runs itself, and by loadMyNumbers below).
- *   runs      runs since the Start over marker (the current board)
+ *   runs      every run, split at the Start over marker (the board)
  *   allRuns   every run ever (for Best streak); defaults to runs
  *   lifetime  straight count of completion rows
  */
 export function numbersFromRuns(runs, { allRuns = runs, lifetime = null, today } = {}) {
-  const currentRun = runs && runs.length ? runs[runs.length - 1] : null;
+  const lastRun = runs && runs.length ? runs[runs.length - 1] : null;
+  // A Start over after the last act: that streak is over and today is Day 1
+  // with nothing logged on the new board (the acts themselves stay).
+  const currentRun = lastRun && !lastRun.endedByRestart ? lastRun : null;
   if (!currentRun) {
     return { dayOf: 1, streak: 0, bestStreak: bestRunLength(allRuns || []), lifetime, loggedToday: false, todayRow: null };
   }
@@ -62,6 +65,7 @@ export function numbersFromRuns(runs, { allRuns = runs, lifetime = null, today }
 export async function loadMyNumbers(phone, today) {
   if (!phone) return null;
   const since = await getRestartMarker(phone);
+  // runs: every act, split at the Start over. allRuns: no split (Best streak).
   const [runs, allRuns, lifetime] = await Promise.all([
     loadRuns(phone, { since }),
     since ? loadRuns(phone) : Promise.resolve(null),

@@ -71,7 +71,16 @@ export function rowLocalDate(row) {
  *     isAlive:   Boolean  // true only for a current, still-extendable run
  *   }
  */
-export function splitIntoRuns(completions, todayDate = localDateStr(new Date())) {
+// START OVER (Gary, 22 Nov 2026): "Start over at Day 1" must NEVER hide past
+// acts. Ghenno restarted on 20 Sep and his calendar lost Sep 15-19 while his
+// Tree still counted them (21 vs 26). Now every act stays on the board; the
+// marker only forces a streak BREAK: acts saved before it close the old
+// streak (marked endedByRestart), acts saved after it start a new one at
+// Day 1, even on the next calendar day. Pass `since` = last_restart_at.
+export function splitIntoRuns(completions, todayDate = localDateStr(new Date()), { since = null } = {}) {
+  const sinceMs = since ? Date.parse(since) : NaN;
+  const afterRestart = (row) =>
+    Number.isFinite(sinceMs) && Date.parse(row?.completed_at || '') >= sinceMs;
   if (!completions?.length) return [];
 
   // Dedupe rows sharing a calendar day (keep the latest write).
@@ -96,12 +105,19 @@ export function splitIntoRuns(completions, todayDate = localDateStr(new Date()))
   for (let i = 1; i < rows.length; i++) {
     const prevDate = rowLocalDate(rows[i - 1]);
     const thisDate = rowLocalDate(rows[i]);
-    if (dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN) {
+    const restartBreak = Number.isFinite(sinceMs) && !afterRestart(rows[i - 1]) && afterRestart(rows[i]);
+    if (restartBreak) current.endedByRestart = true;
+    if (restartBreak || dayDiff(prevDate, thisDate) >= GAP_ENDS_RUN) {
       runs.push(current);
       current = [rows[i]];
     } else {
       current.push(rows[i]);
     }
+  }
+  // A Start over made AFTER the last act ends that last streak too: today is
+  // Day 1 with nothing logged on the new board.
+  if (Number.isFinite(sinceMs) && !afterRestart(current[current.length - 1])) {
+    current.endedByRestart = true;
   }
   runs.push(current);
 
@@ -116,9 +132,10 @@ export function splitIntoRuns(completions, todayDate = localDateStr(new Date()))
     // starts a new streak, so a run whose last act is 2+ days back has ended and
     // logging today begins a fresh one. Display-only — whether the user can still
     // log or back-fill is decided separately (canLogToday / canLogYesterday).
-    const isAlive = isLast && dayDiff(endDate, todayDate) <= 1;
+    const endedByRestart = !!r.endedByRestart;
+    const isAlive = isLast && !endedByRestart && dayDiff(endDate, todayDate) <= 1;
 
-    return { rows: r, startDate, endDate, length: r.length, isAlive };
+    return { rows: r, startDate, endDate, length: r.length, isAlive, endedByRestart };
   });
 }
 
@@ -195,21 +212,20 @@ export function actsInLap(run, lapIndex) {
 export async function loadRuns(phone, { since = null } = {}) {
   if (!phone) return [];
   try {
-    // `since` = profiles.last_restart_at. After "Start over at Day 1" the
-    // board shows only acts saved after it, so today is Day 1 with nothing
-    // logged (Gary, 21 Oct 2026). Nothing is deleted; Undo clears the marker.
-    let query = supabase
+    // `since` = profiles.last_restart_at. Every act is loaded - a Start over
+    // never hides past acts (22 Nov 2026); it only breaks the streak there,
+    // so today is Day 1 on a fresh board. Undo clears the marker.
+    const { data, error } = await supabase
       .from('completions')
       .select('id, act_title, proof_type, completed_at, local_date, notes')
-      .eq('user_phone', phone);
-    if (since) query = query.gte('completed_at', since);
-    const { data, error } = await query.order('completed_at', { ascending: true });
+      .eq('user_phone', phone)
+      .order('completed_at', { ascending: true });
 
     if (error || !data) {
       console.warn('loadRuns error:', error?.message);
       return [];
     }
-    return splitIntoRuns(data);
+    return splitIntoRuns(data, undefined, { since });
   } catch (e) {
     console.warn('loadRuns failed:', e.message);
     return [];

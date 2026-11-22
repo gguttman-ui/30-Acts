@@ -71,12 +71,28 @@ export function buildPages(runs, { today = '', hasLoggableDay = false, yesterday
   const dates = [...byDate.keys()].sort();
   if (!dates.length) return [];
 
+  // START OVER (22 Nov 2026): a restart never hides acts; it only BREAKS the
+  // streak. runs.js marks the run before the marker endedByRestart, so the
+  // first date of the run after it must start a new piece even when the days
+  // are consecutive. If the LAST run ended by restart, today gets a fresh board.
+  const restartCuts = new Set();
+  runs.forEach((run, ri) => {
+    const next = runs[ri + 1];
+    if (run.endedByRestart && next && next.rows && next.rows.length) {
+      restartCuts.add(rowLocalDate(next.rows[0]));
+    }
+  });
+  const lastRun = runs[runs.length - 1];
+  const restartedAfterLast = !!(lastRun && lastRun.endedByRestart);
+  // Consecutive AND not split by a Start over.
+  const joins = (a, b) => dayDiffDays(a, b) === 1 && !restartCuts.has(b);
+
   // Which dates belong to a 30+ consecutive-day block (a completed challenge)?
   const challengeDates = new Set();
   {
     let s = 0;
     for (let i = 1; i <= dates.length; i++) {
-      if (i === dates.length || dayDiffDays(dates[i - 1], dates[i]) !== 1) {
+      if (i === dates.length || !joins(dates[i - 1], dates[i])) {
         if (i - s >= CHALLENGE_LEN) {
           // The WHOLE block belongs to the challenge, remainder included. A
           // 38-day block is one 38-day streak: page 1 holds days 1-30, page 2
@@ -97,7 +113,7 @@ export function buildPages(runs, { today = '', hasLoggableDay = false, yesterday
       let j = i + 1;
       // No 30-day cap on the piece: the challenge runs as long as the
       // consecutive block does, and the lap loop below pages it 30 at a time.
-      while (j < dates.length && challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1) j++;
+      while (j < dates.length && challengeDates.has(dates[j]) && joins(dates[j - 1], dates[j])) j++;
       pieces.push({ kind: 'challenge', dates: dates.slice(i, j) });
       i = j;
     } else {
@@ -105,7 +121,7 @@ export function buildPages(runs, { today = '', hasLoggableDay = false, yesterday
       // A streak is now ONLY truly-consecutive days: ANY gap (a single missed,
       // un-backfilled day) ends the streak, so the next completion starts a
       // fresh streak numbered from Day 1.
-      while (j < dates.length && !challengeDates.has(dates[j]) && dayDiffDays(dates[j - 1], dates[j]) === 1) j++;
+      while (j < dates.length && !challengeDates.has(dates[j]) && joins(dates[j - 1], dates[j])) j++;
       pieces.push({ kind: 'fragment', dates: dates.slice(i, j) });
       i = j;
     }
@@ -214,7 +230,7 @@ export function buildPages(runs, { today = '', hasLoggableDay = false, yesterday
         // alive (last act was today or yesterday). A 32-day streak that died in
         // July must render its lap 2 as a past page, not as a live board with a
         // "+" on it.
-        const stillAlive = dayDiffDays(ds[ds.length - 1], today) <= 1;
+        const stillAlive = dayDiffDays(ds[ds.length - 1], today) <= 1 && !restartedAfterLast;
 
         if (isCurrent && isLastLap && !isFull && stillAlive) {
           // In-progress lap (e.g. day 31): its own fresh 30-day board — logged
@@ -246,7 +262,9 @@ export function buildPages(runs, { today = '', hasLoggableDay = false, yesterday
     // fragment
     if (isCurrent) {
       const lastDate   = pc.dates[pc.dates.length - 1];
-      const gapToToday = dayDiffDays(lastDate, today);
+      // Restarted after this streak's last act: treat it as ended (packed with
+      // the earlier streaks) so today starts a fresh board as Day 1.
+      const gapToToday = restartedAfterLast ? Infinity : dayDiffDays(lastDate, today);
       if (gapToToday === 0 && yesterdayOpen) {
         // Today is logged but yesterday is still empty: offer yesterday first.
         // (Today then stands alone, so it is day 1 until yesterday is filled.)

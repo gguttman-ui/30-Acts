@@ -76,7 +76,10 @@ describe('start over: today is Day 1 with nothing logged', () => {
 
   test('the dashboard and the save both use the marker', () => {
     expect(read('src/screens/DashboardView.js')).toMatch(/loadRuns\(phone, \{ since \}\)/);
-    expect(read('src/lib/runs.js')).toMatch(/gte\('completed_at', since\)/);
+    // 22 Nov 2026: runs.js no longer FILTERS by the marker (that hid past acts
+    // from the calendar); it splits the streak there instead. See
+    // restartKeepsActs.test.js.
+    expect(read('src/lib/runs.js')).toMatch(/splitIntoRuns\(data, undefined, \{ since \}\)/);
     expect(read('src/screens/MyStoryScreen.js')).toMatch(/rowsSince\(rowsNow \|\| \[\], since\)/);
   });
 });
