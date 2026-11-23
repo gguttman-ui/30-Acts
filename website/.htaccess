@@ -1,7 +1,5 @@
 # Cache policy for 30actsofkindness.org
-# HTML pages: never cache, always fetch fresh so content edits show immediately.
-# JS/CSS: may be cached, but we version them (e.g. site.js?v=2) so a bump forces
-# browsers to fetch the new file right away.
+# HTML: never cache, always serve fresh. JS/CSS: cache 1 day (we version with ?v=).
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -12,3 +10,6 @@
     Header set Cache-Control "public, max-age=86400"
   </FilesMatch>
 </IfModule>
+
+# Short links for influencers (30actsofkindness.org/name -> their Branch link)
+RedirectMatch 302 (?i)^/david/?$ https://alrpa.app.link/david-test
