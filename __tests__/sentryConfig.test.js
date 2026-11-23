@@ -53,3 +53,11 @@ describe('Sentry init is wired up at all', () => {
     expect(APP_JS).toMatch(/mobileReplayIntegration\(\)/);
   });
 });
+
+describe('Sentry ignores development builds (item 95)', () => {
+  test('Sentry.init is disabled when __DEV__ is true', () => {
+    // Emulator / dev-client errors cannot happen in real builds and only add
+    // noise to Sentry and its weekly report. Do not remove this line.
+    expect(APP_JS).toMatch(/^\s*enabled:\s*!__DEV__\s*,/m);
+  });
+});

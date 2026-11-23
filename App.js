@@ -31,6 +31,12 @@ import * as Sentry from '@sentry/react-native';
 Sentry.init({
   dsn: 'https://7c3a17bbdcfd82afaaf7c7736cbe56d6@o4511314891177984.ingest.us.sentry.io/4511314893537280',
 
+  // Item 95 (23 Nov 2026): never report from a development build (the laptop
+  // emulator / dev client). Its errors - e.g. a font failing to load from the
+  // laptop code server - cannot happen in a real build and only add noise.
+  // Preview (staging) and production builds are not __DEV__, so they still report.
+  enabled: !__DEV__,
+
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
